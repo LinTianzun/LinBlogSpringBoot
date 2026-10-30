@@ -17,7 +17,7 @@ services:
       - --ngram_token_size=2
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 设置 MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-linblog}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-springlinblog}
       MYSQL_USER: ${DB_USERNAME:?请在 .env 设置 DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD:?请在 .env 设置 DB_PASSWORD}
       TZ: ${TZ:-Asia/Shanghai}
@@ -105,7 +105,7 @@ services:
       dockerfile: backup/Dockerfile
     image: linblog/backup:latest
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-linblog}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-springlinblog}
       DB_HOST: mysql
       DB_PORT: "3306"
       DB_USERNAME: ${DB_USERNAME:?请在 .env 设置 DB_USERNAME}

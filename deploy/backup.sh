@@ -21,7 +21,7 @@ log() { printf '[backup] %s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 
 mkdir -p "$BACKUP_DIR"
 TS="$(date +%Y%m%d_%H%M%S)"
-DUMP="$BACKUP_DIR/linblog_${TS}.sql.gz"
+DUMP="$BACKUP_DIR/springlinblog_${TS}.sql.gz"
 
 log "开始 mysqldump（库：${MYSQL_DATABASE}）-> $DUMP"
 # --single-transaction：InnoDB 一致性快照不锁表；--hex-blob：二进制安全；
@@ -41,7 +41,7 @@ fi
 log "mysqldump 完成，大小 $(du -h "$DUMP" | cut -f1)"
 
 # 滚动删除：只保留最近 BACKUP_KEEP_DAYS 天
-find "$BACKUP_DIR" -name 'linblog_*.sql.gz' -type f -mtime +"$BACKUP_KEEP_DAYS" -delete
+find "$BACKUP_DIR" -name 'springlinblog_*.sql.gz' -type f -mtime +"$BACKUP_KEEP_DAYS" -delete
 log "已清理 ${BACKUP_KEEP_DAYS} 天前的旧备份"
 
 # ── 备份区配额检查：上限 BACKUP_QUOTA_BYTES（默认 2GiB），80% 告警 ────────

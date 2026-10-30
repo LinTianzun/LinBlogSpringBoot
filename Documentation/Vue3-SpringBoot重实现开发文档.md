@@ -298,7 +298,7 @@ id, uploader_id, storage_key UNIQUE, original_name, mime_type, size_bytes, sha25
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
 | SERVER_PORT | 8080 | |
-| DB_URL / DB_USERNAME / DB_PASSWORD | — | 启动强校验，缺失拒绝启动（继承原 config/default.js 哲学） |
+| DB_URL / DB_USERNAME / DB_PASSWORD | — | 启动强校验，缺失拒绝启动（继承原 config/default.js 哲学）；应用库名固定为 `springlinblog` |
 | JWT_ACCESS_SECRET | 必填 ≥32 字符 | |
 | JWT_ACCESS_TTL / REFRESH_TTL_DAYS | PT15M / 7 | |
 | COOKIE_DOMAIN / COOKIE_SECURE | 空 / true(prod) | 跨子域部署时设 DOMAIN |

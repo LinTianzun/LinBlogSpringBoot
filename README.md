@@ -37,11 +37,18 @@ Documentation/           蓝图、立案、开发进度、数据库与开发文�
 .github/workflows/       CI 门禁（backend / frontend / contract / e2e）
 ```
 
+## 当前状态
+
+> 后端已注册 **17 个端点**（认证 8 / 权限 3 / 管理端用户 6），`V1__init.sql` 建齐 **22 张表**；
+> 前端完成工程配置、请求层、会话 store 与 6 个门户页面。
+> **已知阻塞项**（前端 22 个页面组件待补、后端无测试、CI 三处配置待修）见
+> [`Documentation/开发进度.md`](Documentation/开发进度.md) §4。
+
 ## 本地开发
 
 ### 1. 数据库
 
-准备一个 MySQL 8.4 实例（或直接用 `deploy/` 里的 compose 只起 mysql）：
+准备一个 MySQL 8.4 实例（或直接用 `deploy/` 里的 compose 只起 mysql），应用库名为 `springlinblog`：
 
 ```bash
 docker compose -f deploy/docker-compose.yml up -d mysql
@@ -106,7 +113,7 @@ Caddy 负责静态资源与 `/api` 反代，配置见 `deploy/Caddyfile`（本�
 | [Vue3-SpringBoot 重实现开发文档](Documentation/Vue3-SpringBoot重实现开发文档.md) | 重实现的接口、约定与验收口径 |
 | [开发进度](Documentation/开发进度.md) | 逐模块进度跟踪 |
 | [项目搭建历程](Documentation/项目搭建历程.md) | 搭建过程与踩坑记录 |
-| [Linlog 数据库文档](Documentation/Linlog%20数据库文档（Typora%20版）.md) | 表结构与字段说明 |
+| [SpringLinBlog 数据库文档](Documentation/SpringLinBlog%20数据库文档.md) | 22 张表的结构、索引与字段说明 |
 
 ## 许可
 
