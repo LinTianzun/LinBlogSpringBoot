@@ -1,0 +1,270 @@
+# LinBlog CI 门禁（文档 §8.4）：backend / frontend / contract / e2e 四 job
+# - backend：mvn verify（Testcontainers）+ JaCoCo 行覆盖 ≥70%（口径：com/linblog 下全部包）+ 导出 openapi.json
+# - frontend：pnpm lint / vitest / build + size-limit（§8.4 阈值：首屏 ≤300KB gzip；editor chunk ≤500KB；总 JS ≤1.2MB）
+# - contract：openapi.json → pnpm gen:api → git diff --exit-code src/types/api.d.ts（契约漂移即红）
+# - e2e：workflow_dispatch / 每日 schedule 触发，compose 起全栈跑 Playwright 冒烟
+#   （§8.4：PR 只跑 12 条冒烟——待 §8.3 E2E 用例落地后再开放 PR 触发）
+#
+# 对 backend 侧的两点约定：
+#   * openapi.json 采用「启动 jar 后拉 /v3/api-docs」方案，要求 SecurityConfig 放行
+#     /actuator/health 与 /v3/api-docs（匿名可读），否则导出失败；
+#   * JaCoCo agent 由 CI 侧注入，不要求 pom 绑定；但若 pom 自定义了 surefire 的 argLine，
+#     必须在其中引用 ${argLine}，否则覆盖率采集不到、门禁会报错。
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 21 * * *"   # 每日 21:30 UTC（北京时间 05:30）
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  backend:
+    name: backend（verify + JaCoCo ≥70% + openapi.json）
+    runs-on: ubuntu-latest
+    services:
+      # 供 openapi 导出时真实启动后端（§4.3 启动强校验需要完整 DB 环境）；
+      # 单测仓库层用 Testcontainers 自行起容器，与本服务互不影响
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+          MYSQL_DATABASE: linblog
+        ports:
+          - "3306:3306"
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 30s
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # Testcontainers 依赖 Docker，ubuntu-latest 自带
+      - name: mvn verify（Testcontainers 真库测试）
+        working-directory: backend
+        run: |
+          mvn -B \
+            org.jacoco:jacoco-maven-plugin:0.8.12:prepare-agent \
+            verify \
+            org.jacoco:jacoco-maven-plugin:0.8.12:report
+
+      # 覆盖率门禁在 CI 侧执行，不依赖 backend pom 是否绑定 jacoco:check
+      - name: JaCoCo 行覆盖门禁（com/linblog ≥70%）
+        working-directory: backend
+        run: |
+          CSV=target/site/jacoco/jacoco.csv
+          if [ ! -f "$CSV" ]; then
+            echo "::error::未找到 $CSV。请确认 backend 存在可执行测试；若 pom 自定义了 surefire argLine，需在其中引用 \${argLine} 以注入 jacoco agent"
+            exit 1
+          fi
+          awk -F, '
+            NR > 1 && $2 ~ /^com\/linblog/ { missed += $8; covered += $9 }
+            END {
+              total = missed + covered
+              if (total == 0) { print "::error::jacoco.csv 中没有 com/linblog 包的数据行"; exit 1 }
+              pct = covered * 100 / total
+              printf "行覆盖（com/linblog）：%.2f%%（covered=%d total=%d）\n", pct, covered, total
+              if (pct < 70) { print "::error::核心包行覆盖率低于 70% 门禁"; exit 1 }
+            }' "$CSV"
+
+      # openapi.json 导出（「二选一」中的方案 B：不依赖 pom 接插件），步骤：
+      #   1) 用上方 service 容器的 MySQL 真实启动后端 jar（变量满足 §4.3 启动强校验）
+      #   2) 轮询 /actuator/health 直到就绪（最长 120s）
+      #   3) GET /v3/api-docs 存为 openapi.json，供 contract job 生成前端类型
+      # 备选方案 A：backend pom 接 springdoc-openapi-maven-plugin 后改为读 target/ 产物。
+      - name: 启动后端并导出 openapi.json
+        working-directory: backend
+        env:
+          SERVER_PORT: "8080"
+          DB_URL: "jdbc:mysql://127.0.0.1:3306/linblog?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai"
+          DB_USERNAME: root
+          DB_PASSWORD: ci-root-password
+          JWT_ACCESS_SECRET: ci-only-jwt-access-secret-0123456789abcdef
+          JWT_ACCESS_TTL: PT15M
+          REFRESH_TTL_DAYS: "7"
+          COOKIE_SECURE: "false"
+          ALLOWED_ORIGINS: http://localhost:5173
+          STORAGE_DRIVER: local
+          STORAGE_LOCAL_DIR: ./data/storage
+          GEOIP_ENABLED: "false"
+        run: |
+          java -jar target/*.jar > app.log 2>&1 &
+          ready=""
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/actuator/health > /dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          if [ -z "$ready" ]; then
+            echo "::error::后端 120s 内未通过 /actuator/health 健康检查"
+            tail -n 200 app.log
+            exit 1
+          fi
+          curl -fsS http://127.0.0.1:8080/v3/api-docs -o openapi.json
+          echo "openapi.json 大小：$(wc -c < openapi.json) bytes"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi-json
+          path: backend/openapi.json
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: backend/target/site/jacoco/
+          retention-days: 7
+
+  frontend:
+    name: frontend（lint + vitest + build + size-limit）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: corepack 启用 pnpm
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: lint
+        run: pnpm run lint
+
+      - name: 单元测试（vitest）
+        run: pnpm exec vitest run
+
+      - name: 构建
+        run: pnpm run build
+
+      # §8.4 阈值：首屏 ≤300KB gzip；editor chunk ≤500KB；总 JS ≤1.2MB
+      # 预算配置在 frontend/.size-limit.json（随前端里程碑落地）
+      - name: size-limit 体积预算
+        run: pnpm exec size-limit
+
+  contract:
+    name: contract（OpenAPI 契约漂移检查）
+    needs: backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      # 约定：frontend 的 gen:api 脚本从 frontend/openapi.json 读取
+      - uses: actions/download-artifact@v4
+        with:
+          name: openapi-json
+          path: frontend
+
+      - name: corepack 启用 pnpm
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 生成前端类型（openapi-typescript）
+        run: pnpm run gen:api
+
+      # git add -N：api.d.ts 尚未被 git 跟踪时也能被 diff 捕捉（防止静默通过）
+      - name: 契约漂移检查（漂移即红）
+        run: |
+          test -f src/types/api.d.ts
+          git add --intent-to-add src/types/api.d.ts 2>/dev/null || true
+          git diff --exit-code -- src/types/api.d.ts
+
+  e2e:
+    name: e2e（compose 全栈 + Playwright 冒烟）
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # CI 专用 .env：占位密钥 + Caddyfile.local（http，仅 :80）；变量与值见 deploy/ci.env
+      - name: 准备 CI 专用 .env
+        working-directory: deploy
+        run: cp ci.env .env
+
+      - name: 构建并启动 compose 栈
+        working-directory: deploy
+        run: docker compose up -d --build --wait --wait-timeout 300
+
+      - name: corepack 启用 pnpm
+        run: corepack enable
+
+      # e2e 为 schedule 触发的骨架 job：lockfile 与 Playwright 未落地前不启用缓存/不设卡
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 安装依赖
+        working-directory: frontend
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install
+          fi
+
+      # Playwright 依赖与 §8.3 的 12 条冒烟用例由后续里程碑落地；
+      # 就绪前本 job 仅验证：compose 全栈起得来 + Caddy 静态与 /api 反代链路通
+      - name: 冒烟检查（Playwright 就绪前为 curl 占位）
+        working-directory: frontend
+        run: |
+          if [ -f playwright.config.ts ]; then
+            pnpm exec playwright install --with-deps chromium
+            pnpm exec playwright test
+          else
+            curl -fsS http://localhost/ -o /dev/null -w "GET / -> %{http_code}\n"
+            code="$(curl -s -o /dev/null -w '%{http_code}' 'http://localhost/api/auth/me')"
+            if [ "$code" = "000" ] || [ "$code" = "502" ] || [ "$code" = "504" ]; then
+              echo "::error::经 Caddy 反代访问 /api 失败（HTTP $code）"
+              exit 1
+            fi
+            echo "GET /api/auth/me -> $code（反代链路通）"
+          fi
+
+      - name: 上传 Playwright 报告
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7

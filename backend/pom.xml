@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  LinBlog 后端（开发文档 §2：Maven 单模块）
+  Java 21 / Spring Boot 3.5.x / MyBatis-Plus / Flyway / Caffeine / jjwt
+  禁用 Lombok：全部用 record 与显式代码（任务约束）。
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.5.6</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.linblog</groupId>
+  <artifactId>linblog-backend</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <name>linblog-backend</name>
+  <description>LinBlog · Vue3 + Spring Boot 重实现 — 后端单体</description>
+
+  <properties>
+    <java.version>21</java.version>
+    <mybatis-plus.version>3.5.12</mybatis-plus.version>
+    <mybatis-spring.version>3.0.4</mybatis-spring.version>
+    <jjwt.version>0.12.6</jjwt.version>
+    <springdoc.version>2.8.9</springdoc.version>
+    <bucket4j.version>8.10.1</bucket4j.version>
+    <tika.version>2.9.2</tika.version>
+    <thumbnailator.version>0.4.20</thumbnailator.version>
+    <webp-imageio.version>0.1.6</webp-imageio.version>
+  </properties>
+
+  <dependencies>
+    <!-- Web / 安全 / 校验 / 运维 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
+    <!-- 数据访问：MyBatis-Plus（显式 SQL + 构建器，文档 §1.1）。
+         3.5.9 起 starter 不再传递 mybatis-spring，需显式引入。 -->
+    <dependency>
+      <groupId>com.baomidou</groupId>
+      <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+      <version>${mybatis-plus.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mybatis</groupId>
+      <artifactId>mybatis-spring</artifactId>
+      <version>${mybatis-spring.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- 迁移 -->
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-mysql</artifactId>
+    </dependency>
+
+    <!-- 缓存 -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+
+    <!-- 认证：jjwt 0.12.x -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>${jjwt.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- API 契约：springdoc 生成 openapi.json（文档 §1.2 类型单源） -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>${springdoc.version}</version>
+    </dependency>
+
+    <!-- 限流：Bucket4j 进程内令牌桶，仅挂 login/register/reset-*（文档 §7.8） -->
+    <dependency>
+      <groupId>com.bucket4j</groupId>
+      <artifactId>bucket4j-core</artifactId>
+      <version>${bucket4j.version}</version>
+    </dependency>
+
+    <!-- 文件类型探测：Tika core 按 magic bytes 校验（文档 §7.5，媒体轮次启用） -->
+    <dependency>
+      <groupId>org.apache.tika</groupId>
+      <artifactId>tika-core</artifactId>
+      <version>${tika.version}</version>
+    </dependency>
+
+    <!-- 图片管线：Thumbnailator 缩略图（媒体轮次启用） -->
+    <dependency>
+      <groupId>net.coobird</groupId>
+      <artifactId>thumbnailator</artifactId>
+      <version>${thumbnailator.version}</version>
+    </dependency>
+
+    <!--
+      WebP 编码器选型：org.sejda.imageio:webp-imageio（媒体轮次启用）。
+      选择理由：单个 jar 内捆绑 Windows x64 / macOS / Linux 的 libwebp 原生库，
+      无任何系统级依赖，Java 21 + Windows 11 开发机开箱即用；以 ImageIO 插件形式
+      提供，能直接替换 sharp 在原管线中的 WebP 编码职责（文档 §1.1 / §7.5）。
+      若验收时画质/性能不达标（文档 §11 风险①），可切换为 imgproxy 容器方案。
+    -->
+    <dependency>
+      <groupId>org.sejda.imageio</groupId>
+      <artifactId>webp-imageio</artifactId>
+      <version>${webp-imageio.version}</version>
+    </dependency>
+
+    <!-- 测试：无 Docker 时 Testcontainers 自动跳过（disabledWithoutDocker） -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>mysql</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

@@ -1,0 +1,21 @@
+# build / deps
+node_modules/
+dist/
+target/
+coverage/
+
+# local toolchain downloaded by lead
+.tools/
+
+# runtime data
+data/
+deploy/data/
+*.log
+
+# env
+.env
+.env.local
+
+# ide
+.idea/
+.vscode/

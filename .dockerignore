@@ -1,0 +1,14 @@
+# 构建上下文瘦身（deploy/* 构建时用不到）
+.tools/
+Documentation/
+.git/
+.github/
+deploy/
+frontend/node_modules/
+backend/target/
+**/node_modules/
+**/target/
+**/dist/
+data/
+*.log
+.env

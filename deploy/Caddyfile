@@ -1,0 +1,43 @@
+# LinBlog 生产 Caddyfile（文档 §1 / §7.7 / §11 风险③）
+# 站点域名来自环境变量 SITE_DOMAIN（compose 注入），Caddy 自动申请/续期 HTTPS 证书。
+# 注意：上游固定 backend:8080（SERVER_PORT 默认值）；若改 SERVER_PORT 必须同步改这里的两处 upstream。
+
+{
+	# 需要指定 ACME 邮箱 / CA 时在此追加，例如：
+	# email you@example.com
+}
+
+{$SITE_DOMAIN} {
+	# ── 反代后端：API / 媒体 / SEO 文件 / SSE ─────────────────────────────
+	@backend path /api/* /media/* /sitemap.xml /robots.txt /events
+	handle @backend {
+		reverse_proxy backend:8080 {
+			# SSE 透传：-1 = 完全禁用响应缓冲，事件即产即推（文档 §7.7 / §11 风险③）
+			flush_interval -1
+		}
+	}
+
+	# ── 其余全部走 SPA 静态文件 ───────────────────────────────────────────
+	handle {
+		# 静态根：frontend 镜像把 SPA 构建产物放在 /usr/share/caddy
+		root * /usr/share/caddy
+
+		# 压缩只作用于静态资源；API/SSE 不经过此分支，避免压缩缓冲破坏流式响应
+		encode zstd gzip
+
+		route {
+			# 先统一不缓存，随后对指纹化资源覆盖为一年 immutable：
+			# 入口 HTML 与 SPA 路由响应不缓存，保证发版即时生效
+			header Cache-Control "no-cache"
+
+			# Vite 指纹化静态资源（/assets/xxx.[hash].js）缓存一年 immutable
+			@assets path /assets/*
+			header @assets Cache-Control "public, max-age=31536000, immutable"
+
+			# SPA 路由回退：先试真实文件，命中不了回 index.html
+			try_files {path} /index.html
+
+			file_server
+		}
+	}
+}

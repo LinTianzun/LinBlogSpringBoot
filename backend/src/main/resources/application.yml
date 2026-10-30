@@ -1,0 +1,70 @@
+# LinBlog 后端默认配置。所有环境差异走环境变量（开发文档 §4.3），
+# 启动强校验见 com.linblog.config.AppStartupGuard（继承原 config/default.js 哲学）。
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: linblog-backend
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${DB_URL:}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  flyway:
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+  jackson:
+    default-property-inclusion: always
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+
+springdoc:
+  paths-to-match: /api/v1/**
+
+app:
+  public-url: ${PUBLIC_URL:}
+  allowed-origins: ${ALLOWED_ORIGINS:}
+  jwt-access-secret: ${JWT_ACCESS_SECRET:}
+  jwt-access-ttl: ${JWT_ACCESS_TTL:PT15M}
+  refresh-ttl-days: ${REFRESH_TTL_DAYS:7}
+  cookie-domain: ${COOKIE_DOMAIN:}
+  cookie-secure: ${COOKIE_SECURE:true}
+  storage-driver: ${STORAGE_DRIVER:local}
+  storage-local-dir: ${STORAGE_LOCAL_DIR:./data/storage}
+  s3-endpoint: ${S3_ENDPOINT:}
+  s3-bucket: ${S3_BUCKET:}
+  s3-ak: ${S3_AK:}
+  s3-sk: ${S3_SK:}
+  thumb-widths: ${THUMB_WIDTHS:320,640,1280}
+  upload-max-bytes: ${UPLOAD_MAX_BYTES:20MB}
+  view-dedup-minutes: ${VIEW_DEDUP_MINUTES:30}
+  audit-retention-days: ${AUDIT_RETENTION_DAYS:90}
+  trash-retention-days: ${TRASH_RETENTION_DAYS:30}
+  geoip-enabled: ${GEOIP_ENABLED:false}
+  rate-limit-login: ${RATE_LIMIT_LOGIN:5}
+  rate-limit-reset: ${RATE_LIMIT_RESET:5}
+  smtp:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:465}
+    secure: ${SMTP_SECURE:true}
+    user: ${SMTP_USER:}
+    pass: ${SMTP_PASS:}
+    from: ${SMTP_FROM:}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{requestId:-}] %logger{40} - %msg%n"

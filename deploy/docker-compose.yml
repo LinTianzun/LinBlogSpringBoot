@@ -1,0 +1,133 @@
+# LinBlog 单机部署栈（文档 §1 / §4.3 / §7.9-7.10 / §10 里程碑 0）
+# 用法：cd deploy && cp .env.example .env && 修改 .env && docker compose up -d --build
+# 注意：
+#   * backend / frontend 镜像的构建上下文是仓库根目录（context: ..），
+#     compose 文件需保持在 <repo>/deploy/ 下使用；建议后续在仓库根补 .dockerignore
+#     （排除 .tools/、Documentation/、deploy/data/ 等）以加速构建上下文传输。
+#   * 变量名与开发文档 §4.3 逐字一致，含义见 .env.example 注释。
+
+name: linblog
+
+services:
+  mysql:
+    image: mysql:8.4
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --ngram_token_size=2
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-linblog}
+      MYSQL_USER: ${DB_USERNAME:?请在 .env 设置 DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?请在 .env 设置 DB_PASSWORD}
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/backend/Dockerfile
+    image: linblog/backend:latest
+    environment:
+      # ── 以下变量名与文档 §4.3 逐字一致 ──
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      DB_URL: ${DB_URL:?请在 .env 设置 DB_URL（容器网络主机名用 mysql:3306）}
+      DB_USERNAME: ${DB_USERNAME:?请在 .env 设置 DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD:?请在 .env 设置 DB_PASSWORD}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?请在 .env 设置 JWT_ACCESS_SECRET（≥32 字符）}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-PT15M}
+      REFRESH_TTL_DAYS: ${REFRESH_TTL_DAYS:-7}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?请在 .env 设置 ALLOWED_ORIGINS（逗号分隔精确来源）}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_DIR: ${STORAGE_LOCAL_DIR:-./data/storage}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_AK: ${S3_AK:-}
+      S3_SK: ${S3_SK:-}
+      THUMB_WIDTHS: ${THUMB_WIDTHS:-320,640,1280}
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-20MB}
+      VIEW_DEDUP_MINUTES: ${VIEW_DEDUP_MINUTES:-30}
+      AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-90}
+      TRASH_RETENTION_DAYS: ${TRASH_RETENTION_DAYS:-30}
+      GEOIP_ENABLED: ${GEOIP_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_SECURE: ${SMTP_SECURE:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      RATE_LIMIT_LOGIN: ${RATE_LIMIT_LOGIN:-5}
+      RATE_LIMIT_RESET: ${RATE_LIMIT_RESET:-5}
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      # STORAGE_LOCAL_DIR=./data/storage 相对容器 WORKDIR /app 解析为 /app/data/storage
+      - storage_data:/app/data/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  caddy:
+    build:
+      context: ..
+      dockerfile: deploy/frontend/Dockerfile
+    image: linblog/frontend:latest
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    environment:
+      # Caddyfile 中 {$SITE_DOMAIN} 的取值（自动 HTTPS 的目标域名）
+      SITE_DOMAIN: ${SITE_DOMAIN:?请在 .env 设置 SITE_DOMAIN}
+    volumes:
+      # 本地/e2e 调试：把 .env 的 CADDYFILE 改为 Caddyfile.local（仅 :80，无 TLS）
+      - ./${CADDYFILE:-Caddyfile}:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backup:
+    build:
+      context: .
+      dockerfile: backup/Dockerfile
+    image: linblog/backup:latest
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-linblog}
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USERNAME: ${DB_USERNAME:?请在 .env 设置 DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD:?请在 .env 设置 DB_PASSWORD}
+      BACKUP_DIR: /backups
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_QUOTA_BYTES: ${BACKUP_QUOTA_BYTES:-2147483648}
+      # storage 卷在 backup 容器内的只读挂载点（rsync 源）
+      STORAGE_LOCAL_DIR: /data/storage
+      OFFSITE_BACKUP_DIR: ${OFFSITE_BACKUP_DIR:-}
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - storage_data:/data/storage:ro
+      - ./data/backups:/backups        # 备份产物（宿主机可直接取用）
+      - ./data/offsite:/offsite        # 异地副本默认落点（可换挂载另一块盘）
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  storage_data:
+  caddy_data:
+  caddy_config:

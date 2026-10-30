@@ -1,0 +1,35 @@
+# 本地开发样例（application-dev.yml）：`mvn spring-boot:run -Dspring-boot-run.profiles=dev`
+# 生产环境不要使用此文件，全部走环境变量（见 .env.example）。
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/linblog?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+
+app:
+  jwt-access-secret: dev-only-secret-0123456789abcdef0123456789
+  jwt-access-ttl: PT15M
+  refresh-ttl-days: 7
+  cookie-domain:
+  cookie-secure: false
+  allowed-origins: http://localhost:5173,http://127.0.0.1:5173
+  public-url: http://localhost:5173
+  storage-driver: local
+  storage-local-dir: ./data/storage
+  view-dedup-minutes: 30
+  audit-retention-days: 90
+  trash-retention-days: 30
+  geoip-enabled: false
+  rate-limit-login: 5
+  rate-limit-reset: 5
+  smtp:
+    host:
+    port: 465
+    secure: true
+    user:
+    pass:
+    from:
+
+logging:
+  level:
+    com.linblog: DEBUG

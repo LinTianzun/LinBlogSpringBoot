@@ -1,0 +1,29 @@
+# LinBlog 本地 HTTP 变体：仅 :80，无 TLS。
+# 用法：.env 设 CADDYFILE=Caddyfile.local、COOKIE_SECURE=false、SITE_DOMAIN=localhost，
+# compose 会把它挂为 /etc/caddy/Caddyfile。适用于本地 compose 调试与 CI e2e。
+# 上游固定 backend:8080，与生产 Caddyfile 保持一致。
+
+:80 {
+	@backend path /api/* /media/* /sitemap.xml /robots.txt /events
+	handle @backend {
+		reverse_proxy backend:8080 {
+			# SSE 透传（文档 §7.7）：禁用缓冲
+			flush_interval -1
+		}
+	}
+
+	handle {
+		# 静态根：frontend 镜像把 SPA 构建产物放在 /usr/share/caddy
+		root * /usr/share/caddy
+
+		encode zstd gzip
+
+		route {
+			header Cache-Control "no-cache"
+			@assets path /assets/*
+			header @assets Cache-Control "public, max-age=31536000, immutable"
+			try_files {path} /index.html
+			file_server
+		}
+	}
+}

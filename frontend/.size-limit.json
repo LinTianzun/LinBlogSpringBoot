@@ -1,0 +1,29 @@
+[
+  {
+    "name": "first-screen",
+    "path": [
+      "dist/assets/index-*.js",
+      "dist/assets/vendor-*.js",
+      "dist/assets/naive-*.js",
+      "dist/assets/PortalLayout-*.js",
+      "dist/assets/PortalHome-*.js"
+    ],
+    "limit": "300 kB",
+    "gzip": true
+  },
+  {
+    "name": "editor-chunk",
+    "path": [
+      "dist/assets/ArticleEdit-*.js",
+      "dist/assets/GalleryEdit-*.js"
+    ],
+    "limit": "500 kB",
+    "gzip": true
+  },
+  {
+    "name": "total-js",
+    "path": "dist/assets/*.js",
+    "limit": "1.2 MB",
+    "gzip": true
+  }
+]
