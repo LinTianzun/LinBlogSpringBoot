@@ -101,7 +101,9 @@ jobs:
           DB_URL: "jdbc:mysql://127.0.0.1:3306/springlinblog?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai"
           DB_USERNAME: root
           DB_PASSWORD: ci-root-password
-          JWT_ACCESS_SECRET: ci-only-jwt-access-secret-0123456789abcdef
+          # JWT 密钥取自仓库 Settings → Secrets and variables → Actions 的
+          # JWT_ACCESS_SECRET（须预先配置；AppStartupGuard 要求 UTF-8 字节 ≥32）
+          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
           JWT_ACCESS_TTL: PT15M
           REFRESH_TTL_DAYS: "7"
           COOKIE_SECURE: "false"
@@ -253,12 +255,12 @@ jobs:
             pnpm exec playwright test
           else
             curl -fsS http://localhost/ -o /dev/null -w "GET / -> %{http_code}\n"
-            code="$(curl -s -o /dev/null -w '%{http_code}' 'http://localhost/api/auth/me')"
+            code="$(curl -s -o /dev/null -w '%{http_code}' 'http://localhost/api/v1/auth/me')"
             if [ "$code" = "000" ] || [ "$code" = "502" ] || [ "$code" = "504" ]; then
               echo "::error::经 Caddy 反代访问 /api 失败（HTTP $code）"
               exit 1
             fi
-            echo "GET /api/auth/me -> $code（反代链路通）"
+            echo "GET /api/v1/auth/me -> $code（反代链路通）"
           fi
 
       - name: 上传 Playwright 报告
