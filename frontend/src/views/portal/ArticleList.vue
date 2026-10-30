@@ -6,7 +6,7 @@ import { ApiError } from '@/api/request'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { mediaUrl, mediaSrcSet } from '@/utils/media'
 import { formatCount, formatDate } from '@/utils/format'
-import type { ContentSummaryDTO, LabelDTO } from '@/types/api'
+import type { ContentSummaryDTO } from '@/types/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,7 +17,6 @@ const page = ref(Number(route.query.page ?? 1) || 1)
 const keyword = ref(typeof route.query.keyword === 'string' ? route.query.keyword : '')
 const sort = ref<'latest' | 'hot'>((route.query.sort as 'latest' | 'hot') ?? 'latest')
 const labelId = ref<number | null>(route.query.labelId ? Number(route.query.labelId) : null)
-const labels = ref<LabelDTO[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
 

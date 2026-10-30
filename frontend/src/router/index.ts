@@ -21,7 +21,7 @@ declare module 'vue-router' {
   }
 }
 
-const scrollBehavior: RouterScrollBehavior = (to, from, savedPosition) => {
+const scrollBehavior: RouterScrollBehavior = (to, _from, savedPosition) => {
   if (savedPosition) return savedPosition
   if (to.hash) return { el: to.hash, behavior: 'smooth' }
   return { top: 0 }
@@ -55,7 +55,7 @@ const router = createRouter({
         { path: 'articles/edit/:id?', name: 'admin-article-edit', component: () => import('@/views/admin/ArticleEdit.vue'), meta: { title: '文章编辑', permission: ['article.create', 'article.manageOwn'], noindex: true } },
         { path: 'gallery', name: 'admin-gallery', component: () => import('@/views/admin/GalleryManage.vue'), meta: { title: '画廊管理', permission: ['gallery.viewAll', 'gallery.viewOwn'], noindex: true } },
         { path: 'gallery/edit/:id?', name: 'admin-gallery-edit', component: () => import('@/views/admin/GalleryEdit.vue'), meta: { title: '画廊编辑', permission: ['gallery.create', 'gallery.manageOwn'], noindex: true } },
-        { path: 'diaries', name: 'admin-diaries', component: () => import('@/views/admin/DiaryManage.vue'), meta: { title: '日记管理', permission: ['diary.viewAll', 'diary.viewOwn'], noindex: true } },
+        { path: 'diaries', name: 'admin-diaries', component: () => import('@/views/admin/DiaryManage.vue'), meta: { title: '日记管理', permission: ['diary.viewAll', 'diary.manageOwn'], noindex: true } },
         { path: 'comments', name: 'admin-comments', component: () => import('@/views/admin/CommentManage.vue'), meta: { title: '评论管理', permission: ['comment.viewAll'], noindex: true } },
         { path: 'reports', name: 'admin-reports', component: () => import('@/views/admin/ReportManage.vue'), meta: { title: '举报处理', permission: ['comment.moderate'], noindex: true } },
         { path: 'messages', name: 'admin-messages', component: () => import('@/views/admin/MessageManage.vue'), meta: { title: '私信', permission: ['message.private'], noindex: true } },

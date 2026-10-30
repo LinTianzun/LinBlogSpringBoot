@@ -5,12 +5,10 @@ import { getPortalContent, praiseInteraction } from '@/api/portal'
 import { ApiError } from '@/api/request'
 import ContentRenderer from '@/components/ContentRenderer.vue'
 import CommentTree from '@/components/CommentTree.vue'
-import { useSessionStore } from '@/stores/session'
 import { formatCount, formatDateTime } from '@/utils/format'
 import type { ContentDetailDTO } from '@/types/api'
 
 const route = useRoute()
-const session = useSessionStore()
 
 const content = ref<ContentDetailDTO | null>(null)
 const loading = ref(false)

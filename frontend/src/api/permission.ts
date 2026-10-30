@@ -1,12 +1,17 @@
-import { get } from './request'
-import type { PermissionCatalogGroupDTO, PermissionKey } from '@/types/api'
+import { get, put } from './request'
+import type { PermissionCatalogDTO, PermissionMatrix, PermissionMeDTO } from '@/types/api'
 
-/** GET /permissions/me（§5.2 登录后首拉；会话快照刷新时可对比） */
-export function getMyPermissions(): Promise<PermissionKey[]> {
-  return get<PermissionKey[]>('/permissions/me')
+/** GET /permissions/me（登录即可）：{role, permissions[], isSuperAdmin} */
+export function getMyPermissions(): Promise<PermissionMeDTO> {
+  return get<PermissionMeDTO>('/permissions/me')
 }
 
-/** GET /permissions/catalog（permission.view）：权限分组目录 + 受保护标记 */
-export function getPermissionCatalog(): Promise<PermissionCatalogGroupDTO[]> {
-  return get<PermissionCatalogGroupDTO[]>('/permissions/catalog')
+/** GET /permissions/catalog（需 permission.view）：分组目录 + 受保护键 + 总键数 */
+export function getPermissionCatalog(): Promise<PermissionCatalogDTO> {
+  return get<PermissionCatalogDTO>('/permissions/catalog')
+}
+
+/** PUT /permissions/matrix（仅超管，permission.edit）：返回 role → 键数 */
+export function savePermissionMatrix(matrix: PermissionMatrix): Promise<Record<string, number>> {
+  return put<Record<string, number>>('/permissions/matrix', { matrix })
 }

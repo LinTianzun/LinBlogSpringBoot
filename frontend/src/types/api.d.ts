@@ -42,12 +42,10 @@ export type PageQuery = {
   sort?: 'latest' | 'hot'
 }
 
-/** 里程碑 0 假设：分页返回形状（MyBatis-Plus records 语义），以 openapi 契约为准 */
+/** 分页返回形状：对齐 backend common/PageResult.java（records + total） */
 export interface PageResult<T> {
   records: T[]
   total: number
-  page: number
-  pageSize: number
 }
 
 /* ---------------- ProseMirror / Tiptap（§3.2 body、§7.4 校验器） ---------------- */
@@ -363,17 +361,35 @@ export interface MessageDTO {
   createdAt: string
 }
 
-/* ---------------- 权限目录（§5.2，后台权限页用） ---------------- */
+/* ---------------- 权限目录（§5.2；对齐 backend PermissionController/PermissionKeys） ---------------- */
 
+/** GET /permissions/catalog → data：{groups, protectedKeys, totalKeys} */
 export interface PermissionCatalogKeyDTO {
   key: PermissionKey
+  label: string
   isProtected: boolean
 }
 
 export interface PermissionCatalogGroupDTO {
   name: string
-  keys: PermissionCatalogKeyDTO[]
+  items: PermissionCatalogKeyDTO[]
 }
+
+export interface PermissionCatalogDTO {
+  groups: PermissionCatalogGroupDTO[]
+  protectedKeys: PermissionKey[]
+  totalKeys: number
+}
+
+/** GET /permissions/me → data：{role, permissions[], isSuperAdmin} */
+export interface PermissionMeDTO {
+  role: RoleCode
+  permissions: PermissionKey[]
+  isSuperAdmin: boolean
+}
+
+/** PUT /permissions/matrix：role → 该角色授予的权限键列表（超管固定全量，不可编辑） */
+export type PermissionMatrix = Partial<Record<RoleCode, PermissionKey[]>>
 
 /* ---------------- 后台概览（§5.8） ---------------- */
 
@@ -391,4 +407,47 @@ export type VisitStatsRange = 'week' | 'moon'
 export interface VisitStatsPointDTO {
   date: string
   views: number
+}
+
+/* ---------------- 后台用户管理（§5.6；对齐 backend AdminUserController/AdminUserService） ---------------- */
+
+/** GET/POST/PATCH /admin/users* → data：AdminUserView */
+export interface AdminUserView {
+  id: number
+  username: string
+  email: string
+  nickname: string
+  role: RoleCode
+  status: 0 | 1
+  /** LocalDateTime → ISO 字符串 */
+  createdAt: string
+}
+
+/** POST /admin/users：username 3-20 位字母数字下划线；email 邮箱；password 8-72 */
+export interface CreateAdminUserPayload {
+  username: string
+  email: string
+  password: string
+  nickname?: string
+}
+
+/** PATCH /admin/users/{id}：改昵称/邮箱 */
+export interface UpdateAdminUserPayload {
+  nickname?: string
+  email?: string
+}
+
+/** PATCH /admin/users/{id}/status：0 停用 / 1 启用（超管不可被禁用 → 40900） */
+export interface AdminUserStatusPayload {
+  status: 0 | 1
+}
+
+/** PATCH /admin/users/{id}/password */
+export interface AdminUserResetPasswordPayload {
+  password: string
+}
+
+/** PATCH /admin/users/{id}/role：仅超管可改；不可降级 super_admin → 40900 */
+export interface AdminUserRolePayload {
+  role: RoleCode
 }

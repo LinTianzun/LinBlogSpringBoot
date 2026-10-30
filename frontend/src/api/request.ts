@@ -107,7 +107,7 @@ function buildUrl(path: string, query?: QueryParams): string {
   return url
 }
 
-function buildFetchInit(path: string, options: RequestOptions): RequestInit {
+function buildFetchInit(options: RequestOptions): RequestInit {
   const method = options.method ?? 'GET'
   const headers: Record<string, string> = {}
   let body: BodyInit | undefined
@@ -130,7 +130,7 @@ function buildFetchInit(path: string, options: RequestOptions): RequestInit {
 
 async function rawRequest(path: string, options: RequestOptions): Promise<Response> {
   try {
-    return await fetch(buildUrl(path, options.query), buildFetchInit(path, options))
+    return await fetch(buildUrl(path, options.query), buildFetchInit(options))
   } catch (error) {
     throw new ApiError(NETWORK_ERROR_CODE, '网络请求失败或服务不可用', { cause: error })
   }
@@ -140,7 +140,8 @@ function parseShell(raw: unknown, status: number): ResponseShell {
   if (raw && typeof raw === 'object' && 'code' in raw && typeof (raw as { code: unknown }).code === 'number') {
     const shell = raw as Partial<ResponseShell>
     return {
-      code: shell.code,
+      // 守卫已确认 code 为 number
+      code: shell.code as number,
       message: typeof shell.message === 'string' ? shell.message : '',
       data: shell.data,
       requestId: typeof shell.requestId === 'string' ? shell.requestId : undefined,

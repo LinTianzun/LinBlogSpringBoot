@@ -24,7 +24,7 @@ const adminGate = computed(() =>
     'gallery.viewAll',
     'gallery.viewOwn',
     'diary.viewAll',
-    'diary.viewOwn',
+    'diary.manageOwn',
     'comment.viewAll',
     'comment.moderate',
     'message.private',
