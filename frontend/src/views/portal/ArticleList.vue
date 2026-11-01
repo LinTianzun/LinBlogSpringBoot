@@ -1,24 +1,33 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { listLabels } from '@/api/admin'
 import { listPortalContents } from '@/api/portal'
 import { ApiError } from '@/api/request'
 import PaginationBar from '@/components/PaginationBar.vue'
-import { mediaUrl, mediaSrcSet } from '@/utils/media'
 import { formatCount, formatDate } from '@/utils/format'
-import type { ContentSummaryDTO } from '@/types/api'
+import type { ContentView, LabelDTO } from '@/types/api'
+
+/**
+ * 文章列表：GET /portal/contents?contentType=article（门户口径恒 published）。
+ * 标签过滤项来自 GET /labels（公开全量）。
+ * ⚠️ 后端 portalPage 未消费 keyword/sort——keyword 搜索暂不提供（列入偏差）；
+ * sort 仍随请求发送，后端就绪即生效。
+ */
 
 const route = useRoute()
 const router = useRouter()
 
-const records = ref<ContentSummaryDTO[]>([])
+const records = ref<ContentView[]>([])
 const total = ref(0)
 const page = ref(Number(route.query.page ?? 1) || 1)
-const keyword = ref(typeof route.query.keyword === 'string' ? route.query.keyword : '')
 const sort = ref<'latest' | 'hot'>((route.query.sort as 'latest' | 'hot') ?? 'latest')
 const labelId = ref<number | null>(route.query.labelId ? Number(route.query.labelId) : null)
+const labels = ref<LabelDTO[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
+
+const activeLabel = computed(() => labels.value.find((item) => item.id === labelId.value) ?? null)
 
 async function load(): Promise<void> {
   loading.value = true
@@ -29,7 +38,6 @@ async function load(): Promise<void> {
       page: page.value,
       pageSize: 10,
       sort: sort.value,
-      keyword: keyword.value || undefined,
       labelId: labelId.value ?? undefined,
     })
     records.value = result.records
@@ -42,11 +50,18 @@ async function load(): Promise<void> {
   }
 }
 
+async function loadLabels(): Promise<void> {
+  try {
+    labels.value = await listLabels()
+  } catch {
+    labels.value = [] // 标签栏降级为空，不影响列表
+  }
+}
+
 function syncQuery(): void {
   void router.replace({
     query: {
       ...(page.value > 1 ? { page: String(page.value) } : {}),
-      ...(keyword.value ? { keyword: keyword.value } : {}),
       ...(sort.value !== 'latest' ? { sort: sort.value } : {}),
       ...(labelId.value ? { labelId: String(labelId.value) } : {}),
     },
@@ -58,58 +73,57 @@ watch([page, sort, labelId], () => {
   void load()
 })
 
-function search(): void {
+function pickLabel(id: number | null): void {
   page.value = 1
-  syncQuery()
-  void load()
+  labelId.value = id
 }
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  void loadLabels()
+})
 </script>
 
 <template>
   <div class="lb-article-list">
     <n-card class="lb-toolbar">
       <n-space align="center" size="small">
-        <n-input
-          v-model:value="keyword"
-          placeholder="搜索文章"
-          clearable
-          size="small"
-          style="width: 220px"
-          @keyup.enter="search"
-        />
-        <n-button size="small" type="primary" @click="search">搜索</n-button>
         <n-radio-group v-model:value="sort" size="small">
           <n-radio-button value="latest">最新</n-radio-button>
           <n-radio-button value="hot">最热</n-radio-button>
         </n-radio-group>
+        <n-select
+          v-if="labels.length > 0"
+          :value="labelId"
+          clearable
+          filterable
+          placeholder="按标签过滤"
+          size="small"
+          style="width: 200px"
+          :options="labels.map((item) => ({ label: item.name, value: item.id }))"
+          @update:value="pickLabel"
+        />
       </n-space>
     </n-card>
 
     <n-spin :show="loading">
       <n-alert v-if="errorMessage" type="error" class="lb-list-alert">{{ errorMessage }}</n-alert>
+      <n-alert v-if="activeLabel" type="info" class="lb-list-alert" closable @close="pickLabel(null)">
+        标签「{{ activeLabel.name }}」下的文章
+      </n-alert>
       <n-empty v-if="records.length === 0 && !loading" description="暂无文章" class="lb-list-empty" />
 
       <n-space vertical size="medium">
         <n-card v-for="item in records" :key="item.id" class="lb-article-card">
           <div class="lb-article-row">
-            <img
-              v-if="item.coverStorageKey"
-              class="lb-article-cover"
-              :src="mediaUrl(item.coverStorageKey, 320)"
-              :srcset="mediaSrcSet(item.coverStorageKey)"
-              sizes="(max-width: 600px) 100vw, 200px"
-              loading="lazy"
-              alt=""
-            />
+            <div class="lb-article-cover lb-cover-fallback" aria-hidden="true">📝</div>
             <div class="lb-article-info">
               <RouterLink :to="`/articles/${item.id}`" class="lb-article-title">
                 {{ item.title }}
               </RouterLink>
               <p class="lb-muted lb-article-intro">{{ item.introduce }}</p>
               <n-space size="small" align="center">
-                <n-tag v-for="label in item.labels" :key="label.id" size="small" round>{{ label.name }}</n-tag>
+                <n-tag v-for="label in item.labels" :key="label" size="small" round>{{ label }}</n-tag>
                 <span class="lb-muted">
                   {{ formatDate(item.publishedAt ?? item.createdAt) }} · 👁 {{ formatCount(item.views) }} · 👍
                   {{ formatCount(item.praises) }} · 💬 {{ formatCount(item.commentsCount) }}
@@ -146,9 +160,16 @@ onMounted(load)
 .lb-article-cover {
   width: 200px;
   height: 120px;
-  object-fit: cover;
-  border-radius: 8px;
   flex-shrink: 0;
+}
+
+.lb-cover-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  background: linear-gradient(135deg, rgba(24, 160, 88, 0.12), rgba(24, 160, 88, 0.04));
+  border-radius: 8px;
 }
 
 .lb-article-title {

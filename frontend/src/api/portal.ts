@@ -2,8 +2,7 @@ import { get, post } from './request'
 import type {
   CommentListDTO,
   CommentTargetType,
-  ContentDetailDTO,
-  ContentSummaryDTO,
+  ContentView,
   CreateCommentPayload,
   DiaryDTO,
   GuestbookEntryDTO,
@@ -13,29 +12,39 @@ import type {
   PortalContentQuery,
   PortalHomeDTO,
   PraiseToggleResultDTO,
+  ViewReportResultDTO,
+  ViewTargetType,
 } from '@/types/api'
 
-/** §6.2 PortalHome：首屏数据合并为单请求（pinned/latest/labels/galleryPreview/diaryPreview） */
+/** GET /portal/home：{latest, pinned, labels}（backend PortalController.PortalHome） */
 export function getPortalHome(): Promise<PortalHomeDTO> {
   return get<PortalHomeDTO>('/portal/home')
 }
 
-/** §5.3 GET /portal/contents：门户口径恒 published，不随登录变化 */
-export function listPortalContents(query: PortalContentQuery): Promise<PageResult<ContentSummaryDTO>> {
-  return get<PageResult<ContentSummaryDTO>>('/portal/contents', query)
+/** GET /portal/contents：门户口径恒 published；sort=latest|hot（后端暂未消费） */
+export function listPortalContents(query: PortalContentQuery): Promise<PageResult<ContentView>> {
+  return get<PageResult<ContentView>>('/portal/contents', query)
 }
 
-/** §5.3 GET /portal/contents/{id}：仅 published；?preview=1 作者/管理者可看草稿；后端顺带记浏览 */
-export function getPortalContent(id: number, preview = false): Promise<ContentDetailDTO> {
-  return get<ContentDetailDTO>(`/portal/contents/${id}`, preview ? { preview: 1 } : undefined)
+/**
+ * GET /portal/contents/{id}：仅 published；?preview=1 作者/管理者可看非 published。
+ * body 为 ProseMirror JSON 字符串；后端顺带按 IP+UA 记浏览（30 分钟去重）。
+ */
+export function getPortalContent(id: number, preview = false): Promise<ContentView> {
+  return get<ContentView>(`/portal/contents/${id}`, preview ? { preview: 1 } : undefined)
 }
 
-/** §5.4 GET /portal/diaries：公开，published */
+/** GET /portal/diaries：公开，published */
 export function listPortalDiaries(query: PageQuery): Promise<PageResult<DiaryDTO>> {
   return get<PageResult<DiaryDTO>>('/portal/diaries', query)
 }
 
-/** §5.6 GET /guestbook：全部 visible 一级留言 + 两级回复 */
+/** POST /views：浏览上报 {targetType, targetId} → {counted}（§5.6/§7.6，30 分钟去重） */
+export function reportView(targetType: ViewTargetType, targetId: number): Promise<ViewReportResultDTO> {
+  return post<ViewReportResultDTO>('/views', { targetType, targetId })
+}
+
+/** §5.6 GET /guestbook：全部 visible 一级留言 + 两级回复（M3 未交付，预留契约） */
 export function getGuestbook(): Promise<GuestbookEntryDTO[]> {
   return get<GuestbookEntryDTO[]>('/guestbook')
 }
@@ -45,7 +54,7 @@ export function createGuestbookEntry(body: string, replyToId?: number): Promise<
   return post<void>('/guestbook', replyToId === undefined ? { body } : { body, replyToId })
 }
 
-/** §5.5 GET /portal/{targetType}/{id}/comments：一级 + 楼中楼两段 */
+/** §5.5 GET /portal/{targetType}/{id}/comments：一级 + 楼中楼两段（M3 未交付，预留契约） */
 export function listComments(
   targetType: CommentTargetType,
   targetId: number,
@@ -54,17 +63,17 @@ export function listComments(
   return get<CommentListDTO>(`/portal/${targetType}/${targetId}/comments`, { page })
 }
 
-/** §5.5 POST /comments：{targetType, targetId, parent_id?, replyToCommentId?, body} */
+/** §5.5 POST /comments：{targetType, targetId, parent_id?, replyToCommentId?, body}（M3 未交付，预留契约） */
 export function createComment(payload: CreateCommentPayload): Promise<void> {
   return post<void>('/comments', payload)
 }
 
-/** §5.5 POST /comments/{id}/praise：toggle → {active, count} */
+/** §5.5 POST /comments/{id}/praise：toggle → {active, count}（M3 未交付，预留契约） */
 export function praiseComment(id: number): Promise<PraiseToggleResultDTO> {
   return post<PraiseToggleResultDTO>(`/comments/${id}/praise`)
 }
 
-/** §5.5 POST /interactions：内容/日记点赞 toggle */
+/** §5.5 POST /interactions：内容/日记点赞 toggle（M3 未交付，预留契约） */
 export function praiseInteraction(
   targetType: InteractionTargetType,
   targetId: number,

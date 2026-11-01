@@ -4,17 +4,18 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { listPortalContents } from '@/api/portal'
 import { ApiError } from '@/api/request'
 import PaginationBar from '@/components/PaginationBar.vue'
-import { mediaSrcSet, mediaUrl } from '@/utils/media'
-import type { ContentSummaryDTO } from '@/types/api'
+import type { ContentView } from '@/types/api'
 
 /**
- * 画廊瀑布流：CSS columns 方案（无 JS 布局依赖），
- * 图片带 ?w=320|640|1280 srcset（§5.7 媒体口径）。
+ * 画廊瀑布流：CSS columns 方案（无 JS 布局依赖）。
+ * ⚠️ 后端 ContentView 只有 coverMediaId，媒体端点按 storageKey 取图（?width=），
+ * 暂无 storageKey → 卡片用占位块渲染（待后端在 ContentView 暴露 coverStorageKey，
+ * 届时恢复 img + ?w=320|640|1280 srcset）。
  */
 const route = useRoute()
 const router = useRouter()
 
-const records = ref<ContentSummaryDTO[]>([])
+const records = ref<ContentView[]>([])
 const total = ref(0)
 const page = ref(Number(route.query.page ?? 1) || 1)
 const loading = ref(false)
@@ -58,14 +59,7 @@ onMounted(load)
       <n-empty v-if="columns.length === 0 && !loading" description="暂无作品" class="lb-wall-empty" />
       <div v-else class="lb-masonry">
         <RouterLink v-for="item in columns" :key="item.id" :to="`/gallery/${item.id}`" class="lb-masonry-item">
-          <img
-            v-if="item.coverStorageKey"
-            :src="mediaUrl(item.coverStorageKey, 640)"
-            :srcset="mediaSrcSet(item.coverStorageKey)"
-            sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 260px"
-            loading="lazy"
-            alt=""
-          />
+          <div class="lb-masonry-media lb-cover-fallback" aria-hidden="true">🖼</div>
           <div class="lb-masonry-caption">
             <span class="lb-masonry-title">{{ item.title }}</span>
             <span class="lb-muted">👍 {{ item.praises }}</span>
@@ -114,6 +108,19 @@ onMounted(load)
 .lb-masonry-item img {
   width: 100%;
   display: block;
+}
+
+.lb-masonry-media {
+  width: 100%;
+  height: 180px;
+}
+
+.lb-cover-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  background: linear-gradient(135deg, rgba(24, 160, 88, 0.12), rgba(24, 160, 88, 0.04));
 }
 
 .lb-masonry-caption {

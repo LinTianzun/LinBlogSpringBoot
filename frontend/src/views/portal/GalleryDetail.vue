@@ -1,19 +1,26 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { getPortalContent, praiseInteraction } from '@/api/portal'
+import { getPortalContent, praiseInteraction, reportView } from '@/api/portal'
 import { ApiError } from '@/api/request'
 import ContentRenderer from '@/components/ContentRenderer.vue'
 import CommentTree from '@/components/CommentTree.vue'
-import { mediaUrl, mediaSrcSet } from '@/utils/media'
+import { parseTiptapDoc } from '@/components/renderContent'
 import { formatCount, formatDateTime } from '@/utils/format'
-import type { ContentDetailDTO } from '@/types/api'
+import type { ContentView } from '@/types/api'
+
+/**
+ * 作品详情：GET /portal/contents/{id}；⚠️ 无 coverStorageKey（仅 coverMediaId），
+ * 大图暂用占位块（待后端暴露 storageKey 后恢复 1280 图 + srcset）。
+ */
 
 const route = useRoute()
 
-const content = ref<ContentDetailDTO | null>(null)
+const content = ref<ContentView | null>(null)
 const loading = ref(false)
 const errorMessage = ref('')
+
+const doc = computed(() => parseTiptapDoc(content.value?.body))
 
 async function load(): Promise<void> {
   loading.value = true
@@ -26,6 +33,7 @@ async function load(): Promise<void> {
   }
   try {
     content.value = await getPortalContent(id)
+    void reportView('content', id).catch(() => undefined)
   } catch (error) {
     errorMessage.value = error instanceof ApiError ? error.message : '作品加载失败'
   } finally {
@@ -53,14 +61,7 @@ onMounted(load)
 
       <template v-if="content">
         <n-card>
-          <img
-            v-if="content.coverStorageKey"
-            class="lb-gallery-image"
-            :src="mediaUrl(content.coverStorageKey, 1280)"
-            :srcset="mediaSrcSet(content.coverStorageKey)"
-            sizes="(max-width: 1100px) 100vw, 1068px"
-            alt=""
-          />
+          <div class="lb-gallery-image lb-cover-fallback" aria-hidden="true">🖼</div>
           <n-space align="center" size="small" class="lb-gallery-meta">
             <n-h3 class="lb-gallery-name">{{ content.title }}</n-h3>
             <span class="lb-muted">👁 {{ formatCount(content.views) }}</span>
@@ -68,7 +69,7 @@ onMounted(load)
           </n-space>
           <p class="lb-muted">{{ content.introduce }}</p>
           <p class="lb-muted">{{ formatDateTime(content.publishedAt ?? content.createdAt) }}</p>
-          <ContentRenderer :doc="content.body" />
+          <ContentRenderer :doc="doc" />
         </n-card>
 
         <n-card class="lb-comments-card">
@@ -86,8 +87,16 @@ onMounted(load)
 
 .lb-gallery-image {
   width: 100%;
+  height: 420px;
   border-radius: 10px;
-  display: block;
+}
+
+.lb-cover-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  background: linear-gradient(135deg, rgba(24, 160, 88, 0.12), rgba(24, 160, 88, 0.04));
 }
 
 .lb-gallery-meta {

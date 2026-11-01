@@ -42,6 +42,9 @@ export default defineConfig({
             return 'naive'
           }
           if (/[\\/]node_modules[\\/]echarts/.test(id)) return 'echarts'
+          // Tiptap/ProseMirror 只被懒加载的编辑页引用，禁止并入首屏 vendor（§6.4 editor ≤500KB）
+          // 注意 pnpm realpath 下包名带连字符（prosemirror-model），不能要求后跟路径分隔符
+          if (/[\\/]node_modules[\\/](?:@tiptap[\\/]|prosemirror-)/.test(id)) return 'editor'
           return 'vendor'
         },
       },

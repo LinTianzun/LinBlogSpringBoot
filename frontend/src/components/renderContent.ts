@@ -124,3 +124,21 @@ export function renderProseMirror(doc: ProseMirrorNode | null | undefined): VNod
   if (!doc || doc.type !== 'doc') return []
   return renderChildren(doc)
 }
+
+/**
+ * 防御性解析：后端 body 是 ProseMirror JSON 字符串（写入端未校验格式）。
+ * doc JSON → 原样；非 doc JSON / 非 JSON 纯文本 → 兜底为单段落，不让页面白屏。
+ */
+export function parseTiptapDoc(raw: string | null | undefined): ProseMirrorNode {
+  if (!raw || raw.trim().length === 0) return { type: 'doc', content: [] }
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object' && (parsed as ProseMirrorNode).type === 'doc') {
+      return parsed as ProseMirrorNode
+    }
+    const text = typeof parsed === 'string' ? parsed : String(parsed)
+    return { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] }
+  } catch {
+    return { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: raw }] }] }
+  }
+}

@@ -1,39 +1,46 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { getPortalHome } from '@/api/portal'
+import { getPortalHome, listPortalContents, listPortalDiaries } from '@/api/portal'
 import { ApiError } from '@/api/request'
-import { mediaSrcSet, mediaUrl } from '@/utils/media'
 import { formatCount } from '@/utils/format'
 import { weatherEmoji } from '@/utils/weather'
-import type { PortalHomeDTO } from '@/types/api'
+import type { ContentView, DiaryDTO, PortalHomeDTO } from '@/types/api'
 
 /**
- * 门户首页：首屏合并为单请求 GET /portal/home（§6.2），
- * 返回 {pinned, latest, labels, galleryPreview, diaryPreview}。
- * 后端并行开发中：任一字段缺失按空数组降级，请求失败展示空态 + 重试。
+ * 门户首页：GET /portal/home 返回 {latest, pinned, labels}（backend PortalController），
+ * 画廊/日记预览按契约补充：/portal/contents?contentType=image&pageSize=4、/portal/diaries?pageSize=5，
+ * 三组请求 allSettled 并行，任一失败各自降级为空态。
+ * ⚠️ ContentView 只有 coverMediaId，媒体端点按 storageKey 取图 → 封面暂渲染占位块（待后端暴露 key）。
  */
 
 const home = ref<Partial<PortalHomeDTO> | null>(null)
+const galleryPreview = ref<ContentView[]>([])
+const diaryPreview = ref<DiaryDTO[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
 
 const pinned = computed(() => home.value?.pinned ?? [])
 const latest = computed(() => home.value?.latest ?? [])
 const labels = computed(() => home.value?.labels ?? [])
-const galleryPreview = computed(() => home.value?.galleryPreview ?? [])
-const diaryPreview = computed(() => home.value?.diaryPreview ?? [])
 
 async function load(): Promise<void> {
   loading.value = true
   errorMessage.value = ''
-  try {
-    home.value = await getPortalHome()
-  } catch (error) {
-    errorMessage.value = error instanceof ApiError ? error.message : '加载失败'
-  } finally {
-    loading.value = false
+  const [homeResult, galleryResult, diaryResult] = await Promise.allSettled([
+    getPortalHome(),
+    listPortalContents({ contentType: 'image', page: 1, pageSize: 4 }),
+    listPortalDiaries({ page: 1, pageSize: 5 }),
+  ])
+  if (homeResult.status === 'fulfilled') {
+    home.value = homeResult.value
+  } else {
+    errorMessage.value =
+      homeResult.reason instanceof ApiError ? homeResult.reason.message : '加载失败'
   }
+  galleryPreview.value = galleryResult.status === 'fulfilled' ? galleryResult.value.records : []
+  diaryPreview.value = diaryResult.status === 'fulfilled' ? diaryResult.value.records : []
+  loading.value = false
 }
 
 onMounted(load)
@@ -67,20 +74,12 @@ onMounted(load)
           <n-list v-else :show-divider="true">
             <n-list-item v-for="item in latest" :key="item.id">
               <div class="lb-latest-row">
-                <img
-                  v-if="item.coverStorageKey"
-                  class="lb-latest-cover"
-                  :src="mediaUrl(item.coverStorageKey, 320)"
-                  :srcset="mediaSrcSet(item.coverStorageKey)"
-                  sizes="(max-width: 600px) 96px, 160px"
-                  loading="lazy"
-                  alt=""
-                />
+                <div class="lb-latest-cover lb-cover-fallback" aria-hidden="true">📝</div>
                 <div class="lb-latest-text">
                   <RouterLink :to="`/articles/${item.id}`" class="lb-post-title">{{ item.title }}</RouterLink>
                   <p class="lb-muted lb-intro">{{ item.introduce }}</p>
                   <n-space size="small" align="center">
-                    <n-tag v-for="label in item.labels" :key="label.id" size="small" round>{{ label.name }}</n-tag>
+                    <n-tag v-for="label in item.labels" :key="label" size="small" round>{{ label }}</n-tag>
                     <span class="lb-muted">
                       👁 {{ formatCount(item.views) }} · 👍 {{ formatCount(item.praises) }} · 💬 {{ formatCount(item.commentsCount) }}
                     </span>
@@ -102,14 +101,7 @@ onMounted(load)
               <n-empty v-if="galleryPreview.length === 0" description="暂无作品" size="small" />
               <div v-else class="lb-gallery-strip">
                 <RouterLink v-for="item in galleryPreview" :key="item.id" :to="`/gallery/${item.id}`">
-                  <img
-                    v-if="item.coverStorageKey"
-                    :src="mediaUrl(item.coverStorageKey, 320)"
-                    :srcset="mediaSrcSet(item.coverStorageKey)"
-                    sizes="(max-width: 600px) 45vw, 240px"
-                    loading="lazy"
-                    alt=""
-                  />
+                  <div class="lb-gallery-cover lb-cover-fallback" aria-hidden="true">🖼</div>
                 </RouterLink>
               </div>
             </section>
@@ -176,9 +168,16 @@ onMounted(load)
 .lb-latest-cover {
   width: 160px;
   height: 96px;
-  object-fit: cover;
-  border-radius: 6px;
   flex-shrink: 0;
+}
+
+.lb-cover-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: linear-gradient(135deg, rgba(24, 160, 88, 0.12), rgba(24, 160, 88, 0.04));
+  border-radius: 6px;
 }
 
 .lb-intro {
@@ -205,12 +204,9 @@ onMounted(load)
   gap: 8px;
 }
 
-.lb-gallery-strip img {
+.lb-gallery-cover {
   width: 100%;
   height: 90px;
-  object-fit: cover;
-  border-radius: 6px;
-  display: block;
 }
 
 .lb-diary-row {

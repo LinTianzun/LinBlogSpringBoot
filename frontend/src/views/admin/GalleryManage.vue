@@ -2,15 +2,15 @@
 import { computed, h, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { NButton, NCard, NInput, NSelect, NSpace, NTag, useDialog, useMessage } from 'naive-ui'
-import { deleteContent, listAdminContents, updateContentState } from '@/api/admin'
+import { deleteContent, listAdminContents, purgeContent, updateContentState } from '@/api/admin'
 import { ApiError } from '@/api/request'
+import { useSessionStore } from '@/stores/session'
 import { formatDate } from '@/utils/format'
-import { mediaUrl, mediaSrcSet } from '@/utils/media'
-import type { AdminContentQuery, ContentState, ContentSummaryDTO } from '@/types/api'
+import type { AdminContentQuery, ContentView, ContentState } from '@/types/api'
 
 /**
- * 画廊管理（§5.5）：/admin/contents?contentType=image 列表 + 状态操作。
- * 后端未实现 → 错误态 + 空表。
+ * 画廊管理（§5.3）：/admin/contents?contentType=image 列表 + 状态机操作 + 回收站。
+ * ⚠️ 无 coverStorageKey（仅 coverMediaId）→ 预览列用占位块（待后端暴露 key）。
  */
 
 const STATE_OPTIONS = [
@@ -29,8 +29,9 @@ const STATE_TAG_TYPE: Record<ContentState, 'default' | 'success' | 'warning' | '
 
 const message = useMessage()
 const dialog = useDialog()
+const session = useSessionStore()
 
-const records = ref<ContentSummaryDTO[]>([])
+const records = ref<ContentView[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 12
@@ -38,6 +39,9 @@ const keyword = ref('')
 const state = ref<ContentState | null>(null)
 const loading = ref(false)
 const errorMessage = ref('')
+
+const canPublish = computed(() => session.can('gallery.manageAll') || session.can('gallery.manageOwn'))
+const canPurge = computed(() => session.can('gallery.manageAll'))
 
 const query = computed<AdminContentQuery>(() => ({
   contentType: 'image',
@@ -47,7 +51,7 @@ const query = computed<AdminContentQuery>(() => ({
   state: state.value ?? undefined,
 }))
 
-const rowKey = (row: ContentSummaryDTO): number => row.id
+const rowKey = (row: ContentView): number => row.id
 
 async function load(): Promise<void> {
   loading.value = true
@@ -70,7 +74,7 @@ function search(): void {
   void load()
 }
 
-async function setState(row: ContentSummaryDTO, nextState: Exclude<ContentState, 'deleted'>): Promise<void> {
+async function setState(row: ContentView, nextState: ContentState): Promise<void> {
   try {
     await updateContentState(row.id, nextState)
     message.success('状态已更新')
@@ -80,19 +84,37 @@ async function setState(row: ContentSummaryDTO, nextState: Exclude<ContentState,
   }
 }
 
-function remove(row: ContentSummaryDTO): void {
+function remove(row: ContentView): void {
   dialog.warning({
-    title: '删除确认',
-    content: `确定删除「${row.title || '未命名图片'}」吗？`,
+    title: '移入回收站',
+    content: `确定将「${row.title || '未命名图片'}」移入回收站吗？`,
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
         await deleteContent(row.id)
-        message.success('已删除')
+        message.success('已移入回收站')
         await load()
       } catch (error) {
         message.error(error instanceof ApiError ? error.message : '删除失败')
+      }
+    },
+  })
+}
+
+function confirmPurge(row: ContentView): void {
+  dialog.error({
+    title: '彻底删除',
+    content: `「${row.title || '未命名图片'}」将被永久删除且不可恢复，确定吗？`,
+    positiveText: '彻底删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await purgeContent(row.id)
+        message.success('已彻底删除')
+        await load()
+      } catch (error) {
+        message.error(error instanceof ApiError ? error.message : '操作失败')
       }
     },
   })
@@ -103,20 +125,27 @@ const columns = computed(() => [
     title: '预览',
     key: 'cover',
     width: 96,
-    render: (row: ContentSummaryDTO) =>
-      row.coverStorageKey
-        ? h('img', {
-            src: mediaUrl(row.coverStorageKey, 320),
-            srcset: mediaSrcSet(row.coverStorageKey),
-            style: 'width:80px;height:60px;object-fit:cover;border-radius:4px',
-          })
-        : '—',
+    render: () =>
+      h(
+        'div',
+        {
+          style:
+            'width:80px;height:60px;display:flex;align-items:center;justify-content:center;font-size:22px;border-radius:4px;background:linear-gradient(135deg,rgba(24,160,88,0.12),rgba(24,160,88,0.04))',
+        },
+        { default: () => '🖼' },
+      ),
   },
-  { title: '标题', key: 'title', render: (row: ContentSummaryDTO) => row.title || '（无标题）' },
+  {
+    title: '标题',
+    key: 'title',
+    render: (row: ContentView) =>
+      h(RouterLink, { to: `/admin/gallery/edit/${row.id}` }, { default: () => row.title || '（无标题）' }),
+  },
   {
     title: '状态',
     key: 'state',
-    render: (row: ContentSummaryDTO) => {
+    width: 90,
+    render: (row: ContentView) => {
       const option = STATE_OPTIONS.find((item) => item.value === row.state)
       return h(
         NTag,
@@ -129,21 +158,33 @@ const columns = computed(() => [
   {
     title: '发布时间',
     key: 'publishedAt',
-    render: (row: ContentSummaryDTO) => (row.publishedAt ? formatDate(row.publishedAt) : '—'),
+    width: 150,
+    render: (row: ContentView) => (row.publishedAt ? formatDate(row.publishedAt) : '—'),
   },
   {
     title: '操作',
     key: 'actions',
-    render: (row: ContentSummaryDTO) =>
-      h(NSpace, { size: 'small' }, {
-        default: () => [
-          h(RouterLink, { to: `/admin/gallery/edit/${row.id}` }, { default: () => '编辑' }),
-          row.state !== 'published'
-            ? h(NButton, { size: 'tiny', type: 'primary', quaternary: true, onClick: () => void setState(row, 'published') }, { default: () => '发布' })
-            : h(NButton, { size: 'tiny', quaternary: true, onClick: () => void setState(row, 'hidden') }, { default: () => '隐藏' }),
-          h(NButton, { size: 'tiny', type: 'error', quaternary: true, onClick: () => remove(row) }, { default: () => '删除' }),
-        ],
-      }),
+    render: (row: ContentView) => {
+      const actions: Array<{ label: string; type: 'primary' | 'default' | 'error'; onClick: () => void }> = []
+      if (row.state === 'draft' && canPublish.value) {
+        actions.push({ label: '发布', type: 'primary', onClick: () => void setState(row, 'published') })
+      }
+      if (row.state === 'published' && canPublish.value) {
+        actions.push({ label: '隐藏', type: 'default', onClick: () => void setState(row, 'hidden') })
+      }
+      if (row.state === 'hidden') {
+        if (canPublish.value) actions.push({ label: '重新发布', type: 'primary', onClick: () => void setState(row, 'published') })
+        actions.push({ label: '转草稿', type: 'default', onClick: () => void setState(row, 'draft') })
+      }
+      if (row.state === 'deleted') {
+        actions.push({ label: '还原', type: 'primary', onClick: () => void setState(row, 'draft') })
+        if (canPurge.value) actions.push({ label: '彻底删除', type: 'error', onClick: () => confirmPurge(row) })
+      }
+      if (row.state !== 'deleted') {
+        actions.push({ label: '删除', type: 'error', onClick: () => remove(row) })
+      }
+      return h(NSpace, { size: 'small', wrap: false }, { default: () => actions.map((a) => h(NButton, { size: 'tiny', type: a.type, quaternary: true, onClick: a.onClick }, { default: () => a.label })) })
+    },
   },
 ])
 
@@ -180,7 +221,7 @@ onMounted(load)
       </n-space>
 
       <n-alert v-if="errorMessage" type="warning" style="margin: 12px 0">
-        {{ errorMessage }}（服务暂未就绪）
+        {{ errorMessage }}
         <n-button size="tiny" quaternary @click="load">重试</n-button>
       </n-alert>
 

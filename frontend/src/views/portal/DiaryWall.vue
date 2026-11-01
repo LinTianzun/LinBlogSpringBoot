@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { listPortalDiaries } from '@/api/portal'
 import { ApiError } from '@/api/request'
 import ContentRenderer from '@/components/ContentRenderer.vue'
+import { parseTiptapDoc } from '@/components/renderContent'
 import PaginationBar from '@/components/PaginationBar.vue'
 import WeatherBadge from '@/components/WeatherBadge.vue'
 import { formatCount } from '@/utils/format'
 import type { DiaryDTO } from '@/types/api'
 
 /**
- * 日记时间轴（§3.2 / §5.4）。后端端点未实现：请求失败显示错误态，
- * 空数据显示空态，绝不白屏。
+ * 日记时间轴（§3.2 / §5.4）：GET /portal/diaries（published）。
+ * body 是纯字符串或 ProseMirror JSON 字符串（写入端未强校验）→ parseTiptapDoc 防御渲染。
+ * 详情页浏览由服务端顺带记；列表不做 POST /views。
  */
 
 const records = ref<DiaryDTO[]>([])
@@ -18,6 +20,8 @@ const total = ref(0)
 const page = ref(1)
 const loading = ref(false)
 const errorMessage = ref('')
+
+const docs = computed(() => new Map(records.value.map((d) => [d.id, parseTiptapDoc(d.body)])))
 
 async function load(): Promise<void> {
   loading.value = true
@@ -43,7 +47,7 @@ onMounted(load)
     <n-h3 class="lb-diary-title">日记</n-h3>
     <n-spin :show="loading">
       <n-alert v-if="errorMessage" type="warning" class="lb-diary-alert">
-        {{ errorMessage }}（服务暂未就绪）
+        {{ errorMessage }}
       </n-alert>
       <n-empty v-if="records.length === 0 && !loading && !errorMessage" description="还没有日记" class="lb-diary-empty" />
 
@@ -61,7 +65,7 @@ onMounted(load)
             <template #header-extra>
               <span class="lb-muted">👍 {{ formatCount(diary.praises) }}</span>
             </template>
-            <ContentRenderer :doc="diary.body" />
+            <ContentRenderer :doc="docs.get(diary.id)" />
           </n-card>
         </div>
       </div>

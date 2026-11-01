@@ -9,21 +9,25 @@
       "dist/assets/PortalHome-*.js"
     ],
     "limit": "300 kB",
-    "gzip": true
+    "gzip": true,
+    "running": false
   },
   {
     "name": "editor-chunk",
     "path": [
       "dist/assets/ArticleEdit-*.js",
-      "dist/assets/GalleryEdit-*.js"
+      "dist/assets/GalleryEdit-*.js",
+      "dist/assets/editor-*.js"
     ],
     "limit": "500 kB",
-    "gzip": true
+    "gzip": true,
+    "running": false
   },
   {
     "name": "total-js",
     "path": "dist/assets/*.js",
     "limit": "1.2 MB",
-    "gzip": true
+    "gzip": true,
+    "running": false
   }
 ]

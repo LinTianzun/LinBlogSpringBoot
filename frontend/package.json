@@ -21,6 +21,11 @@
     "sizecheck": "size-limit"
   },
   "dependencies": {
+    "@tiptap/extension-image": "^3.32.2",
+    "@tiptap/extension-link": "^3.32.2",
+    "@tiptap/pm": "^3.32.2",
+    "@tiptap/starter-kit": "^3.32.2",
+    "@tiptap/vue-3": "^3.32.2",
     "naive-ui": "^2.45.0",
     "pinia": "^3.0.0",
     "vue": "^3.5.0",

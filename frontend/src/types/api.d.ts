@@ -150,54 +150,62 @@ export interface ChangePasswordPayload {
   newPassword: string
 }
 
-/* ---------------- 内容域（§5.3） ---------------- */
+/* ---------------- 内容域（§5.3，对齐 backend ContentView） ---------------- */
 
 export type ContentType = 'article' | 'image'
 export type ContentState = 'draft' | 'published' | 'hidden' | 'deleted'
 
+/** labels 表实体直出（backend LabelController /portal/home）。 */
 export interface LabelDTO {
   id: number
   name: string
 }
 
-export interface ContentAuthorDTO {
-  id: number
-  nickname: string
-  avatarMediaId: number | null
-}
-
-export interface ContentSummaryDTO {
+/**
+ * 状态机（backend ContentService §5.3）：
+ * draft→{published,deleted}；published→{hidden,deleted}；
+ * hidden→{published,draft,deleted}；deleted→{draft}（还原）。
+ * article 进入 published 或 published→hidden 需 article.publish。
+ */
+export interface ContentView {
   id: number
   contentType: ContentType
   title: string
-  introduce: string
-  coverMediaId: number | null
-  /** 里程碑 0 假设：封面媒体 storage key，用于拼 /media/{key}?w= 的 srcset */
-  coverStorageKey?: string | null
+  introduce?: string
+  /** 详情返回（ProseMirror JSON 字符串）；列表不回传 */
+  body?: string
+  /** admin 详情返回的纯文本摘要 */
+  plainText?: string
+  coverMediaId?: number | null
   state: ContentState
-  publishedAt: string | null
-  views: number
-  praises: number
-  commentsCount: number
-  isPinned: boolean
-  author: ContentAuthorDTO | null
-  labels: LabelDTO[]
-  createdAt: string
-  updatedAt: string
+  publishedAt?: string
+  views?: number
+  praises?: number
+  commentsCount?: number
+  isPinned?: boolean
+  authorId?: number
+  authorName?: string
+  labelIds?: number[]
+  /** 标签名列表（后端已拼好） */
+  labels?: string[]
+  createdAt?: string
+  updatedAt?: string
 }
 
-export interface ContentDetailDTO extends ContentSummaryDTO {
-  body: TiptapDoc | null
-}
+/** 列表视图与详情同构，body 仅详情返回 — 保留旧名做语义别名 */
+export type ContentSummaryDTO = ContentView
+export type ContentDetailDTO = ContentView
 
 export type PortalContentQuery = PageQuery & {
-  contentType: ContentType
+  contentType?: ContentType
   labelId?: number
+  /** latest|hot（后端暂未消费，保留契约） */
+  sort?: 'latest' | 'hot'
 }
 
 export type AdminContentQuery = PageQuery & {
-  contentType: ContentType
-  state?: ContentState | 'all'
+  contentType?: ContentType
+  state?: ContentState
   labelId?: number
 }
 
@@ -205,32 +213,75 @@ export interface CreateContentPayload {
   contentType: ContentType
   title: string
   introduce?: string
-  body?: TiptapDoc | null
+  /** ProseMirror JSON 字符串（Tiptap getJSON 序列化） */
+  body?: string
+  coverMediaId?: number | null
+  labelIds?: number[]
+  state?: ContentState
+}
+
+/** PATCH：null 字段不更新（backend ContentUpdateRequest） */
+export interface UpdateContentPayload {
+  title?: string
+  introduce?: string
+  body?: string
   coverMediaId?: number | null
   labelIds?: number[]
   isPinned?: boolean
 }
 
-export type UpdateContentPayload = Partial<CreateContentPayload>
+/* ---------------- 标签（§5.3 LabelController） ---------------- */
 
-/** §5.3 PATCH /admin/contents/{id}/state：published↔hidden/draft */
-export type UpdateContentStatePayload = {
-  state: Exclude<ContentState, 'deleted'>
+export interface LabelPayload {
+  name: string
 }
 
-/* ---------------- 门户首屏单请求（§6.2 PortalHome） ---------------- */
+/* ---------------- 合集（SubsetAdminController，自设计端点） ---------------- */
+
+export interface SubsetDTO {
+  id: number
+  name: string
+  description?: string
+  coverMediaId?: number | null
+  ownerId: number
+  createdAt: string
+}
+
+export interface SubsetItemDTO {
+  subsetId: number
+  contentId: number
+  sort: number
+}
+
+export interface SubsetCreatePayload {
+  name: string
+  description?: string
+  coverMediaId?: number | null
+  contentIds?: number[]
+}
+
+export interface SubsetUpdatePayload {
+  name?: string
+  description?: string
+  coverMediaId?: number | null
+}
+
+/** PUT /admin/subsets/{id}/items：全量替换条目及顺序 */
+export interface SubsetItemsPayload {
+  contentIds: number[]
+}
+
+/* ---------------- 门户首屏（backend PortalController /portal/home） ---------------- */
 
 export interface PortalHomeDTO {
-  pinned: ContentSummaryDTO[]
-  latest: ContentSummaryDTO[]
+  latest: ContentView[]
+  pinned: ContentView[]
   labels: LabelDTO[]
-  galleryPreview: ContentSummaryDTO[]
-  diaryPreview: DiaryDTO[]
 }
 
-/* ---------------- 日记（§3.2 / §5.4） ---------------- */
+/* ---------------- 日记（§5.4，对齐 backend DiaryView） ---------------- */
 
-/** 天气 8 值白名单（§3.2） */
+/** 天气 8 值白名单（§3.2，服务端校验） */
 export type Weather =
   | '晴天'
   | '多云'
@@ -243,16 +294,48 @@ export type Weather =
 
 export interface DiaryDTO {
   id: number
-  authorId: number
+  authorId?: number
+  authorName?: string
+  /** YYYY-MM-DD */
   diaryDate: string
-  weather: Weather
-  mood: string | null
-  body: TiptapDoc | null
+  weather?: Weather
+  mood?: string
+  /** 纯文本或 Tiptap JSON 字符串（前端防御性解析渲染） */
+  body: string
   state: ContentState
-  views: number
-  praises: number
-  createdAt: string
-  updatedAt: string
+  views?: number
+  praises?: number
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface DiaryPayload {
+  diaryDate: string
+  weather?: Weather
+  mood?: string
+  body?: string
+  state?: ContentState
+}
+
+/* ---------------- 媒体（§5.7 MediaController） ---------------- */
+
+export interface UploadResultDTO {
+  id: number
+  storageKey: string
+  /** /api/v1/media/{storageKey} */
+  url: string
+  kind: string
+  mimeType: string
+  sizeBytes: number
+  duplicated: boolean
+}
+
+/* ---------------- 浏览上报（§5.6/§7.6 ViewController） ---------------- */
+
+export type ViewTargetType = 'content' | 'diary'
+
+export interface ViewReportResultDTO {
+  counted: boolean
 }
 
 /* ---------------- 评论与互动（§3.3 / §5.5） ---------------- */
