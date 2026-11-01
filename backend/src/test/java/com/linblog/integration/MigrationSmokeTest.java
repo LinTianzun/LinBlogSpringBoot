@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * V1/V2 迁移冒烟（无 Docker 自动跳过）：迁移可完整应用、22 张表齐全、
- * 唯一超管函数索引与 ngram 全文索引存在。
+ * 唯一超管函数索引与 ngram 全文索引存在、V2 内容域二级索引齐全。
  */
 @Testcontainers(disabledWithoutDocker = true)
 class MigrationSmokeTest {
@@ -97,6 +97,25 @@ class MigrationSmokeTest {
             } catch (java.sql.SQLException expected) {
                 // 唯一索引冲突，符合预期
             }
+        }
+    }
+
+    /** V2__content_domain.sql 的 W3/W4/W5 补索引。 */
+    @Test
+    void v2ContentDomainIndexesExist() throws Exception {
+        String url = MYSQL.getJdbcUrl() + "&allowPublicKeyRetrieval=true";
+        try (Connection connection = DriverManager.getConnection(url, MYSQL.getUsername(), MYSQL.getPassword())) {
+            org.flywaydb.core.Flyway.configure()
+                    .dataSource(url, MYSQL.getUsername(), MYSQL.getPassword())
+                    .load()
+                    .migrate();
+
+            assertTrue(indexExists(connection, "subsets", "idx_owner"));
+            assertTrue(indexExists(connection, "subsets", "idx_cover"));
+            assertTrue(indexExists(connection, "subset_items", "idx_content"));
+            assertTrue(indexExists(connection, "conversations", "idx_user_b"));
+            assertTrue(indexExists(connection, "guestbook", "idx_status"));
+            assertTrue(indexExists(connection, "diaries", "idx_state_date"));
         }
     }
 
