@@ -9,6 +9,7 @@ import com.linblog.module.media.entity.Media;
 import com.linblog.module.media.mapper.FileAttachmentMapper;
 import com.linblog.module.media.mapper.MediaMapper;
 import com.linblog.module.media.service.StorageDriver;
+import com.linblog.module.audit.service.SystemLogService;
 import com.linblog.module.stats.mapper.ViewLogMapper;
 import com.linblog.support.TestAppProperties;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,10 +18,14 @@ import org.mockito.ArgumentCaptor;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -37,6 +42,7 @@ class CleanupSchedulerTest {
     private MediaMapper mediaMapper;
     private FileAttachmentMapper fileAttachmentMapper;
     private StorageDriver storageDriver;
+    private SystemLogService systemLogService;
     private CleanupScheduler scheduler;
 
     @BeforeEach
@@ -48,9 +54,10 @@ class CleanupSchedulerTest {
         mediaMapper = mock(MediaMapper.class);
         fileAttachmentMapper = mock(FileAttachmentMapper.class);
         storageDriver = mock(StorageDriver.class);
+        systemLogService = mock(SystemLogService.class);
         AppProperties props = TestAppProperties.defaults();
         scheduler = new CleanupScheduler(requestAuditMapper, viewLogMapper, refreshTokenMapper,
-                contentService, mediaMapper, fileAttachmentMapper, storageDriver, props);
+                contentService, mediaMapper, fileAttachmentMapper, storageDriver, systemLogService, props);
     }
 
     @Test
@@ -116,6 +123,40 @@ class CleanupSchedulerTest {
     @Test
     void viewLogRetentionIsSevenDaysConstant() {
         assertEquals(7, CleanupScheduler.VIEW_LOG_RETENTION_DAYS);
+    }
+
+    @Test
+    void backupQuotaAlertsAtEightyPercent() {
+        // trash 用量 1.7GiB ≥ 80%×2GiB → 告警写 system_log
+        when(fileAttachmentMapper.selectStateSummary()).thenReturn(List.of(
+                Map.of("state", "active", "cnt", 2L, "total_bytes", 100L),
+                Map.of("state", "trash", "cnt", 1L, "total_bytes", 1825361100L)));
+
+        scheduler.cleanup();
+
+        verify(systemLogService).record(isNull(), eq("file"), eq("backup_quota_alert"),
+                eq("files"), isNull(), contains("backupBytes=1825361100"), isNull());
+    }
+
+    @Test
+    void backupQuotaBelowThresholdStaysQuiet() {
+        // trash 用量 1GiB < 80%×2GiB → 不告警
+        when(fileAttachmentMapper.selectStateSummary()).thenReturn(List.of(
+                Map.of("state", "trash", "cnt", 1L, "total_bytes", 1073741824L)));
+
+        scheduler.cleanup();
+
+        verify(systemLogService, never()).record(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void backupQuotaCheckFailureDoesNotAffectOtherSegments() {
+        when(fileAttachmentMapper.selectStateSummary()).thenThrow(new RuntimeException("boom"));
+
+        scheduler.cleanup();
+
+        verify(requestAuditMapper).deleteOlderThan(any(LocalDateTime.class));
+        verify(refreshTokenMapper).deleteExpiredBefore(any(LocalDateTime.class));
     }
 
     @Test

@@ -8,6 +8,7 @@ import com.linblog.config.AppProperties;
 import com.linblog.module.audit.service.SystemLogService;
 import com.linblog.module.auth.entity.PasswordResetToken;
 import com.linblog.module.auth.mapper.PasswordResetTokenMapper;
+import com.linblog.module.mail.service.MailService;
 import com.linblog.module.user.entity.User;
 import com.linblog.module.user.mapper.UserMapper;
 import com.linblog.security.AuthPrincipal;
@@ -41,12 +42,13 @@ public class AuthService {
     private final JwtService jwtService;
     private final UserAuthStateService authStateService;
     private final SystemLogService systemLogService;
+    private final MailService mailService;
     private final AppProperties props;
 
     public AuthService(UserMapper userMapper, RefreshTokenService refreshTokenService,
                        PasswordResetTokenMapper resetTokenMapper, PasswordEncoder passwordEncoder,
                        JwtService jwtService, UserAuthStateService authStateService,
-                       SystemLogService systemLogService, AppProperties props) {
+                       SystemLogService systemLogService, MailService mailService, AppProperties props) {
         this.userMapper = userMapper;
         this.refreshTokenService = refreshTokenService;
         this.resetTokenMapper = resetTokenMapper;
@@ -54,6 +56,7 @@ public class AuthService {
         this.jwtService = jwtService;
         this.authStateService = authStateService;
         this.systemLogService = systemLogService;
+        this.mailService = mailService;
         this.props = props;
     }
 
@@ -162,8 +165,10 @@ public class AuthService {
         row.setExpiresAt(LocalDateTime.now().plus(RESET_TOKEN_TTL));
         resetTokenMapper.insert(row);
         String link = props.publicUrl() + "/reset-password?token=" + raw;
-        if (props.smtp() != null && props.smtp().host() != null && !props.smtp().host().isBlank()) {
-            log.info("[reset-request] ip={} 重置邮件待发送至 {}（SMTP 投递在后续里程碑接入），链接: {}", ip, email, link);
+        if (mailService.isConfigured()) {
+            // SMTP 已配置：异步投递，失败在 MailService 内只记 system_log，不影响本次恒 ok 语义
+            mailService.sendResetLink(email, link);
+            log.info("[reset-request] ip={} 重置邮件已投递至 {}（异步）", ip, email);
         } else {
             log.info("[reset-request] SMTP 未配置，密码重置链接: {}", link);
         }

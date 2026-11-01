@@ -3,12 +3,14 @@ package com.linblog.module.stats.scheduler;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.linblog.config.AppProperties;
 import com.linblog.module.audit.mapper.RequestAuditMapper;
+import com.linblog.module.audit.service.SystemLogService;
 import com.linblog.module.auth.mapper.RefreshTokenMapper;
 import com.linblog.module.content.service.ContentService;
 import com.linblog.module.media.entity.FileAttachment;
 import com.linblog.module.media.entity.Media;
 import com.linblog.module.media.mapper.FileAttachmentMapper;
 import com.linblog.module.media.mapper.MediaMapper;
+import com.linblog.module.media.service.FileAdminService;
 import com.linblog.module.media.service.StorageDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,13 +40,15 @@ public class CleanupScheduler {
     private final MediaMapper mediaMapper;
     private final FileAttachmentMapper fileAttachmentMapper;
     private final StorageDriver storageDriver;
+    private final SystemLogService systemLogService;
     private final AppProperties props;
 
     public CleanupScheduler(RequestAuditMapper requestAuditMapper,
                             com.linblog.module.stats.mapper.ViewLogMapper viewLogMapper,
                             RefreshTokenMapper refreshTokenMapper, ContentService contentService,
                             MediaMapper mediaMapper, FileAttachmentMapper fileAttachmentMapper,
-                            StorageDriver storageDriver, AppProperties props) {
+                            StorageDriver storageDriver, SystemLogService systemLogService,
+                            AppProperties props) {
         this.requestAuditMapper = requestAuditMapper;
         this.viewLogMapper = viewLogMapper;
         this.refreshTokenMapper = refreshTokenMapper;
@@ -52,6 +56,7 @@ public class CleanupScheduler {
         this.mediaMapper = mediaMapper;
         this.fileAttachmentMapper = fileAttachmentMapper;
         this.storageDriver = storageDriver;
+        this.systemLogService = systemLogService;
         this.props = props;
     }
 
@@ -64,6 +69,7 @@ public class CleanupScheduler {
         cleanupTrashedContents(now);
         cleanupTrashedMedia(now);
         cleanupTrashedFiles(now);
+        checkBackupQuota();
     }
 
     void cleanupRequestAudits(LocalDateTime now) {
@@ -148,6 +154,23 @@ public class CleanupScheduler {
             }
         } catch (RuntimeException e) {
             log.warn("cleanup trashed files failed: {}", e.getMessage());
+        }
+    }
+
+    /** 备份区 2GiB 检查告警（§7.9）：trash 用量 ≥80% → warn + system_log。 */
+    void checkBackupQuota() {
+        try {
+            long backupBytes = fileAttachmentMapper.selectStateSummary().stream()
+                    .filter(row -> "trash".equals(String.valueOf(row.get("state"))))
+                    .mapToLong(row -> ((Number) row.get("total_bytes")).longValue())
+                    .sum();
+            if (backupBytes >= FileAdminService.QUOTA_BYTES * FileAdminService.ALERT_RATIO) {
+                log.warn("backup area usage={} bytes >= 80% of 2GiB quota", backupBytes);
+                systemLogService.record(null, "file", "backup_quota_alert", "files", null,
+                        "backupBytes=" + backupBytes, null);
+            }
+        } catch (RuntimeException e) {
+            log.warn("backup quota check failed: {}", e.getMessage());
         }
     }
 

@@ -158,6 +158,13 @@
       <version>${webp-imageio.version}</version>
     </dependency>
 
+    <!-- 邮件：SMTP 投递（§4.3 SMTP_* 环境变量 → MailConfig 手工组 JavaMailSender；
+         异步虚拟线程发送，失败只记 system_log，不阻塞业务） -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
+
     <!-- 测试：无 Docker 时 Testcontainers 自动跳过（disabledWithoutDocker） -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

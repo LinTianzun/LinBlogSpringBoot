@@ -7,6 +7,7 @@ import com.linblog.config.AppProperties;
 import com.linblog.module.audit.service.SystemLogService;
 import com.linblog.module.auth.entity.PasswordResetToken;
 import com.linblog.module.auth.mapper.PasswordResetTokenMapper;
+import com.linblog.module.mail.service.MailService;
 import com.linblog.module.user.entity.User;
 import com.linblog.module.user.mapper.UserMapper;
 import com.linblog.security.AuthPrincipal;
@@ -45,6 +46,7 @@ class AuthServiceTest {
     private PasswordResetTokenMapper resetTokenMapper;
     private UserAuthStateService authStateService;
     private SystemLogService systemLogService;
+    private MailService mailService;
     private AuthService service;
     private PasswordEncoder encoder;
 
@@ -69,10 +71,11 @@ class AuthServiceTest {
         resetTokenMapper = mock(PasswordResetTokenMapper.class);
         authStateService = mock(UserAuthStateService.class);
         systemLogService = mock(SystemLogService.class);
+        mailService = mock(MailService.class);
         encoder = new BCryptPasswordEncoder(4);
         AppProperties props = TestAppProperties.defaults();
         service = new AuthService(userMapper, refreshTokenService, resetTokenMapper, encoder,
-                new JwtService(props), authStateService, systemLogService, props);
+                new JwtService(props), authStateService, systemLogService, mailService, props);
     }
 
     @Test
@@ -246,6 +249,37 @@ class AuthServiceTest {
         assertEquals(64, row.getTokenHash().length());
         assertTrue(row.getExpiresAt().isAfter(LocalDateTime.now().plusMinutes(25)));
         assertTrue(row.getExpiresAt().isBefore(LocalDateTime.now().plusMinutes(31)));
+    }
+
+    @Test
+    void resetRequestWithoutSmtpOnlyLogs() {
+        // defaults() smtp=null → 不投递邮件，链接打日志
+        User u = user(9L, "alice", "alice@linlog.com", "h", "viewer", 1, 0);
+        when(userMapper.selectOne(any())).thenReturn(u);
+
+        service.resetRequest("alice@linlog.com", "ip");
+
+        verify(mailService, never()).sendResetLink(any(), any());
+        verify(resetTokenMapper).insert(any(PasswordResetToken.class));
+    }
+
+    @Test
+    void resetRequestWithSmtpSendsMail() {
+        User u = user(9L, "alice", "alice@linlog.com", "h", "viewer", 1, 0);
+        when(userMapper.selectOne(any())).thenReturn(u);
+        AppProperties configured = TestAppProperties.of(new Object[]{
+                21, new AppProperties.Smtp("smtp.test.local", 587, false, "u", "p", "no-reply@linlog.com")});
+        MailService sending = mock(MailService.class);
+        when(sending.isConfigured()).thenReturn(true);
+        service = new AuthService(userMapper, refreshTokenService, resetTokenMapper, encoder,
+                new JwtService(configured), authStateService, systemLogService, sending, configured);
+
+        service.resetRequest("alice@linlog.com", "ip");
+
+        ArgumentCaptor<String> link = ArgumentCaptor.forClass(String.class);
+        verify(sending).sendResetLink(eq("alice@linlog.com"), link.capture());
+        assertTrue(link.getValue().startsWith("http://localhost:5173/reset-password?token="));
+        verify(resetTokenMapper).insert(any(PasswordResetToken.class));
     }
 
     @Test
