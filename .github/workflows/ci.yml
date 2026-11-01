@@ -80,7 +80,7 @@ jobs:
             exit 1
           fi
           awk -F, '
-            NR > 1 && $2 ~ /^com\/linblog/ { missed += $8; covered += $9 }
+            NR > 1 && $2 ~ /^com\.linblog/ { missed += $8; covered += $9 }
             END {
               total = missed + covered
               if (total == 0) { print "::error::jacoco.csv 中没有 com/linblog 包的数据行"; exit 1 }
