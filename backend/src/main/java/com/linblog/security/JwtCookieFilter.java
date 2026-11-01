@@ -55,7 +55,8 @@ public class JwtCookieFilter extends OncePerRequestFilter {
                 UserAuthStateService.AuthState state = authStateService.load(uid);
                 if (state != null && state.enabled() && state.tokenVersion() == (tv == null ? -1 : tv)) {
                     var permissions = permissionService.keysForRole(role);
-                    var principal = new AuthPrincipal(uid, state.username(), role, state.roleCode(), permissions);
+                    var principal = new AuthPrincipal(uid, state.username(), role,
+                            "super_admin".equals(state.roleCode()), permissions);
                     var authentication = new UsernamePasswordAuthenticationToken(
                             principal, null, toAuthorities(permissions, role));
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -96,7 +97,7 @@ public class JwtCookieFilter extends OncePerRequestFilter {
         return authorities;
     }
 
-    static ErrorCode unauthorizedCode(HttpServletRequest request) {
+    public static ErrorCode unauthorizedCode(HttpServletRequest request) {
         return Boolean.TRUE.equals(request.getAttribute(ATTR_EXPIRED)) ? ErrorCode.ACCESS_EXPIRED : ErrorCode.UNAUTHENTICATED;
     }
 }

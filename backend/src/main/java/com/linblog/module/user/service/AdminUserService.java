@@ -97,7 +97,7 @@ public class AdminUserService {
         } catch (DuplicateKeyException e) {
             throw new BizException(ErrorCode.CONFLICT, "用户名或邮箱已被注册");
         }
-        systemLogService.record(operator.uid(), "user", "create", "user", String.valueOf(user.getId()), null, ip);
+        systemLogService.record(operator.uid(), "user", "create", "user", user.getId(), null, ip);
         return AdminUserView.of(user);
     }
 
@@ -115,7 +115,7 @@ public class AdminUserService {
             user.setEmail(email);
         }
         userMapper.updateById(user);
-        systemLogService.record(operator.uid(), "user", "update", "user", String.valueOf(id), null, ip);
+        systemLogService.record(operator.uid(), "user", "update", "user", id, null, ip);
         return AdminUserView.of(user);
     }
 
@@ -135,7 +135,7 @@ public class AdminUserService {
             authService.invalidateUserAuth(id);
         }
         systemLogService.record(operator.uid(), "user", status == 0 ? "disable" : "enable",
-                "user", String.valueOf(id), null, ip);
+                "user", id, null, ip);
         return AdminUserView.of(user);
     }
 
@@ -147,7 +147,7 @@ public class AdminUserService {
         user.setTokenVersion((user.getTokenVersion() == null ? 0 : user.getTokenVersion()) + 1);
         userMapper.updateById(user);
         authService.invalidateUserAuth(id);
-        systemLogService.record(operator.uid(), "user", "reset_password", "user", String.valueOf(id), null, ip);
+        systemLogService.record(operator.uid(), "user", "reset_password", "user", id, null, ip);
     }
 
     /** 改角色：仅超管；目标为超管时不可降级；授予 super_admin 全库唯一。 */
@@ -175,7 +175,7 @@ public class AdminUserService {
             throw new BizException(ErrorCode.CONFLICT, "已存在超级管理员");
         }
         authService.invalidateUserAuth(id);
-        systemLogService.record(operator.uid(), "user", "role_change", "user", String.valueOf(id), role, ip);
+        systemLogService.record(operator.uid(), "user", "role_change", "user", id, role, ip);
         return AdminUserView.of(user);
     }
 }

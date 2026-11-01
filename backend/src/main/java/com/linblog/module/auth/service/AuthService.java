@@ -93,7 +93,7 @@ public class AuthService {
         } catch (DuplicateKeyException e) {
             throw new BizException(ErrorCode.CONFLICT, "用户名或邮箱已被注册");
         }
-        systemLogService.record(user.getId(), "auth", "register", "user", String.valueOf(user.getId()), null, ip);
+        systemLogService.record(user.getId(), "auth", "register", "user", user.getId(), null, ip);
         return UserView.of(user);
     }
 
@@ -131,7 +131,10 @@ public class AuthService {
 
     /** 登出：吊销令牌所属 family；无令牌也清 Cookie。 */
     public void logout(String rawRefresh) {
-        refreshTokenService.revokeFamily(refreshTokenService.familyOf(rawRefresh));
+        String family = refreshTokenService.familyOf(rawRefresh);
+        if (family != null) {
+            refreshTokenService.revokeFamily(family);
+        }
     }
 
     /** me：库内最新资料 + 权限键 + 超管标记。 */
@@ -190,7 +193,7 @@ public class AuthService {
         }
         refreshTokenService.revokeAllForUser(user.getId());
         authStateService.evict(user.getId());
-        systemLogService.record(user.getId(), "auth", "password_reset", "user", String.valueOf(user.getId()), null, ip);
+        systemLogService.record(user.getId(), "auth", "password_reset", "user", user.getId(), null, ip);
     }
 
     /** 改密：验证旧密码；成功后 token_version+1 + 吊销全部刷新令牌（需重新登录）。 */
@@ -208,7 +211,7 @@ public class AuthService {
         userMapper.updateById(user);
         refreshTokenService.revokeAllForUser(user.getId());
         authStateService.evict(user.getId());
-        systemLogService.record(user.getId(), "auth", "password_change", "user", String.valueOf(user.getId()), null, ip);
+        systemLogService.record(user.getId(), "auth", "password_change", "user", user.getId(), null, ip);
     }
 
     /** 供 admin 模块禁用/改密/改角色后同步：吊销令牌 + 失效认证缓存。 */

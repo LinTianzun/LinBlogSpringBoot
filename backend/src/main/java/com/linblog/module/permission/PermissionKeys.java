@@ -117,7 +117,7 @@ public final class PermissionKeys {
     }
 
     public static boolean isKnownRole(String roleCode) {
-        return Set.of(SUPER_ADMIN, ADMIN, EDITOR, VIEWER).contains(roleCode);
+        return roleCode != null && Set.of(SUPER_ADMIN, ADMIN, EDITOR, VIEWER).contains(roleCode);
     }
 
     /** 目录项：key + 中文标签 + 受保护标记。 */

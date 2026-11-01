@@ -14,11 +14,11 @@ public final class IpUtil {
     public static String clientIp(HttpServletRequest request) {
         String xff = request.getHeader("X-Forwarded-For");
         if (xff != null && !xff.isBlank()) {
-            int comma = xff.indexOf(',');
-            String first = comma > 0 ? xff.substring(0, comma) : xff;
-            String ip = first.strip();
-            if (!ip.isEmpty()) {
-                return ip;
+            for (String segment : xff.split(",")) {
+                String ip = segment.strip();
+                if (!ip.isEmpty()) {
+                    return ip;
+                }
             }
         }
         return request.getRemoteAddr();

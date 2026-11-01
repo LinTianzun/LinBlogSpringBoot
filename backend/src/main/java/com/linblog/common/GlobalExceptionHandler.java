@@ -85,7 +85,7 @@ public class GlobalExceptionHandler {
     /** 兜底 50000：记 error 日志（含堆栈），响应壳带 requestId 但不泄露内部细节。 */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResult<Void>> handleUnknown(Exception ex) {
-        log.error("Unhandled exception, requestId={}", ApiResult.requestId(), ex);
+        log.error("Unhandled exception, requestId={}", ApiResult.currentRequestId(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResult.fail(ErrorCode.INTERNAL));
     }
@@ -101,7 +101,7 @@ public class GlobalExceptionHandler {
         Map<String, List<FieldErrorItem>> data = new LinkedHashMap<>();
         data.put("fieldErrors", items);
         return ResponseEntity.status(status).body(new ApiResult<>(
-                ErrorCode.VALIDATION.code(), ErrorCode.VALIDATION.defaultMessage(), data, ApiResult.requestId()));
+                ErrorCode.VALIDATION.code(), ErrorCode.VALIDATION.defaultMessage(), data, ApiResult.currentRequestId()));
     }
 
     private static String lastPathSegment(ConstraintViolation<?> v) {

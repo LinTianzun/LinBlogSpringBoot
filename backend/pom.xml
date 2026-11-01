@@ -81,10 +81,21 @@
       <artifactId>flyway-mysql</artifactId>
     </dependency>
 
-    <!-- 缓存 -->
+    <!-- 缓存：Caffeine + Spring Cache 抽象（spring-context-support 提供 CaffeineCache） -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-cache</artifactId>
+    </dependency>
     <dependency>
       <groupId>com.github.ben-manes.caffeine</groupId>
       <artifactId>caffeine</artifactId>
+    </dependency>
+
+    <!-- MyBatis-Plus 3.5.9+ 分页插件拆分到独立 artifact -->
+    <dependency>
+      <groupId>com.baomidou</groupId>
+      <artifactId>mybatis-plus-jsqlparser</artifactId>
+      <version>${mybatis-plus.version}</version>
     </dependency>
 
     <!-- 认证：jjwt 0.12.x -->

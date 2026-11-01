@@ -102,7 +102,7 @@ public class RefreshTokenService {
         refreshTokenMapper.revokeFamily(current.getFamilyId(), now);
         userMapper.bumpTokenVersion(current.getUserId());
         systemLogService.record(current.getUserId(), "auth", "refresh_replay", "user",
-                String.valueOf(current.getUserId()), "刷新令牌重放：已吊销 family 并递增 token_version", ip);
+                current.getUserId(), "刷新令牌重放：已吊销 family 并递增 token_version", ip);
         throw new BizException(ErrorCode.REFRESH_INVALID);
     }
 

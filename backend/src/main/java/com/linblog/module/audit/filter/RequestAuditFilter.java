@@ -37,7 +37,7 @@ public class RequestAuditFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        if (request.isAsyncDispatch()) {
+        if (isAsyncDispatch(request)) {
             chain.doFilter(request, response);
             return;
         }

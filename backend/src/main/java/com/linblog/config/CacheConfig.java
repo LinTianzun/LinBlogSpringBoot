@@ -32,8 +32,10 @@ public class CacheConfig {
                 .expireAfterWrite(Duration.ofSeconds(30))
                 .maximumSize(2_000)
                 .build();
-        return new SimpleCacheManager(List.of(
+        SimpleCacheManager manager = new SimpleCacheManager();
+        manager.setCaches(List.of(
                 new CaffeineCache(PERM_MATRIX, permMatrix),
                 new CaffeineCache(AUTH_STATUS, authStatus)));
+        return manager;
     }
 }
