@@ -186,6 +186,18 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void noHandlerMapsTo40400() {
+        ResponseEntity<ApiResult<Void>> resp = handler.handleNoHandler(
+                new org.springframework.web.servlet.NoHandlerFoundException("GET", "/nowhere",
+                        new org.springframework.http.HttpHeaders()));
+
+        assertEquals(HttpStatus.NOT_FOUND, resp.getStatusCode());
+        assertEquals(40400, resp.getBody().code());
+        assertEquals("资源不存在", resp.getBody().message());
+        assertNull(resp.getBody().data());
+    }
+
+    @Test
     void unknownExceptionMapsTo50000WithoutLeakingDetails() {
         ResponseEntity<ApiResult<Void>> resp = handler.handleUnknown(
                 new IllegalStateException("jdbc:mysql://10.0.0.1/secret-db password=hunter2"));

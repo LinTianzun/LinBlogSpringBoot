@@ -10,6 +10,8 @@ import com.linblog.module.comment.dto.PraiseResult;
 import com.linblog.module.comment.dto.ReportCreateRequest;
 import com.linblog.module.comment.service.CommentService;
 import com.linblog.module.comment.service.ReportService;
+import com.linblog.module.message.service.SsePushService;
+import com.linblog.module.permission.PermissionKeys;
 import com.linblog.security.AuthPrincipal;
 import com.linblog.security.CurrentUser;
 import jakarta.validation.Valid;
@@ -20,6 +22,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 /**
  * 统一评论接口（§5.5）：门户两段式读取（公开）+ 写操作（登录）。
  * 管理端举报工作台见 CommentReportAdminController。
@@ -29,10 +33,13 @@ public class CommentController {
 
     private final CommentService commentService;
     private final ReportService reportService;
+    private final SsePushService ssePushService;
 
-    public CommentController(CommentService commentService, ReportService reportService) {
+    public CommentController(CommentService commentService, ReportService reportService,
+                             SsePushService ssePushService) {
         this.commentService = commentService;
         this.reportService = reportService;
+        this.ssePushService = ssePushService;
     }
 
     /** GET /portal/{targetType}/{id}/comments：公开；仅 status=visible；登录时附带 liked。 */
@@ -62,6 +69,10 @@ public class CommentController {
     public ApiResult<Void> report(@PathVariable long id,
                                   @Valid @RequestBody ReportCreateRequest body) {
         reportService.create(id, body);
+        // §5.8 report.new：推给在线的 comment.moderate 持有者（举报工作台角标即时刷新）
+        ssePushService.pushToPermission(PermissionKeys.COMMENT_MODERATE, SsePushService.EVENT_REPORT_NEW,
+                Map.of("commentId", id,
+                        "reason", body.reason() == null ? "" : body.reason()));
         return ApiResult.ok(null);
     }
 }

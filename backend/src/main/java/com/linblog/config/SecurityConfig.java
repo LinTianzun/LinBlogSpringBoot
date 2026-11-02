@@ -53,6 +53,9 @@ public class SecurityConfig {
             "/api/v1/guestbook",
             "/api/v1/sitemap.xml",
             "/api/v1/robots.txt",
+            // M7 additive：Caddyfile @backend 根路径直反代 /sitemap.xml /robots.txt，不白名单会 401
+            "/sitemap.xml",
+            "/robots.txt",
             "/actuator/health",
             "/actuator/health/**",
             "/v3/api-docs",

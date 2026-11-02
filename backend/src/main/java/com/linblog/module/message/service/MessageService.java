@@ -50,19 +50,25 @@ public class MessageService {
     /** 游标分页结果：records 正序，hasMore 提示还可再往前翻。 */
     public record MessagePage(List<DirectMessageView> records, boolean hasMore) {}
 
+    /** SSE message.new 载荷（§5.8）：不含正文——接收端按会话拉取，避免重复渲染与正文外泄面。 */
+    public record MessagePushPayload(long conversationId, long messageId, long senderId, long unread) {}
+
     private final ConversationMapper conversationMapper;
     private final DirectMessageMapper directMessageMapper;
     private final UserMapper userMapper;
     private final SystemLogService systemLogService;
+    private final SsePushService ssePushService;
 
     public MessageService(ConversationMapper conversationMapper,
                           DirectMessageMapper directMessageMapper,
                           UserMapper userMapper,
-                          SystemLogService systemLogService) {
+                          SystemLogService systemLogService,
+                          SsePushService ssePushService) {
         this.conversationMapper = conversationMapper;
         this.directMessageMapper = directMessageMapper;
         this.userMapper = userMapper;
         this.systemLogService = systemLogService;
+        this.ssePushService = ssePushService;
     }
 
     /** GET /messages/conversations（message.private）：按 last_message_at 倒序，含未读数与对方信息。 */
@@ -220,7 +226,19 @@ public class MessageService {
         }
         conversationMapper.touchLastMessage(conversation.getId(), message.getCreatedAt());
         systemLogService.record(senderId, "message", action, "conversation", conversation.getId(), detail, ip);
+        notifyRecipient(conversation, senderId, message.getId());
         return toView(message);
+    }
+
+    /** SSE message.new 只推对方（§7.7：仅会话双方、绝不广播）；离线静默，不补推。 */
+    private void notifyRecipient(Conversation conversation, long senderId, long messageId) {
+        Long recipientId = userAOf(conversation, senderId) ? conversation.getUserBId() : conversation.getUserAId();
+        if (recipientId == null) {
+            return;
+        }
+        ssePushService.pushToUser(recipientId, SsePushService.EVENT_MESSAGE_NEW,
+                new MessagePushPayload(conversation.getId(), messageId, senderId,
+                        conversationMapper.sumUnreadFor(recipientId)));
     }
 
     private DirectMessageView toView(DirectMessage message) {

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.LinkedHashMap;
@@ -79,6 +80,12 @@ public class GlobalExceptionHandler {
     /** 静态资源不存在（含未匹配 API 路径）→ 40400。 */
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiResult<Void>> handleNoResource(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResult.fail(ErrorCode.NOT_FOUND));
+    }
+
+    /** 未注册 handler（如未映射方法/独立 MockMvc 场景）→ 40400，与 NoResourceFound 同语义。 */
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<ApiResult<Void>> handleNoHandler(NoHandlerFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResult.fail(ErrorCode.NOT_FOUND));
     }
 
