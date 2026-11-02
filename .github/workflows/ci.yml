@@ -101,9 +101,11 @@ jobs:
           DB_URL: "jdbc:mysql://127.0.0.1:3306/springlinblog?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai"
           DB_USERNAME: root
           DB_PASSWORD: ci-root-password
-          # JWT 密钥取自仓库 Settings → Secrets and variables → Actions 的
-          # JWT_ACCESS_SECRET（须预先配置；AppStartupGuard 要求 UTF-8 字节 ≥32）
-          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+          # JWT 密钥：优先取仓库 Settings → Secrets and variables → Actions 的
+          # JWT_ACCESS_SECRET（AppStartupGuard 要求 UTF-8 字节 ≥32）；
+          # 未配置时回退到 CI 导出专用占位符（非生产密钥），否则导出步骤
+          # 因守卫拒绝启动而 120s 超时（run 10–12 的失败根因）
+          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET || 'ci-openapi-export-only-placeholder-secret-32bytes' }}
           JWT_ACCESS_TTL: PT15M
           REFRESH_TTL_DAYS: "7"
           COOKIE_SECURE: "false"
@@ -114,12 +116,12 @@ jobs:
         run: |
           java -jar target/*.jar > app.log 2>&1 &
           ready=""
-          for _ in $(seq 1 60); do
+          for _ in $(seq 1 75); do
             if curl -fsS http://127.0.0.1:8080/actuator/health > /dev/null 2>&1; then ready=1; break; fi
             sleep 2
           done
           if [ -z "$ready" ]; then
-            echo "::error::后端 120s 内未通过 /actuator/health 健康检查"
+            echo "::error::后端 150s 内未通过 /actuator/health 健康检查"
             tail -n 200 app.log
             exit 1
           fi
