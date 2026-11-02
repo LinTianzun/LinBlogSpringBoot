@@ -1,7 +1,7 @@
 # SpringLinBlog 数据库文档
 
 > 本文档描述 **SpringLinBlog**（LinBlog · Vue3 + Spring Boot 重实现）的数据库设计。
-> 唯一事实来源为迁移脚本 `backend/src/main/resources/db/migration/V1__init.sql`（22 张表一次建齐），
+> 唯一事实来源为迁移脚本目录 `backend/src/main/resources/db/migration/`（`V1__init.sql` 一次建齐 22 张表、`V2__content_domain.sql` 补索引、`V3__site_settings.sql` 新增 `site_settings`，合计 **23 张表**），
 > 并与 `backend/src/main/java/com/linblog/**` 下的实体 / Mapper 交叉核对。
 > 若本文档与迁移脚本冲突，**一律以迁移脚本为准**（差异见 [§6 已知差异与待确认](#六已知差异与待确认)）。
 
@@ -51,6 +51,8 @@
     - [4.6.1 view_logs — 浏览统计](#461-view_logs--浏览统计)
     - [4.6.2 request_audits — 请求审计](#462-request_audits--请求审计)
     - [4.6.3 system_logs — 业务操作日志](#463-system_logs--业务操作日志)
+  - [4.7 系统设置域（V3 新增）](#47-系统设置域v3-新增)
+    - [4.7.1 site_settings — 系统设置](#471-site_settings--系统设置)
 - [五、维护与调试](#五维护与调试)
 - [六、已知差异与待确认](#六已知差异与待确认)
 
@@ -63,7 +65,7 @@
 本文档供开发、测试与运维人员完整查阅 SpringLinBlog 的数据库结构，包括：
 
 - 数据库基础信息（库名、字符集、版本、连接池、迁移机制）；
-- 22 张表的字段级定义、索引与业务含义；
+- 23 张表的字段级定义、索引与业务含义；
 - 表间关联关系与数据生命周期策略；
 - 已知的 SQL / Java 侧差异与尚待确认的点。
 
@@ -88,7 +90,7 @@
 
 ### 1.3 全局约定
 
-以下约定由 `V1__init.sql:1-7` 的脚本头注释明确声明，贯穿全部 22 张表：
+以下约定由 `V1__init.sql:1-7` 的脚本头注释明确声明，贯穿 `V1` 的 22 张表（`V3` 新增的 `site_settings` 同样遵循字符集与时间列约定）：
 
 1. **主键**：`id BIGINT UNSIGNED AUTO_INCREMENT`；部分表采用复合主键（见各表说明）。
 2. **时间列**：统一 `DATETIME(3)`（毫秒精度）。
@@ -157,10 +159,31 @@ spring:
 
 行为要点：
 
-- 迁移脚本位于 `backend/src/main/resources/db/migration/`，当前**仅有 `V1__init.sql`** 一个版本脚本，一次建齐 22 张表。
+- 迁移脚本位于 `backend/src/main/resources/db/migration/`，当前共有 **3 个版本脚本**，合计建出 23 张表（清单见 §2.3.1）。
 - `baseline-on-migrate: false` 表示**禁止**对非空 schema 做隐式基线：若目标库 `springlinblog` 已存在且 `flyway_schema_history` 中没有 V1 记录，Flyway 迁移会因「非空 schema」直接失败，需要人工介入（清库重建，或手工 `flyway baseline` 后补记历史）。
 - 因此**新增/修改表结构的标准流程**是：在 `db/migration/` 下新增 `V2__xxx.sql`、`V3__xxx.sql` 递增版本脚本，禁止修改已发布的 `V1__init.sql`。
-- 表结构文档以 `V1__init.sql` 为准；新增迁移后需同步更新本文档。
+- 表结构文档以迁移脚本为准；新增迁移后需同步更新本文档。
+
+#### 2.3.1 迁移文件清单
+
+| 版本 | 文件 | 内容 | 是否建表 |
+| --- | --- | --- | --- |
+| V1 | `V1__init.sql` | 22 张表一次建齐（账号与权限、内容、互动、私信与留言墙、文件、系统与审计六域） | 建 22 张表 |
+| V2 | `V2__content_domain.sql` | 内容域（M2）索引补齐：**不新建表**，只对 5 张已有表执行 6 条 `ADD KEY` | 不建表 |
+| V3 | `V3__site_settings.sql` | 新增系统设置键值表 `site_settings`，并预置 6 个白名单键的空值行 | 建 1 张表 |
+
+**V2 逐条改动**（`V2__content_domain.sql:7-21`，解决 V1 遗留的 W3 / W4 / W5 与 M2 查询需求）：
+
+| # | 表 | 索引 | 列 | 用途 |
+| --- | --- | --- | --- | --- |
+| 1 | `subsets` | `idx_owner` | `owner_id` | 按归属人查合集（W3） |
+| 2 | `subsets` | `idx_cover` | `cover_media_id` | 按封面媒体反查合集（W3） |
+| 3 | `subset_items` | `idx_content` | `content_id` | 按内容反查所属合集（W3） |
+| 4 | `conversations` | `idx_user_b` | `user_b_id` | 会话列表需同时过滤 a / b 两侧（W4） |
+| 5 | `guestbook` | `idx_status` | `(status, created_at)` | 留言墙列表按状态 + 时间排序（W5） |
+| 6 | `diaries` | `idx_state_date` | `(state, diary_date)` | 门户日记列表按 state 过滤 + 日期倒序（M2） |
+
+**V3 内容**（`V3__site_settings.sql:3-16`）：建 `site_settings` 表，并 `INSERT` 预置 `site_title`、`site_description`、`site_keywords`、`icp`、`footer_text`、`announcement` 六行空值，使前端一次 GET 即可渲染全部表单项。表结构见 [§4.7.1](#471-site_settings--系统设置)。
 
 ### 2.4 MySQL 服务端参数
 
@@ -192,7 +215,8 @@ mysql:
 | **私信与留言墙** | `conversations`、`direct_messages`、`guestbook` | 3 |
 | **文件** | `files` | 1 |
 | **系统与审计** | `view_logs`、`request_audits`、`system_logs` | 3 |
-| **合计** | — | **22** |
+| **系统设置**（V3 新增） | `site_settings` | 1 |
+| **合计** | — | **23** |
 
 ### 3.2 表清单一览
 
@@ -220,6 +244,7 @@ mysql:
 | 20 | `view_logs` | 系统与审计 | 业务浏览统计 | `id` | 业务浏览统计（30 分钟去重） |
 | 21 | `request_audits` | 系统与审计 | 请求审计 | `id` | 请求审计（原 record 表，90 天滚动清理） |
 | 22 | `system_logs` | 系统与审计 | 业务操作日志 | `id` | 业务操作日志 |
+| 23 | `site_settings` | 系统设置 | 系统设置（白名单键） | `setting_key` | 系统设置（白名单键） |
 
 ### 3.3 表关系说明
 
@@ -244,7 +269,8 @@ users ──┬─< refresh_tokens        (user_id)
         ├─< files                  (uploader_id)
         ├─< view_logs              (user_id)
         ├─< request_audits         (user_id)
-        └─< system_logs            (user_id)
+        ├─< system_logs            (user_id)
+        └─< site_settings          (updated_by)
 
 media   ──< content.cover_media_id / users.avatar_media_id / subsets.cover_media_id
 content ──< comments.target_id / interactions.target_id / subset_items.content_id
@@ -849,6 +875,30 @@ conversations ──< direct_messages.conversation_id
 
 ---
 
+### 4.7 系统设置域（V3 新增）
+
+#### 4.7.1 site_settings — 系统设置
+
+> **用途**：站点级设置项的键值存储（站点标题、描述、关键词、ICP 备案号、页脚文案、公告）；**主键**：`setting_key`（`VARCHAR(50)`）；**索引**：仅主键；**关联**：`users.id`（`updated_by`，可空）；**来源**：`V3__site_settings.sql`。
+
+| 字段名 | 类型 | 允许空 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| setting_key | VARCHAR(50) | 否 | — | 设置键，主键；只允许白名单内 6 个键 |
+| setting_value | VARCHAR(500) | 否 | `''`（空串） | 设置值；**空串表示未设置** |
+| updated_by | BIGINT UNSIGNED | 是 | NULL | 最后修改人，关联 `users.id` |
+| updated_at | DATETIME(3) | 否 | `CURRENT_TIMESTAMP(3)`，`ON UPDATE CURRENT_TIMESTAMP(3)` | 最后修改时间 |
+
+**设计要点**
+
+- **键值表而非宽表**：6 个设置项各占一行，新增设置项只需补白名单常量与一行 `INSERT`，不必 `ALTER TABLE`。
+- **白名单硬约束在应用层**：合法键与各自长度上限由 `backend/src/main/java/com/linblog/module/setting/service/SettingService.java:30-38` 的 `LIMITS` 定义 —— `site_title` 50、`site_description` 200、`site_keywords` 200、`icp` 50、`footer_text` 200、`announcement` 500（最长 500，与 `setting_value VARCHAR(500)` 一致）。数据库层**没有** CHECK 约束，写入非白名单键由 Service 拒绝。
+- **全量预置空值行**：`V3__site_settings.sql:11-16` 一次插入 6 行空串，`GET /api/v1/admin/settings` 直接返回全部键，前端无需处理「键不存在」的分支。
+- `updated_by` 未建索引：该表最多 6 行，无需二级索引；`updated_by` 仅作留痕。
+
+**关联的 Java 侧**：`backend/src/main/java/com/linblog/module/setting/entity/SiteSetting.java`（`@TableName("site_settings")`）、`.../mapper/SiteSettingMapper.java`、`.../service/SettingService.java`、`.../controller/SettingController.java`（`GET` / `PUT` `/api/v1/admin/settings`，`SettingController.java:23` 起）。
+
+---
+
 ## 五、维护与调试
 
 ### 5.1 本地建库
@@ -864,7 +914,7 @@ GRANT ALL PRIVILEGES ON springlinblog.* TO 'springlinblog'@'%';
 FLUSH PRIVILEGES;
 ```
 
-应用启动时 Flyway 自动执行 `V1__init.sql` 建齐 22 张表，并在 `springlinblog` 库内创建 `flyway_schema_history` 历史表。
+应用启动时 Flyway 依次执行 `V1__init.sql` → `V2__content_domain.sql` → `V3__site_settings.sql`，建出 23 张表，并在 `springlinblog` 库内创建 `flyway_schema_history` 历史表。
 
 > `baseline-on-migrate: false`：**不要**手工执行 `flyway baseline` 绕过校验，除非明确知道要接管一个已存在的非空库。
 
@@ -926,9 +976,9 @@ SELECT installed_rank, version, description, success
 | --- | --- | --- |
 | W1 | `V1__init.sql:41`、`V1__init.sql:53` | 两处同名唯一索引 `uk_token_hash` 是否需要改为 `uk_refresh_token_hash` / `uk_reset_token_hash`？当前脚本能否在 MySQL 8.4 上正常执行通过（需实际执行验证）。 |
 | W2 | `V1__init.sql:138-151` | `diaries` 无 `published_at` 列，但 `state` 含 `published` 取值。已发布日记的时间语义（用 `created_at` 还是需要补列）待确认。 |
-| W3 | `V1__init.sql:122-136` | `subsets.owner_id` / `subsets.cover_media_id` 与 `subset_items.content_id` 均无二级索引，按归属人 / 按内容反查合集会全表扫描。是否需要补索引待确认。 |
-| W4 | `V1__init.sql:203-212` | `conversations` 只有 `uk_pair(user_a_id, user_b_id)`，没有 `user_b_id` 单列索引；而「我的会话列表」需同时过滤 a、b 两侧。是否补 `idx_user_b(user_b_id)` 待确认。 |
-| W5 | `V1__init.sql:224-230` | `guestbook` 仅有主键索引，无 `status` / `created_at` 索引。留言墙列表查询是否走全表待确认。 |
+| W3 | `V1__init.sql:122-136` | ✅ **已解决**：`V2__content_domain.sql:7-12` 补 `subsets.idx_owner(owner_id)`、`subsets.idx_cover(cover_media_id)`、`subset_items.idx_content(content_id)`。 |
+| W4 | `V1__init.sql:203-212` | ✅ **已解决**：`V2__content_domain.sql:14-15` 补 `conversations.idx_user_b(user_b_id)`。 |
+| W5 | `V1__init.sql:224-230` | ✅ **已解决**：`V2__content_domain.sql:17-18` 补 `guestbook.idx_status(status, created_at)`。 |
 | W6 | `V1__init.sql:234-243` | 开发文档称 `view_logs` 按 7 天保留清理，但 `application.yml` 中只有 `audit-retention-days=90` / `trash-retention-days=30`，**未看到 view_logs 清理窗口配置项**；清理任务是否存在待确认。 |
 | W7 | `application.yml:16-18` | HikariCP 仅配置了 `maximum-pool-size` 与 `minimum-idle`，`connection-timeout` / `max-lifetime` / `leak-detection-threshold` 等均为默认值。是否需要显式声明待确认。 |
 | W8 | `deploy/.env.example:18-19`、`deploy/docker-compose.yml:20` | `MYSQL_DATABASE` 与 `DB_URL` 中的库名必须一致（注释已强调）。当前配置均为 `springlinblog`，一致；但 `deploy/backup.sh` 的 dump 文件名也硬编码了 `springlinblog_` 前缀，若未来改库名需同步。 |
@@ -943,3 +993,4 @@ SELECT installed_rank, version, description, success
 | 版本 | 更新时间 | 更新内容 | 更新人 |
 | --- | --- | --- | --- |
 | v1.0 | 2026-10-30 | 初始文档，基于 `V1__init.sql` 编写，覆盖 22 张表全量结构、索引、连接与迁移配置 | 开发者 |
+| v1.1 | 2026-11-01 | 同步至 `V2__content_domain.sql` 与 `V3__site_settings.sql`：表数 22 → **23**，新增 §2.3.1 迁移文件清单（含 V2 的 6 条索引逐条说明）、§4.7 系统设置域（`site_settings` 表），W3 / W4 / W5 标记为已由 V2 解决 | lead |

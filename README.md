@@ -21,15 +21,28 @@ backend/                 Spring Boot 单体（Maven 单模块）
     config/              安全、缓存、MyBatis-Plus、OpenAPI、启动强校验
     module/audit          请求审计、系统日志
     module/auth           登录、刷新令牌、密码重置
+    module/comment        评论、点赞、举报
+    module/content        内容（文章 / 图集）与合集
+    module/diary          日记
+    module/file           后台附件
+    module/guestbook      留言墙
+    module/mail           SMTP 邮件
+    module/media          媒体上传与引用
+    module/message        私信、会话与 SSE 推送
     module/permission     权限矩阵（角色 × 权限）
+    module/setting        系统设置（白名单键）
+    module/stats          浏览统计与后台概览
     module/user           用户与超管种子
     security/             JWT Cookie 过滤器、XSRF、限流、IP 工具
   src/main/resources/
     application.yml      默认配置（全部差异走环境变量）
-    db/migration/        Flyway 迁移脚本
+    db/migration/        Flyway 迁移脚本（V1 建 22 表 / V2 补索引 / V3 建 site_settings）
+  src/test/java/          413 个单元与集成测试用例
 frontend/                Vue 3 + Vite 前端
   src/api/               request 封装与各域接口
-  src/views/portal/      门户页面
+  src/components/        通用组件
+  src/views/portal/      门户页面（11 个）
+  src/views/admin/       后台页面（16 个）
   src/stores/            Pinia 状态
   src/styles/            全局样式（Less）
 deploy/                  Docker Compose 部署栈与 Caddy 配置
@@ -39,10 +52,14 @@ Documentation/           蓝图、立案、开发进度、数据库与开发文�
 
 ## 当前状态
 
-> 后端已注册 **17 个端点**（认证 8 / 权限 3 / 管理端用户 6），`V1__init.sql` 建齐 **22 张表**；
-> 前端完成工程配置、请求层、会话 store 与 6 个门户页面。
-> **已知阻塞项**（前端 22 个页面组件待补、后端无测试、CI 三处配置待修）见
-> [`Documentation/开发进度.md`](Documentation/开发进度.md) §4。
+> 后端已注册 **75 个端点**，分属 **18 个控制器**（认证 / 权限 / 用户 / 内容 / 合集 / 标签 / 日记 / 媒体 /
+> 评论 / 举报 / 留言墙 / 私信 / 文件 / 概览统计 / 系统日志 / 系统设置 / 门户聚合 / 浏览统计）；
+> Flyway 三个版本脚本建出 **23 张表**（`V1` 22 表 + `V3` 的 `site_settings`，`V2` 只补索引）。
+> 后端测试 **413 个用例**，CI 实测 JaCoCo 行覆盖 **88.83%**（远超 70% 门禁；本地未跑 `mvn verify`，数据来自 CI 日志）。
+> 前端 **27 个页面组件**（门户 11 + 后台 16）与 **48 个 vitest 用例**全部就绪，`pnpm lint` / `test` / `build` / `size-limit` 已在 CI 转绿。
+> **当前 CI 唯一红灯**：backend job 的「启动后端并导出 openapi.json」步骤失败 ——
+> `AppStartupGuard` 被 Spring 当作 bean 实例化却没有无参构造（`NoSuchMethodException: <init>()`），
+> 连带 contract job 跳过。逐项进度见 [`Documentation/开发进度.md`](Documentation/开发进度.md)。
 
 ## 本地开发
 
@@ -113,7 +130,7 @@ Caddy 负责静态资源与 `/api` 反代，配置见 `deploy/Caddyfile`（本�
 | [Vue3-SpringBoot 重实现开发文档](Documentation/Vue3-SpringBoot重实现开发文档.md) | 重实现的接口、约定与验收口径 |
 | [开发进度](Documentation/开发进度.md) | 逐模块进度跟踪 |
 | [项目搭建历程](Documentation/项目搭建历程.md) | 搭建过程与踩坑记录 |
-| [SpringLinBlog 数据库文档](Documentation/SpringLinBlog%20数据库文档.md) | 22 张表的结构、索引与字段说明 |
+| [SpringLinBlog 数据库文档](Documentation/SpringLinBlog%20数据库文档.md) | 23 张表的结构、索引与字段说明 |
 
 ## 许可
 
