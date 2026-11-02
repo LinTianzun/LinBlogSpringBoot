@@ -2,21 +2,38 @@ import { del, get, patch, post, put } from './request'
 import type {
   AdminContentQuery,
   ContentView,
+  ConversationDTO,
+  CreateConversationPayload,
   CreateContentPayload,
   DiaryDTO,
   DiaryPayload,
+  FileAdminViewDTO,
   LabelDTO,
   LabelPayload,
+  MessageDTO,
+  MessagePageDTO,
   OverviewSummaryDTO,
   PageQuery,
   PageResult,
+  ReportBatchPayload,
+  ReportBatchResultDTO,
+  ReportHandlePayload,
+  ReportQuery,
+  ReportViewDTO,
+  SendMessagePayload,
+  SettingsDTO,
+  StorageStatusDTO,
   SubsetDTO,
   SubsetCreatePayload,
   SubsetItemDTO,
   SubsetItemsPayload,
   SubsetUpdatePayload,
+  SystemLogQuery,
+  SystemLogViewDTO,
   UpdateContentPayload,
   UploadResultDTO,
+  VisitStatsRange,
+  VisitStatsResultDTO,
 } from '@/types/api'
 
 /* ---------------- 内容（§5.3 ContentAdminController） ---------------- */
@@ -145,7 +162,7 @@ export function deleteDiary(id: number): Promise<void> {
   return del<void>(`/admin/diaries/${id}`)
 }
 
-/* ---------------- 媒体（§5.7 MediaController） ---------------- */
+/* ---------------- 媒体（§5.7 MediaController / FileAdminController） ---------------- */
 
 /**
  * POST /files/upload：multipart 字段名 file（request.ts 对 FormData 不设 Content-Type，
@@ -157,9 +174,107 @@ export function uploadMedia(file: File): Promise<UploadResultDTO> {
   return post<UploadResultDTO>('/files/upload', form)
 }
 
-/* ---------------- 总览（§5.8，未交付，预留契约） ---------------- */
+/** GET /admin/files：?state=active|trashed&page=&pageSize= */
+export function listAdminFiles(query: PageQuery & { state?: string }): Promise<PageResult<FileAdminViewDTO>> {
+  return get<PageResult<FileAdminViewDTO>>('/admin/files', query)
+}
 
-/** GET /admin/overview/summary（overview.view） */
+/** GET /admin/files/storage-status */
+export function getStorageStatus(): Promise<StorageStatusDTO> {
+  return get<StorageStatusDTO>('/admin/files/storage-status')
+}
+
+/** PATCH /admin/files/{id}/trash：软删进备份区 */
+export function trashFile(id: number): Promise<void> {
+  return patch<void>(`/admin/files/${id}/trash`)
+}
+
+/** PATCH /admin/files/{id}/restore */
+export function restoreFile(id: number): Promise<void> {
+  return patch<void>(`/admin/files/${id}/restore`)
+}
+
+/** DELETE /admin/files/{id}：彻底删除（仅备份区可 purge） */
+export function purgeFile(id: number): Promise<void> {
+  return del<void>(`/admin/files/${id}`)
+}
+
+/* ---------------- 总览（§5.8 OverviewAdminController，overview.view） ---------------- */
+
+/** GET /admin/overview/summary → {contents, comments, unreadMessages, files, viewsToday, viewsWeek} */
 export function getOverviewSummary(): Promise<OverviewSummaryDTO> {
   return get<OverviewSummaryDTO>('/admin/overview/summary')
+}
+
+/** GET /admin/overview/visit-stats?range=week|moon */
+export function getVisitStats(range: VisitStatsRange): Promise<VisitStatsResultDTO> {
+  return get<VisitStatsResultDTO>('/admin/overview/visit-stats', { range })
+}
+
+/* ---------------- 系统日志（§5.8 SystemLogAdminController，systemLog.view） ---------------- */
+
+/** GET /admin/system-logs?module&action&page */
+export function listSystemLogs(query: SystemLogQuery): Promise<PageResult<SystemLogViewDTO>> {
+  return get<PageResult<SystemLogViewDTO>>('/admin/system-logs', { ...query })
+}
+
+/* ---------------- 系统设置（§5.8 SettingController，system.setting） ---------------- */
+
+/** GET /admin/settings → Map<key,value> */
+export function getSettings(): Promise<SettingsDTO> {
+  return get<SettingsDTO>('/admin/settings')
+}
+
+/** PUT /admin/settings：{settings} 全量提交 */
+export function updateSettings(settings: SettingsDTO): Promise<void> {
+  return put<void>('/admin/settings', { settings })
+}
+
+/* ---------------- 私信（§5.6 MessageController，M4） ---------------- */
+
+/** GET /messages/conversations（message.private） */
+export function listConversations(query: PageQuery): Promise<PageResult<ConversationDTO>> {
+  return get<PageResult<ConversationDTO>>('/messages/conversations', query)
+}
+
+/** POST /messages/conversations：{recipientId, body≤2000} 建会话并发出首条消息 */
+export function createConversation(payload: CreateConversationPayload): Promise<MessageDTO> {
+  return post<MessageDTO>('/messages/conversations', payload)
+}
+
+/** GET /messages/conversations/{id}?before= 游标倒查 */
+export function listMessages(conversationId: number, before?: number): Promise<MessagePageDTO> {
+  return get<MessagePageDTO>(`/messages/conversations/${conversationId}`, before === undefined ? undefined : { before })
+}
+
+/** POST /messages/conversations/{id}：{body} */
+export function sendMessage(conversationId: number, payload: SendMessagePayload): Promise<MessageDTO> {
+  return post<MessageDTO>(`/messages/conversations/${conversationId}`, payload)
+}
+
+/** PATCH /messages/conversations/{id}/read：清未读 */
+export function markConversationRead(conversationId: number): Promise<void> {
+  return patch<void>(`/messages/conversations/${conversationId}/read`)
+}
+
+/** GET /messages/unread-count → 未读总数 */
+export function getUnreadCount(): Promise<number> {
+  return get<number>('/messages/unread-count')
+}
+
+/* ---------------- 评论举报工作台（§5.5 CommentReportAdminController） ---------------- */
+
+/** GET /admin/comment-reports：?status=&page=&pageSize=（status 缺省 pending） */
+export function listCommentReports(query: ReportQuery): Promise<PageResult<ReportViewDTO>> {
+  return get<PageResult<ReportViewDTO>>('/admin/comment-reports', query)
+}
+
+/** PATCH /admin/comment-reports/{id}：{action: resolved|dismissed, note≤200} */
+export function handleCommentReport(id: number, payload: ReportHandlePayload): Promise<void> {
+  return patch<void>(`/admin/comment-reports/${id}`, payload)
+}
+
+/** POST /admin/comment-reports/batch：{ids≤200, action} → {updated, skipped} */
+export function batchHandleCommentReports(payload: ReportBatchPayload): Promise<ReportBatchResultDTO> {
+  return post<ReportBatchResultDTO>('/admin/comment-reports/batch', payload)
 }

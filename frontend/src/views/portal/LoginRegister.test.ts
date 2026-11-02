@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
-import { NDialogProvider, NMessageProvider } from 'naive-ui'
 import { ApiError } from '@/api/request'
 import LoginRegister from '@/views/portal/LoginRegister.vue'
 
@@ -50,10 +49,7 @@ async function mountAtLogin(redirect?: string): Promise<{ wrapper: ReturnType<ty
   await router.push(redirect ? `/login-register?redirect=${redirect}` : '/login-register')
   await router.isReady()
 
-  const wrapper = mount({
-    components: { LoginRegister, NMessageProvider, NDialogProvider },
-    template: '<n-message-provider><n-dialog-provider><login-register /></n-dialog-provider></n-message-provider>',
-  }, { global: { plugins: [router] } })
+  const wrapper = mount(LoginRegister, { global: { plugins: [router] } })
   return { wrapper, router }
 }
 
@@ -91,7 +87,7 @@ describe('注册', () => {
     const { wrapper } = await mountAtLogin()
 
     // 切到注册 Tab
-    const tabs = wrapper.findAll('.n-tabs-tab')
+    const tabs = wrapper.findAll('.el-tabs__item')
     await tabs[1]?.trigger('click')
 
     await inputOf(wrapper, 'register-username').setValue('newbie')
@@ -111,7 +107,7 @@ describe('注册', () => {
     )
     const { wrapper } = await mountAtLogin()
 
-    const tabs = wrapper.findAll('.n-tabs-tab')
+    const tabs = wrapper.findAll('.el-tabs__item')
     await tabs[1]?.trigger('click')
 
     await inputOf(wrapper, 'register-username').setValue('lin')

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { createGuestbookEntry, getGuestbook } from '@/api/portal'
+import { createGuestbookEntry, deleteGuestbookEntry, getGuestbook } from '@/api/portal'
 import { ApiError } from '@/api/request'
 import { useSessionStore } from '@/stores/session'
 import { formatRelative } from '@/utils/format'
@@ -9,8 +9,9 @@ import type { GuestbookEntryDTO } from '@/types/api'
 
 /**
  * 留言墙（§3.4 / §5.6）：GET /guestbook 全量一级 + 两级回复；
- * 新留言 POST /guestbook {body}；回复 POST /guestbook {body, replyToId}。
- * 后端端点未实现 → 错误态降级，不白屏。
+ * 新留言 POST /guestbook {body}；回复 POST /guestbook {body, replyToId}；
+ * 删除 DELETE /guestbook/{id}（作者本人或 message.wallModerate）。
+ * 端点失败 → 错误态降级，不白屏。
  */
 
 const session = useSessionStore()
@@ -59,8 +60,8 @@ function openReply(entry: GuestbookEntryDTO, replyId?: number, nickname?: string
   if (!session.isLoggedIn) return
   replyTo.value = {
     id: replyId ?? entry.id,
-    nickname: nickname ?? entry.user.nickname,
-    body: `${entry.user.nickname}：${entry.body.slice(0, 40)}`,
+    nickname: nickname ?? entry.userName,
+    body: `${entry.userName}：${entry.body.slice(0, 40)}`,
   }
   replyBody.value = ''
 }
@@ -86,106 +87,124 @@ async function submitReply(): Promise<void> {
   }
 }
 
+const canModerateWall = computed(() => session.can('message.wallModerate'))
+
+function canRemoveEntry(entry: GuestbookEntryDTO): boolean {
+  return canModerateWall.value || session.user?.id === entry.userId
+}
+
+async function removeEntry(entry: GuestbookEntryDTO): Promise<void> {
+  try {
+    await deleteGuestbookEntry(entry.id)
+    await load()
+  } catch (error) {
+    errorMessage.value = error instanceof ApiError ? error.message : '删除失败'
+  }
+}
+
 onMounted(load)
 </script>
 
 <template>
   <div class="lb-guestbook">
-    <n-h3 class="lb-gb-title">留言墙</n-h3>
+    <h3 class="lb-gb-title">留言墙</h3>
 
     <!-- 新留言 -->
-    <n-card class="lb-gb-composer">
+    <el-card shadow="never" class="lb-gb-composer">
       <template v-if="session.isLoggedIn">
-        <n-input
-          v-model:value="newBody"
+        <el-input
+          v-model="newBody"
           type="textarea"
           :rows="3"
           maxlength="2000"
-          show-count
+          show-word-limit
           placeholder="写下你的留言（≤2000 字）"
         />
-        <n-space justify="end" class="lb-gb-composer-actions">
-          <n-button type="primary" size="small" :loading="posting" @click="submitNew">发布留言</n-button>
-        </n-space>
+        <div class="lb-gb-composer-actions">
+          <el-button type="primary" size="small" :loading="posting" @click="submitNew">发布留言</el-button>
+        </div>
       </template>
       <template v-else>
-        <n-space align="center" justify="space-between">
+        <div class="lb-gb-login-row">
           <span class="lb-muted">登录后即可留言与回复</span>
           <RouterLink to="/login-register">
-            <n-button size="small" type="primary" ghost>去登录</n-button>
+            <el-button size="small" type="primary" plain>去登录</el-button>
           </RouterLink>
-        </n-space>
+        </div>
       </template>
-    </n-card>
+    </el-card>
 
-    <n-spin :show="loading">
-      <n-alert v-if="errorMessage" type="warning" class="lb-gb-alert" closable @close="errorMessage = ''">
-        {{ errorMessage }}（服务暂未就绪）
-      </n-alert>
-      <n-empty v-if="entries.length === 0 && !loading && !errorMessage" description="还没有留言，来抢占第一条～" class="lb-gb-empty" />
+    <div v-loading="loading">
+      <el-alert v-if="errorMessage" type="warning" class="lb-gb-alert" closable @close="errorMessage = ''">
+        {{ errorMessage }}
+      </el-alert>
+      <el-empty v-if="entries.length === 0 && !loading && !errorMessage" description="还没有留言，来抢占第一条～" class="lb-gb-empty" />
 
-      <n-space vertical size="medium">
-        <n-card v-for="entry in entries" :key="entry.id" size="small">
+      <div class="lb-gb-stack">
+        <el-card v-for="entry in entries" :key="entry.id" shadow="never">
           <div class="lb-gb-entry">
-            <n-avatar round size="small">{{ entry.user.nickname.slice(0, 1) }}</n-avatar>
+            <el-avatar :size="28">{{ entry.userName.slice(0, 1) }}</el-avatar>
             <div class="lb-gb-main">
               <div class="lb-gb-meta">
-                <span class="lb-gb-author">{{ entry.user.nickname }}</span>
+                <span class="lb-gb-author">{{ entry.userName }}</span>
                 <span class="lb-muted">{{ formatRelative(entry.createdAt) }}</span>
               </div>
               <p class="lb-gb-body">{{ entry.body }}</p>
-              <n-space size="small">
-                <n-button v-if="session.isLoggedIn" quaternary size="tiny" @click="openReply(entry)">回复</n-button>
-              </n-space>
+              <div class="lb-gb-actions">
+                <el-button v-if="session.isLoggedIn" link size="small" @click="openReply(entry)">回复</el-button>
+                <el-popconfirm v-if="canRemoveEntry(entry)" title="删除该留言及其全部回复？" @confirm="removeEntry(entry)">
+                  <template #reference>
+                    <el-button link size="small" type="danger">删除</el-button>
+                  </template>
+                </el-popconfirm>
+              </div>
             </div>
           </div>
 
           <!-- 两级回复 -->
           <div v-if="entry.replies.length > 0" class="lb-gb-replies">
             <div v-for="reply in entry.replies" :key="reply.id" class="lb-gb-reply">
-              <n-avatar round size="small">{{ reply.author.nickname.slice(0, 1) }}</n-avatar>
+              <el-avatar :size="26">{{ reply.authorName.slice(0, 1) }}</el-avatar>
               <div class="lb-gb-main">
                 <div class="lb-gb-meta">
-                  <span class="lb-gb-author">{{ reply.author.nickname }}</span>
-                  <span v-if="reply.replyToNickname" class="lb-muted">回复 @{{ reply.replyToNickname }}</span>
+                  <span class="lb-gb-author">{{ reply.authorName }}</span>
+                  <span v-if="reply.replyToUserName" class="lb-muted">回复 @{{ reply.replyToUserName }}</span>
                   <span class="lb-muted">{{ formatRelative(reply.createdAt) }}</span>
                 </div>
                 <p class="lb-gb-body">{{ reply.body }}</p>
-                <n-space size="small">
-                  <n-button
+                <div class="lb-gb-actions">
+                  <el-button
                     v-if="session.isLoggedIn"
-                    quaternary
-                    size="tiny"
-                    @click="openReply(entry, reply.id, reply.author.nickname)"
+                    link
+                    size="small"
+                    @click="openReply(entry, reply.id, reply.authorName)"
                   >
                     回复
-                  </n-button>
-                </n-space>
+                  </el-button>
+                </div>
               </div>
             </div>
           </div>
-        </n-card>
-      </n-space>
+        </el-card>
+      </div>
 
       <!-- 行内回复框 -->
-      <n-card v-if="replyTo" size="small" class="lb-gb-reply-card">
+      <el-card v-if="replyTo" shadow="never" class="lb-gb-reply-card">
         <template #header>回复 @{{ replyTo.nickname }}</template>
-        <n-input
-          v-model:value="replyBody"
+        <el-input
+          v-model="replyBody"
           type="textarea"
           :rows="2"
           maxlength="2000"
-          show-count
+          show-word-limit
           placeholder="写下你的回复（≤2000 字）"
         />
-        <template #action>
-          <n-space justify="end">
-            <n-button size="small" @click="cancelReply">取消</n-button>
-            <n-button size="small" type="primary" :loading="replySubmitting" @click="submitReply">发送</n-button>
-          </n-space>
-        </template>
-      </n-card>
-    </n-spin>
+        <div class="lb-gb-composer-actions">
+          <el-button size="small" @click="cancelReply">取消</el-button>
+          <el-button size="small" type="primary" :loading="replySubmitting" @click="submitReply">发送</el-button>
+        </div>
+      </el-card>
+    </div>
   </div>
 </template>
 
@@ -200,6 +219,15 @@ onMounted(load)
 
 .lb-gb-composer-actions {
   margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.lb-gb-login-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .lb-gb-alert {
@@ -208,6 +236,12 @@ onMounted(load)
 
 .lb-gb-empty {
   padding: 60px 0;
+}
+
+.lb-gb-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .lb-gb-entry,
@@ -238,8 +272,13 @@ onMounted(load)
   word-break: break-word;
 }
 
+.lb-gb-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .lb-gb-replies {
-  margin: 12px 0 0 30px;
+  margin: 12px 0 0 36px;
   display: flex;
   flex-direction: column;
   gap: 12px;

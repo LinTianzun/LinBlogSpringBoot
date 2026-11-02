@@ -42,7 +42,12 @@ const passwordScore = computed(() => {
 })
 
 const strengthLabel = computed(() => ['过短', '弱', '一般', '较强', '强'][passwordScore.value] ?? '')
-const strengthType = computed(() => (['error', 'error', 'warning', 'info', 'success'][passwordScore.value] ?? 'error') as 'error' | 'warning' | 'info' | 'success')
+
+/** 强度 → 进度条颜色（element-plus 无语义 status，用色值对齐 art token） */
+const strengthColor = computed(() => {
+  const colors = ['#f56c6c', '#f56c6c', '#e6a23c', '#909399', '#67c23a']
+  return colors[passwordScore.value] ?? '#f56c6c'
+})
 
 function applyFieldErrors(errors: Record<string, string>, fieldErrors: FieldError[] | undefined): void {
   for (const key of Object.keys(errors)) delete errors[key]
@@ -102,84 +107,118 @@ async function handleRegister(): Promise<void> {
 
 <template>
   <div class="lb-auth-page">
-    <n-card class="lb-auth-card">
-      <n-tabs v-model:value="tab" size="large" justify-content="space-evenly">
-        <n-tab-pane name="login" tab="登录">
-          <n-alert v-if="topError && tab === 'login'" type="error" class="lb-auth-alert">{{ topError }}</n-alert>
-          <n-form label-placement="left" label-width="70">
-            <n-form-item label="账号" :validation-status="loginErrors.account ? 'error' : undefined" :feedback="loginErrors.account">
-              <n-input v-model:value="loginForm.account" placeholder="用户名 / 邮箱" data-testid="login-account" @keyup.enter="handleLogin" />
-            </n-form-item>
-            <n-form-item label="密码" :validation-status="loginErrors.password ? 'error' : undefined" :feedback="loginErrors.password">
-              <n-input
-                v-model:value="loginForm.password"
+    <el-card shadow="never" class="lb-auth-card">
+      <el-tabs v-model="tab">
+        <el-tab-pane label="登录" name="login">
+          <el-alert v-if="topError && tab === 'login'" type="error" class="lb-auth-alert" :title="topError" :closable="false" />
+          <el-form label-position="left" label-width="70px">
+            <el-form-item label="账号">
+              <el-input
+                v-model="loginForm.account"
+                placeholder="用户名 / 邮箱"
+                data-testid="login-account"
+                @keyup.enter="handleLogin"
+              />
+              <span v-if="loginErrors.account" class="lb-field-error">{{ loginErrors.account }}</span>
+            </el-form-item>
+            <el-form-item label="密码">
+              <el-input
+                v-model="loginForm.password"
                 type="password"
-                show-password-on="click"
+                show-password
                 placeholder="密码"
                 data-testid="login-password"
                 @keyup.enter="handleLogin"
               />
-            </n-form-item>
-            <n-space vertical size="small">
-              <n-button type="primary" block :loading="submitting" data-testid="login-submit" @click="handleLogin">
-                登录
-              </n-button>
-              <span class="lb-muted lb-auth-hint">
-                忘记密码？<a href="/reset-password" style="color: var(--lb-primary)">重置密码</a>
-              </span>
-            </n-space>
-          </n-form>
-        </n-tab-pane>
+              <span v-if="loginErrors.password" class="lb-field-error">{{ loginErrors.password }}</span>
+            </el-form-item>
+            <el-button
+              type="primary"
+              class="lb-auth-submit"
+              :loading="submitting"
+              data-testid="login-submit"
+              @click="handleLogin"
+            >
+              登录
+            </el-button>
+            <p class="lb-muted lb-auth-hint">
+              忘记密码？<a href="/reset-password" style="color: var(--lb-primary)">重置密码</a>
+            </p>
+          </el-form>
+        </el-tab-pane>
 
-        <n-tab-pane name="register" tab="注册">
-          <n-alert v-if="topError && tab === 'register'" type="error" class="lb-auth-alert">{{ topError }}</n-alert>
-          <n-form label-placement="left" label-width="70">
-            <n-form-item label="用户名" :validation-status="registerErrors.username ? 'error' : undefined" :feedback="registerErrors.username">
-              <n-input v-model:value="registerForm.username" placeholder="3-20 位字母、数字或下划线" data-testid="register-username" />
-            </n-form-item>
-            <n-form-item label="邮箱" :validation-status="registerErrors.email ? 'error' : undefined" :feedback="registerErrors.email">
-              <n-input v-model:value="registerForm.email" placeholder="name@example.com" data-testid="register-email" />
-            </n-form-item>
-            <n-form-item label="昵称" :validation-status="registerErrors.nickname ? 'error' : undefined" :feedback="registerErrors.nickname">
-              <n-input v-model:value="registerForm.nickname" placeholder="选填" data-testid="register-nickname" />
-            </n-form-item>
-            <n-form-item label="密码" :validation-status="registerErrors.password ? 'error' : undefined" :feedback="registerErrors.password">
-              <n-space vertical class="lb-strength-wrap">
-                <n-input
-                  v-model:value="registerForm.password"
+        <el-tab-pane label="注册" name="register">
+          <el-alert v-if="topError && tab === 'register'" type="error" class="lb-auth-alert" :title="topError" :closable="false" />
+          <el-form label-position="left" label-width="70px">
+            <el-form-item label="用户名">
+              <el-input
+                v-model="registerForm.username"
+                placeholder="3-20 位字母、数字或下划线"
+                data-testid="register-username"
+              />
+              <span v-if="registerErrors.username" class="lb-field-error">{{ registerErrors.username }}</span>
+            </el-form-item>
+            <el-form-item label="邮箱">
+              <el-input
+                v-model="registerForm.email"
+                placeholder="name@example.com"
+                data-testid="register-email"
+              />
+              <span v-if="registerErrors.email" class="lb-field-error">{{ registerErrors.email }}</span>
+            </el-form-item>
+            <el-form-item label="昵称">
+              <el-input
+                v-model="registerForm.nickname"
+                placeholder="选填"
+                data-testid="register-nickname"
+              />
+              <span v-if="registerErrors.nickname" class="lb-field-error">{{ registerErrors.nickname }}</span>
+            </el-form-item>
+            <el-form-item label="密码">
+              <div class="lb-strength-wrap">
+                <el-input
+                  v-model="registerForm.password"
                   type="password"
-                  show-password-on="click"
+                  show-password
                   placeholder="8-72 位"
                   data-testid="register-password"
                 />
-                <n-progress
+                <span v-if="registerErrors.password" class="lb-field-error">{{ registerErrors.password }}</span>
+                <el-progress
                   v-if="registerForm.password"
-                  type="line"
                   :percentage="(passwordScore / 4) * 100"
-                  :show-indicator="false"
-                  :status="strengthType"
-                  :height="6"
+                  :show-text="false"
+                  :stroke-width="6"
+                  :color="strengthColor"
+                  class="lb-strength-bar"
                 />
                 <span class="lb-muted">强度：{{ strengthLabel }}</span>
-              </n-space>
-            </n-form-item>
-            <n-form-item label="确认密码" :validation-status="registerErrors.confirm ? 'error' : undefined" :feedback="registerErrors.confirm">
-              <n-input
-                v-model:value="registerForm.confirm"
+              </div>
+            </el-form-item>
+            <el-form-item label="确认密码">
+              <el-input
+                v-model="registerForm.confirm"
                 type="password"
-                show-password-on="click"
+                show-password
                 placeholder="再次输入密码"
                 data-testid="register-confirm"
                 @keyup.enter="handleRegister"
               />
-            </n-form-item>
-            <n-button type="primary" block :loading="submitting" data-testid="register-submit" @click="handleRegister">
+              <span v-if="registerErrors.confirm" class="lb-field-error">{{ registerErrors.confirm }}</span>
+            </el-form-item>
+            <el-button
+              type="primary"
+              class="lb-auth-submit"
+              :loading="submitting"
+              data-testid="register-submit"
+              @click="handleRegister"
+            >
               注册
-            </n-button>
-          </n-form>
-        </n-tab-pane>
-      </n-tabs>
-    </n-card>
+            </el-button>
+          </el-form>
+        </el-tab-pane>
+      </el-tabs>
+    </el-card>
   </div>
 </template>
 
@@ -199,11 +238,29 @@ async function handleRegister(): Promise<void> {
   margin-bottom: 12px;
 }
 
+/* 40001 fieldErrors 显式错误文本（el-form-item :error 依赖内部校验状态，外部赋值不显示） */
+.lb-field-error {
+  display: block;
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-color-danger, #f56c6c);
+}
+
+.lb-auth-submit {
+  width: 100%;
+}
+
 .lb-auth-hint {
   text-align: center;
+  margin: 10px 0 0;
 }
 
 .lb-strength-wrap {
   width: 100%;
+}
+
+.lb-strength-bar {
+  margin: 6px 0 2px;
 }
 </style>

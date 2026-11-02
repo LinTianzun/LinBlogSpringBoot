@@ -86,35 +86,41 @@ onMounted(() => {
 
 <template>
   <div class="lb-article-list">
-    <n-card class="lb-toolbar">
-      <n-space align="center" size="small">
-        <n-radio-group v-model:value="sort" size="small">
-          <n-radio-button value="latest">最新</n-radio-button>
-          <n-radio-button value="hot">最热</n-radio-button>
-        </n-radio-group>
-        <n-select
+    <el-card shadow="never" class="lb-toolbar">
+      <div class="lb-toolbar-row">
+        <el-radio-group v-model="sort" size="small">
+          <el-radio-button value="latest">最新</el-radio-button>
+          <el-radio-button value="hot">最热</el-radio-button>
+        </el-radio-group>
+        <el-select
           v-if="labels.length > 0"
-          :value="labelId"
+          :model-value="labelId"
           clearable
           filterable
           placeholder="按标签过滤"
           size="small"
           style="width: 200px"
-          :options="labels.map((item) => ({ label: item.name, value: item.id }))"
-          @update:value="pickLabel"
-        />
-      </n-space>
-    </n-card>
+          @update:model-value="pickLabel"
+        >
+          <el-option v-for="item in labels" :key="item.id" :label="item.name" :value="item.id" />
+        </el-select>
+      </div>
+    </el-card>
 
-    <n-spin :show="loading">
-      <n-alert v-if="errorMessage" type="error" class="lb-list-alert">{{ errorMessage }}</n-alert>
-      <n-alert v-if="activeLabel" type="info" class="lb-list-alert" closable @close="pickLabel(null)">
-        标签「{{ activeLabel.name }}」下的文章
-      </n-alert>
-      <n-empty v-if="records.length === 0 && !loading" description="暂无文章" class="lb-list-empty" />
+    <div v-loading="loading">
+      <el-alert v-if="errorMessage" type="error" class="lb-list-alert" :title="errorMessage" :closable="false" />
+      <el-alert
+        v-if="activeLabel"
+        type="info"
+        class="lb-list-alert"
+        :closable="true"
+        :title="`标签「${activeLabel.name}」下的文章`"
+        @close="pickLabel(null)"
+      />
+      <el-empty v-if="records.length === 0 && !loading" description="暂无文章" class="lb-list-empty" />
 
-      <n-space vertical size="medium">
-        <n-card v-for="item in records" :key="item.id" class="lb-article-card">
+      <div class="lb-article-stack">
+        <el-card v-for="item in records" :key="item.id" shadow="never" class="lb-article-card">
           <div class="lb-article-row">
             <div class="lb-article-cover lb-cover-fallback" aria-hidden="true">📝</div>
             <div class="lb-article-info">
@@ -122,20 +128,22 @@ onMounted(() => {
                 {{ item.title }}
               </RouterLink>
               <p class="lb-muted lb-article-intro">{{ item.introduce }}</p>
-              <n-space size="small" align="center">
-                <n-tag v-for="label in item.labels" :key="label" size="small" round>{{ label }}</n-tag>
+              <div class="lb-article-meta">
+                <el-tag v-for="label in item.labels" :key="label" size="small" effect="plain" round>
+                  {{ label }}
+                </el-tag>
                 <span class="lb-muted">
                   {{ formatDate(item.publishedAt ?? item.createdAt) }} · 👁 {{ formatCount(item.views) }} · 👍
                   {{ formatCount(item.praises) }} · 💬 {{ formatCount(item.commentsCount) }}
                 </span>
-              </n-space>
+              </div>
             </div>
           </div>
-        </n-card>
-      </n-space>
+        </el-card>
+      </div>
 
       <PaginationBar v-model:page="page" :page-size="10" :total="total" :disabled="loading" />
-    </n-spin>
+    </div>
   </div>
 </template>
 
@@ -144,12 +152,24 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
+.lb-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .lb-list-alert {
   margin-bottom: 16px;
 }
 
 .lb-list-empty {
   padding: 60px 0;
+}
+
+.lb-article-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .lb-article-row {
@@ -188,5 +208,12 @@ onMounted(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.lb-article-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 </style>

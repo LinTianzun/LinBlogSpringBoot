@@ -3,7 +3,6 @@ import { EditorContent, useEditor } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
-import { NButton, NSpace, NTooltip } from 'naive-ui'
 import { onBeforeUnmount, watch } from 'vue'
 
 /**
@@ -106,23 +105,20 @@ function tools(): ToolItem[] {
 <template>
   <div class="lb-rich-editor">
     <div class="lb-rich-editor-toolbar">
-      <NSpace :size="4" :wrap="true">
-        <NTooltip v-for="tool in tools()" :key="tool.title">
-          <template #trigger>
-            <NButton
-              size="tiny"
-              :secondary="!tool.active"
-              :type="tool.active ? 'primary' : 'default'"
-              :data-active="tool.active || undefined"
-              :data-title="tool.title"
-              @click="tool.run()"
-            >
-              {{ tool.label }}
-            </NButton>
-          </template>
-          {{ tool.title }}
-        </NTooltip>
-      </NSpace>
+      <div class="lb-rich-editor-tools">
+        <el-tooltip v-for="tool in tools()" :key="tool.title" :content="tool.title" placement="top">
+          <el-button
+            size="small"
+            :plain="!tool.active"
+            :type="tool.active ? 'primary' : 'default'"
+            :data-active="tool.active || undefined"
+            :data-title="tool.title"
+            @click="tool.run()"
+          >
+            {{ tool.label }}
+          </el-button>
+        </el-tooltip>
+      </div>
     </div>
     <EditorContent :editor="editor" class="lb-rich-editor-body" />
   </div>
@@ -130,15 +126,21 @@ function tools(): ToolItem[] {
 
 <style scoped>
 .lb-rich-editor {
-  border: 1px solid var(--n-border-color, #e0e0e6);
+  border: 1px solid var(--art-card-border, #dcdfe6);
   border-radius: 6px;
   overflow: hidden;
 }
 
 .lb-rich-editor-toolbar {
   padding: 6px 8px;
-  border-bottom: 1px solid var(--n-border-color, #e0e0e6);
-  background: var(--n-action-color, #fafafc);
+  border-bottom: 1px solid var(--art-card-border, #dcdfe6);
+  background: var(--default-bg-color, #fafbfc);
+}
+
+.lb-rich-editor-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .lb-rich-editor-body :deep(.lb-rich-editor-prosemirror) {

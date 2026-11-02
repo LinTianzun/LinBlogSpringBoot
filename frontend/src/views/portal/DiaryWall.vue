@@ -44,34 +44,32 @@ onMounted(load)
 
 <template>
   <div class="lb-diary-wall">
-    <n-h3 class="lb-diary-title">日记</n-h3>
-    <n-spin :show="loading">
-      <n-alert v-if="errorMessage" type="warning" class="lb-diary-alert">
+    <h3 class="lb-diary-title">日记</h3>
+    <div v-loading="loading">
+      <el-alert v-if="errorMessage" type="warning" class="lb-diary-alert" :closable="false">
         {{ errorMessage }}
-      </n-alert>
-      <n-empty v-if="records.length === 0 && !loading && !errorMessage" description="还没有日记" class="lb-diary-empty" />
+      </el-alert>
+      <el-empty v-if="records.length === 0 && !loading && !errorMessage" description="还没有日记" class="lb-diary-empty" />
 
       <div v-else-if="records.length > 0" class="lb-timeline">
         <div v-for="diary in records" :key="diary.id" class="lb-timeline-item">
           <div class="lb-timeline-dot" />
-          <n-card size="small" class="lb-diary-card">
+          <el-card shadow="never" class="lb-diary-card">
             <template #header>
-              <n-space size="small" align="center">
+              <div class="lb-diary-head">
                 <span class="lb-diary-date">{{ diary.diaryDate }}</span>
                 <WeatherBadge :weather="diary.weather" />
                 <span v-if="diary.mood" class="lb-muted">心情：{{ diary.mood }}</span>
-              </n-space>
+              </div>
             </template>
-            <template #header-extra>
-              <span class="lb-muted">👍 {{ formatCount(diary.praises) }}</span>
-            </template>
+            <span class="lb-muted lb-diary-praise">👍 {{ formatCount(diary.praises) }}</span>
             <ContentRenderer :doc="docs.get(diary.id)" />
-          </n-card>
+          </el-card>
         </div>
       </div>
 
       <PaginationBar v-model:page="page" :page-size="10" :total="total" :disabled="loading" />
-    </n-spin>
+    </div>
   </div>
 </template>
 
@@ -86,6 +84,17 @@ onMounted(load)
 
 .lb-diary-empty {
   padding: 60px 0;
+}
+
+.lb-diary-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lb-diary-praise {
+  display: block;
+  margin-bottom: 4px;
 }
 
 .lb-timeline {

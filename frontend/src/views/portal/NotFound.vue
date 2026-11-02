@@ -10,11 +10,11 @@ function backHome(): void {
 
 <template>
   <div class="lb-not-found">
-    <n-result status="404" title="404" description="页面不存在或已被移除">
-      <template #footer>
-        <n-button type="primary" @click="backHome">回到首页</n-button>
+    <el-result icon="warning" title="404" sub-title="页面不存在或已被移除">
+      <template #extra>
+        <el-button type="primary" @click="backHome">回到首页</el-button>
       </template>
-    </n-result>
+    </el-result>
   </div>
 </template>
 

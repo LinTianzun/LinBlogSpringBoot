@@ -1,22 +1,10 @@
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue'
-import {
-  NButton,
-  NCard,
-  NForm,
-  NFormItem,
-  NInput,
-  NModal,
-  NPopconfirm,
-  NSelect,
-  NSpace,
-  NTag,
-  useMessage,
-} from 'naive-ui'
-import type { DataTableColumns } from 'naive-ui'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { createAdminUser, listAdminUsers, resetAdminUserPassword, updateAdminUser, updateAdminUserRole, updateAdminUserStatus } from '@/api/user'
 import { ApiError } from '@/api/request'
 import { useSessionStore } from '@/stores/session'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { formatDate } from '@/utils/format'
 import type { AdminUserView, RoleCode } from '@/types/api'
 
@@ -32,10 +20,9 @@ const ROLE_OPTIONS: Array<{ label: string; value: RoleCode }> = [
   { label: '访客', value: 'viewer' },
 ]
 
-const STATE_TAG_TYPE = { 0: 'error', 1: 'success' } as const
+const STATE_TAG_TYPE = { 0: 'danger', 1: 'success' } as const
 
 const session = useSessionStore()
-const message = useMessage()
 
 const records = ref<AdminUserView[]>([])
 const total = ref(0)
@@ -103,7 +90,7 @@ async function submitCreate(): Promise<void> {
       password: createForm.password,
       nickname: createForm.nickname.trim() || undefined,
     })
-    message.success('用户已创建')
+    ElMessage.success('用户已创建')
     showCreate.value = false
     await load()
   } catch (error) {
@@ -112,7 +99,7 @@ async function submitCreate(): Promise<void> {
       for (const item of error.fieldErrors) map[item.field] = item.message
       createErrors.value = map
     } else {
-      message.error(error instanceof ApiError ? error.message : '创建失败')
+      ElMessage.error(error instanceof ApiError ? error.message : '创建失败')
     }
   } finally {
     creating.value = false
@@ -138,7 +125,7 @@ async function submitEdit(): Promise<void> {
       nickname: editForm.nickname.trim() || undefined,
       email: editForm.email.trim() || undefined,
     })
-    message.success('已保存')
+    ElMessage.success('已保存')
     editing.value = null
     await load()
   } catch (error) {
@@ -147,7 +134,7 @@ async function submitEdit(): Promise<void> {
       for (const item of error.fieldErrors) map[item.field] = item.message
       editErrors.value = map
     } else {
-      message.error(error instanceof ApiError ? error.message : '保存失败')
+      ElMessage.error(error instanceof ApiError ? error.message : '保存失败')
     }
   }
 }
@@ -157,10 +144,10 @@ async function toggleStatus(row: AdminUserView): Promise<void> {
   const next = row.status === 1 ? 0 : 1
   try {
     await updateAdminUserStatus(row.id, { status: next })
-    message.success(next === 1 ? '已启用' : '已停用')
+    ElMessage.success(next === 1 ? '已启用' : '已停用')
     await load()
   } catch (error) {
-    message.error(error instanceof ApiError ? error.message : '操作失败')
+    ElMessage.error(error instanceof ApiError ? error.message : '操作失败')
   }
 }
 
@@ -176,15 +163,15 @@ function openReset(row: AdminUserView): void {
 async function submitReset(): Promise<void> {
   if (!resetting.value) return
   if (resetPassword.value.length < 8 || resetPassword.value.length > 72) {
-    message.error('新密码长度须为 8-72 位')
+    ElMessage.error('新密码长度须为 8-72 位')
     return
   }
   try {
     await resetAdminUserPassword(resetting.value.id, { password: resetPassword.value })
-    message.success('密码已重置')
+    ElMessage.success('密码已重置')
     resetting.value = null
   } catch (error) {
-    message.error(error instanceof ApiError ? error.message : '重置失败')
+    ElMessage.error(error instanceof ApiError ? error.message : '重置失败')
   }
 }
 
@@ -201,181 +188,218 @@ async function submitRole(): Promise<void> {
   if (!roleEditing.value) return
   try {
     await updateAdminUserRole(roleEditing.value.id, { role: nextRole.value })
-    message.success('角色已更新')
+    ElMessage.success('角色已更新')
     roleEditing.value = null
     await load()
   } catch (error) {
-    message.error(error instanceof ApiError ? error.message : '更新失败')
+    ElMessage.error(error instanceof ApiError ? error.message : '更新失败')
   }
 }
-
-const columns = computed<DataTableColumns<AdminUserView>>(() => [
-  { title: 'ID', key: 'id', width: 72 },
-  { title: '用户名', key: 'username' },
-  { title: '昵称', key: 'nickname', render: (row) => row.nickname || '—' },
-  { title: '邮箱', key: 'email' },
-  {
-    title: '角色',
-    key: 'role',
-    render: (row) => {
-      const option = ROLE_OPTIONS.find((item) => item.value === row.role)
-      return h(NTag, { size: 'small', bordered: false, type: row.role === 'super_admin' ? 'warning' : 'info' }, {
-        default: () => option?.label ?? row.role,
-      })
-    },
-  },
-  {
-    title: '状态',
-    key: 'status',
-    width: 88,
-    render: (row) =>
-      h(NTag, { size: 'small', bordered: false, type: STATE_TAG_TYPE[row.status as 0 | 1] }, {
-        default: () => (row.status === 1 ? '正常' : '已停用'),
-      }),
-  },
-  {
-    title: '创建时间',
-    key: 'createdAt',
-    render: (row) => formatDate(row.createdAt),
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 260,
-    render: (row) => {
-      const actions: ReturnType<typeof h>[] = []
-      if (canEdit.value) {
-        actions.push(h(NButton, { size: 'tiny', quaternary: true, onClick: () => openEdit(row) }, { default: () => '编辑' }))
-      }
-      if (canDisable.value) {
-        actions.push(
-          h(NPopconfirm, { onPositiveClick: () => void toggleStatus(row) }, {
-            trigger: () =>
-              h(NButton, { size: 'tiny', type: row.status === 1 ? 'warning' : 'primary', quaternary: true }, {
-                default: () => (row.status === 1 ? '停用' : '启用'),
-              }),
-            default: () => (row.status === 1 ? '确定停用该用户？' : '确定启用该用户？'),
-          }),
-        )
-      }
-      if (canReset.value) {
-        actions.push(h(NButton, { size: 'tiny', quaternary: true, onClick: () => openReset(row) }, { default: () => '重置密码' }))
-      }
-      if (canAssignRole.value) {
-        actions.push(h(NButton, { size: 'tiny', quaternary: true, onClick: () => openRole(row) }, { default: () => '角色' }))
-      }
-      return h(NSpace, { size: 'small' }, { default: () => actions })
-    },
-  },
-])
 
 onMounted(load)
 </script>
 
 <template>
   <div>
-    <n-space justify="space-between" align="center" style="margin-bottom: 16px">
-      <n-page-header title="用户管理" />
-      <NButton v-if="canCreate" type="primary" @click="openCreate">新建用户</NButton>
-    </n-space>
+    <div class="lb-page-header">
+      <h2>用户管理</h2>
+      <el-button v-if="canCreate" type="primary" @click="openCreate">新建用户</el-button>
+    </div>
 
-    <n-card>
-      <n-space size="small" align="center" style="margin-bottom: 12px">
-        <n-input
-          v-model:value="keyword"
+    <el-card shadow="never">
+      <div class="lb-manage-filters">
+        <el-input
+          v-model="keyword"
           placeholder="用户名 / 邮箱 / 昵称"
           clearable
           style="width: 260px"
           @keyup.enter="search"
         />
-        <n-select
-          v-model:value="status"
+        <el-select
+          v-model="status"
           placeholder="状态"
           clearable
           style="width: 140px"
-          :options="[
-            { label: '正常', value: 1 },
-            { label: '已停用', value: 0 },
-          ]"
-          @update:value="search"
-        />
-        <NButton size="small" @click="search">搜索</NButton>
-      </n-space>
+          @update:model-value="search"
+        >
+          <el-option label="正常" :value="1" />
+          <el-option label="已停用" :value="0" />
+        </el-select>
+        <el-button size="small" @click="search">搜索</el-button>
+      </div>
 
-      <n-alert v-if="errorMessage" type="warning" style="margin: 12px 0">
-        {{ errorMessage }}
-        <n-button size="tiny" quaternary @click="load">重试</n-button>
-      </n-alert>
+      <el-alert v-if="errorMessage" type="warning" :title="errorMessage" class="lb-load-alert" :closable="false">
+        <el-button size="small" link @click="load">重试</el-button>
+      </el-alert>
 
-      <n-data-table :columns="columns" :data="records" :loading="loading" :row-key="(row: AdminUserView) => row.id" />
+      <el-table v-loading="loading" :data="records" row-key="id">
+        <el-table-column label="ID" prop="id" width="72" />
+        <el-table-column label="用户名" prop="username" min-width="110" />
+        <el-table-column label="昵称" min-width="100">
+          <template #default="{ row }">{{ row.nickname || '—' }}</template>
+        </el-table-column>
+        <el-table-column label="邮箱" prop="email" min-width="160" />
+        <el-table-column label="角色" min-width="100">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain" :type="row.role === 'super_admin' ? 'warning' : 'info'">
+              {{ ROLE_OPTIONS.find((item) => item.value === row.role)?.label ?? row.role }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="88">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain" :type="STATE_TAG_TYPE[row.status as 0 | 1]">
+              {{ row.status === 1 ? '正常' : '已停用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="创建时间" width="120">
+          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="250">
+          <template #default="{ row }">
+            <el-button v-if="canEdit" link size="small" @click="openEdit(row as AdminUserView)">编辑</el-button>
+            <el-popconfirm
+              v-if="canDisable"
+              :title="row.status === 1 ? '确定停用该用户？' : '确定启用该用户？'"
+              @confirm="toggleStatus(row as AdminUserView)"
+            >
+              <template #reference>
+                <el-button link size="small" :type="row.status === 1 ? 'warning' : 'primary'">
+                  {{ row.status === 1 ? '停用' : '启用' }}
+                </el-button>
+              </template>
+            </el-popconfirm>
+            <el-button v-if="canReset" link size="small" @click="openReset(row as AdminUserView)">重置密码</el-button>
+            <el-button v-if="canAssignRole" link size="small" @click="openRole(row as AdminUserView)">角色</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-      <div style="display: flex; justify-content: flex-end; margin-top: 16px">
+      <div class="lb-manage-pagination">
         <PaginationBar v-model:page="page" :total="total" :page-size="pageSize" @update:page="load" />
       </div>
-    </n-card>
+    </el-card>
 
     <!-- 新建 -->
-    <n-modal v-model:show="showCreate" preset="card" title="新建用户" style="width: 480px">
-      <n-form label-placement="top">
-        <n-form-item label="用户名" :validation-status="createErrors.username ? 'error' : undefined" :feedback="createErrors.username">
-          <n-input v-model:value="createForm.username" placeholder="3-20 位字母、数字或下划线" />
-        </n-form-item>
-        <n-form-item label="邮箱" :validation-status="createErrors.email ? 'error' : undefined" :feedback="createErrors.email">
-          <n-input v-model:value="createForm.email" placeholder="user@example.com" />
-        </n-form-item>
-        <n-form-item label="初始密码" :validation-status="createErrors.password ? 'error' : undefined" :feedback="createErrors.password">
-          <n-input v-model:value="createForm.password" type="password" show-password-on="click" placeholder="8-72 位" />
-        </n-form-item>
-        <n-form-item label="昵称（可空）" :validation-status="createErrors.nickname ? 'error' : undefined" :feedback="createErrors.nickname">
-          <n-input v-model:value="createForm.nickname" />
-        </n-form-item>
-        <n-space justify="end">
-          <NButton @click="showCreate = false">取消</NButton>
-          <NButton type="primary" :loading="creating" @click="submitCreate">创建</NButton>
-        </n-space>
-      </n-form>
-    </n-modal>
+    <el-dialog v-model="showCreate" title="新建用户" width="480px" @update:model-value="(show: boolean) => { if (!show) showCreate = false }">
+      <el-form label-position="top">
+        <el-form-item label="用户名" :error="createErrors.username">
+          <el-input v-model="createForm.username" placeholder="3-20 位字母、数字或下划线" />
+        </el-form-item>
+        <el-form-item label="邮箱" :error="createErrors.email">
+          <el-input v-model="createForm.email" placeholder="user@example.com" />
+        </el-form-item>
+        <el-form-item label="初始密码" :error="createErrors.password">
+          <el-input v-model="createForm.password" type="password" show-password placeholder="8-72 位" />
+        </el-form-item>
+        <el-form-item label="昵称（可空）" :error="createErrors.nickname">
+          <el-input v-model="createForm.nickname" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="lb-dialog-actions">
+          <el-button size="small" @click="showCreate = false">取消</el-button>
+          <el-button size="small" type="primary" :loading="creating" @click="submitCreate">创建</el-button>
+        </div>
+      </template>
+    </el-dialog>
 
     <!-- 编辑 -->
-    <n-modal :show="editing !== null" preset="card" title="编辑用户" style="width: 440px" @update:show="editing = null">
-      <n-form label-placement="top">
-        <n-form-item label="昵称" :validation-status="editErrors.nickname ? 'error' : undefined" :feedback="editErrors.nickname">
-          <n-input v-model:value="editForm.nickname" />
-        </n-form-item>
-        <n-form-item label="邮箱" :validation-status="editErrors.email ? 'error' : undefined" :feedback="editErrors.email">
-          <n-input v-model:value="editForm.email" />
-        </n-form-item>
-        <n-space justify="end">
-          <NButton @click="editing = null">取消</NButton>
-          <NButton type="primary" @click="submitEdit">保存</NButton>
-        </n-space>
-      </n-form>
-    </n-modal>
+    <el-dialog :model-value="editing !== null" title="编辑用户" width="440px" @update:model-value="editing = null">
+      <el-form label-position="top">
+        <el-form-item label="昵称" :error="editErrors.nickname">
+          <el-input v-model="editForm.nickname" />
+        </el-form-item>
+        <el-form-item label="邮箱" :error="editErrors.email">
+          <el-input v-model="editForm.email" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="lb-dialog-actions">
+          <el-button size="small" @click="editing = null">取消</el-button>
+          <el-button size="small" type="primary" @click="submitEdit">保存</el-button>
+        </div>
+      </template>
+    </el-dialog>
 
     <!-- 重置密码 -->
-    <n-modal :show="resetting !== null" preset="card" :title="`重置密码：${resetting?.username ?? ''}`" style="width: 420px" @update:show="resetting = null">
-      <n-form label-placement="top">
-        <n-form-item label="新密码">
-          <n-input v-model:value="resetPassword" type="password" show-password-on="click" placeholder="8-72 位" />
-        </n-form-item>
-        <n-space justify="end">
-          <NButton @click="resetting = null">取消</NButton>
-          <NButton type="primary" @click="submitReset">重置</NButton>
-        </n-space>
-      </n-form>
-    </n-modal>
+    <el-dialog
+      :model-value="resetting !== null"
+      :title="`重置密码：${resetting?.username ?? ''}`"
+      width="420px"
+      @update:model-value="resetting = null"
+    >
+      <el-form label-position="top">
+        <el-form-item label="新密码">
+          <el-input v-model="resetPassword" type="password" show-password placeholder="8-72 位" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="lb-dialog-actions">
+          <el-button size="small" @click="resetting = null">取消</el-button>
+          <el-button size="small" type="primary" @click="submitReset">重置</el-button>
+        </div>
+      </template>
+    </el-dialog>
 
     <!-- 角色 -->
-    <n-modal :show="roleEditing !== null" preset="card" :title="`调整角色：${roleEditing?.username ?? ''}`" style="width: 400px" @update:show="roleEditing = null">
-      <n-form label-placement="top">
-        <n-form-item label="角色">
-          <n-select v-model:value="nextRole" :options="ROLE_OPTIONS" />
-        </n-form-item>
-        <n-space justify="end">
-          <NButton @click="roleEditing = null">取消</NButton>
-          <NButton type="primary" @click="submitRole">保存</NButton>
-        </n-space>
-      </n-form>
-    </n-modal>
+    <el-dialog
+      :model-value="roleEditing !== null"
+      :title="`调整角色：${roleEditing?.username ?? ''}`"
+      width="400px"
+      @update:model-value="roleEditing = null"
+    >
+      <el-form label-position="top">
+        <el-form-item label="角色">
+          <el-select v-model="nextRole" style="width: 100%">
+            <el-option v-for="option in ROLE_OPTIONS" :key="option.value" :label="option.label" :value="option.value" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="lb-dialog-actions">
+          <el-button size="small" @click="roleEditing = null">取消</el-button>
+          <el-button size="small" type="primary" @click="submitRole">保存</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
+
+<style scoped>
+.lb-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.lb-page-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.lb-manage-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.lb-load-alert {
+  margin: 0 0 12px;
+}
+
+.lb-manage-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.lb-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+</style>

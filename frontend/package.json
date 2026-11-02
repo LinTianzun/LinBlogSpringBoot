@@ -21,12 +21,13 @@
     "sizecheck": "size-limit"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
     "@tiptap/extension-image": "^3.32.2",
     "@tiptap/extension-link": "^3.32.2",
     "@tiptap/pm": "^3.32.2",
     "@tiptap/starter-kit": "^3.32.2",
     "@tiptap/vue-3": "^3.32.2",
-    "naive-ui": "^2.45.0",
+    "element-plus": "^2.14.7",
     "pinia": "^3.0.0",
     "vue": "^3.5.0",
     "vue-router": "^4.5.0"

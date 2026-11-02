@@ -75,8 +75,8 @@ describe('DiaryWall 日记墙', () => {
     const wrapper = await mountWall()
 
     expect(wrapper.html()).toContain('日记服务暂不可用')
-    expect(wrapper.find('.n-empty').exists()).toBe(false)
-    expect(wrapper.find('.n-alert').exists()).toBe(true)
+    expect(wrapper.find('.el-empty').exists()).toBe(false)
+    expect(wrapper.find('.el-alert').exists()).toBe(true)
   })
 
   it('空数据：显示"还没有日记"空态', async () => {
@@ -85,7 +85,7 @@ describe('DiaryWall 日记墙', () => {
     const wrapper = await mountWall()
 
     expect(wrapper.html()).toContain('还没有日记')
-    expect(wrapper.find('.n-empty').exists()).toBe(true)
+    expect(wrapper.find('.el-empty').exists()).toBe(true)
   })
 
   it('翻页：PaginationBar 触发 update:page 后以新页码重新请求', async () => {

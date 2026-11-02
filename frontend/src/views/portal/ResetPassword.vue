@@ -77,39 +77,74 @@ async function handleReset(): Promise<void> {
 
 <template>
   <div class="lb-reset-page">
-    <n-card class="lb-reset-card">
-      <n-h3 class="lb-reset-title">重置密码</n-h3>
+    <el-card shadow="never" class="lb-reset-card">
+      <h3 class="lb-reset-title">重置密码</h3>
 
-      <n-alert v-if="topMessage" type="success" class="lb-reset-alert">{{ topMessage }}</n-alert>
-      <n-alert v-else-if="topError" type="error" class="lb-reset-alert">{{ topError }}</n-alert>
+      <el-alert v-if="topMessage" type="success" class="lb-reset-alert" :title="topMessage" :closable="false" />
+      <el-alert v-else-if="topError" type="error" class="lb-reset-alert" :title="topError" :closable="false" />
 
       <!-- 请求重置邮件 -->
       <template v-if="!token">
-        <n-form label-placement="left" label-width="70">
-          <n-form-item label="邮箱" :validation-status="fieldErrors.email ? 'error' : undefined" :feedback="fieldErrors.email">
-            <n-input v-model:value="requestForm.email" placeholder="注册时使用的邮箱" data-testid="reset-email" @keyup.enter="handleRequest" />
-          </n-form-item>
-          <n-button type="primary" block :loading="submitting" data-testid="reset-request-submit" @click="handleRequest">
+        <el-form label-position="left" label-width="70px">
+          <el-form-item label="邮箱">
+            <el-input
+              v-model="requestForm.email"
+              placeholder="注册时使用的邮箱"
+              data-testid="reset-email"
+              @keyup.enter="handleRequest"
+            />
+            <span v-if="fieldErrors.email" class="lb-field-error">{{ fieldErrors.email }}</span>
+          </el-form-item>
+          <el-button
+            type="primary"
+            class="lb-reset-submit"
+            :loading="submitting"
+            data-testid="reset-request-submit"
+            @click="handleRequest"
+          >
             发送重置链接
-          </n-button>
-        </n-form>
+          </el-button>
+        </el-form>
       </template>
 
       <!-- 携带 token 设置新密码 -->
       <template v-else>
-        <n-form label-placement="left" label-width="90">
-          <n-form-item label="新密码" :validation-status="fieldErrors.newPassword || fieldErrors.password ? 'error' : undefined" :feedback="fieldErrors.newPassword ?? fieldErrors.password">
-            <n-input v-model:value="resetForm.password" type="password" show-password-on="click" placeholder="8-72 位" data-testid="reset-password" />
-          </n-form-item>
-          <n-form-item label="确认密码" :validation-status="fieldErrors.confirm ? 'error' : undefined" :feedback="fieldErrors.confirm">
-            <n-input v-model:value="resetForm.confirm" type="password" show-password-on="click" placeholder="再次输入" data-testid="reset-confirm" @keyup.enter="handleReset" />
-          </n-form-item>
-          <n-button type="primary" block :loading="submitting" data-testid="reset-submit" @click="handleReset">
+        <el-form label-position="left" label-width="90px">
+          <el-form-item label="新密码">
+            <el-input
+              v-model="resetForm.password"
+              type="password"
+              show-password
+              placeholder="8-72 位"
+              data-testid="reset-password"
+            />
+            <span v-if="fieldErrors.newPassword || fieldErrors.password" class="lb-field-error">
+              {{ fieldErrors.newPassword ?? fieldErrors.password }}
+            </span>
+          </el-form-item>
+          <el-form-item label="确认密码">
+            <el-input
+              v-model="resetForm.confirm"
+              type="password"
+              show-password
+              placeholder="再次输入"
+              data-testid="reset-confirm"
+              @keyup.enter="handleReset"
+            />
+            <span v-if="fieldErrors.confirm" class="lb-field-error">{{ fieldErrors.confirm }}</span>
+          </el-form-item>
+          <el-button
+            type="primary"
+            class="lb-reset-submit"
+            :loading="submitting"
+            data-testid="reset-submit"
+            @click="handleReset"
+          >
             设置新密码
-          </n-button>
-        </n-form>
+          </el-button>
+        </el-form>
       </template>
-    </n-card>
+    </el-card>
   </div>
 </template>
 
@@ -131,5 +166,18 @@ async function handleReset(): Promise<void> {
 
 .lb-reset-alert {
   margin-bottom: 12px;
+}
+
+.lb-reset-submit {
+  width: 100%;
+}
+
+/* 40001 fieldErrors 显式错误文本（el-form-item :error 依赖内部校验状态，外部赋值不显示） */
+.lb-field-error {
+  display: block;
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-color-danger, #f56c6c);
 }
 </style>

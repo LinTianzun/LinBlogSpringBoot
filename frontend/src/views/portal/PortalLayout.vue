@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { ArrowDown } from '@element-plus/icons-vue'
 import { useSessionStore } from '@/stores/session'
 
 const session = useSessionStore()
@@ -41,11 +42,16 @@ async function handleLogout(): Promise<void> {
   await session.logout()
   if (route.path !== '/') void router.push('/')
 }
+
+function onCommand(command: string): void {
+  if (command === 'admin') void router.push('/admin')
+  else if (command === 'logout') void handleLogout()
+}
 </script>
 
 <template>
-  <n-layout class="lb-portal-layout">
-    <n-layout-header bordered class="lb-portal-header">
+  <div class="lb-portal-layout">
+    <header class="lb-portal-header">
       <div class="lb-container lb-header-inner">
         <RouterLink to="/" class="lb-logo">LinBlog</RouterLink>
         <nav class="lb-nav">
@@ -61,49 +67,54 @@ async function handleLogout(): Promise<void> {
         </nav>
         <div class="lb-user-entry">
           <template v-if="session.isLoggedIn">
-            <n-dropdown
-              v-if="session.user"
-              :options="[
-                { label: session.user.nickname || session.user.username, key: 'name', disabled: true },
-                ...(adminGate ? [{ label: '进入后台', key: 'admin' }] : []),
-                { label: '退出登录', key: 'logout' },
-              ]"
-              @select="(key: string) => (key === 'admin' ? router.push('/admin') : key === 'logout' ? handleLogout() : undefined)"
-            >
-              <n-button quaternary size="small">
+            <el-dropdown v-if="session.user" @command="onCommand">
+              <el-button link>
                 {{ session.user.nickname || session.user.username }}
-              </n-button>
-            </n-dropdown>
+                <el-icon class="lb-user-caret"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item disabled>
+                    {{ session.user.nickname || session.user.username }}
+                  </el-dropdown-item>
+                  <el-dropdown-item v-if="adminGate" command="admin">进入后台</el-dropdown-item>
+                  <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
           <RouterLink v-else to="/login-register">
-            <n-button size="small" type="primary" ghost>登录 / 注册</n-button>
+            <el-button size="small" type="primary" plain>登录 / 注册</el-button>
           </RouterLink>
         </div>
       </div>
-    </n-layout-header>
+    </header>
 
-    <n-layout-content class="lb-portal-content">
+    <main class="lb-portal-content">
       <div class="lb-container">
         <router-view />
       </div>
-    </n-layout-content>
+    </main>
 
     <footer class="lb-portal-footer">
       <div class="lb-container lb-muted">
         © {{ new Date().getFullYear() }} LinBlog · Powered by Vue3 + SpringBoot
       </div>
     </footer>
-  </n-layout>
+  </div>
 </template>
 
 <style scoped>
 .lb-portal-layout {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--lb-bg);
 }
 
 .lb-portal-header {
   background: var(--lb-card-bg);
+  border-bottom: 1px solid var(--lb-border);
 }
 
 .lb-header-inner {
@@ -134,11 +145,16 @@ async function handleLogout(): Promise<void> {
 
 .lb-nav-link.active {
   color: var(--lb-primary);
-  background: rgba(24, 160, 88, 0.1);
+  background: color-mix(in srgb, var(--lb-primary) 10%, transparent);
   font-weight: 600;
 }
 
+.lb-user-caret {
+  margin-left: 4px;
+}
+
 .lb-portal-content {
+  flex: 1;
   padding: 24px 0 40px;
   background: transparent;
 }

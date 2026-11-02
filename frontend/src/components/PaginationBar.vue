@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 
 /**
- * n-pagination 统一封装：页码从 1 开始，total 由父级传入。
+ * el-pagination 统一封装：页码从 1 开始，total 由父级传入。
+ * 对外 API（page/pageSize/total/disabled + update:page）与库无关，调用方无需感知。
  */
 const props = withDefaults(
   defineProps<{
@@ -23,13 +24,13 @@ const pageCount = computed(() => Math.max(1, Math.ceil(props.total / Math.max(1,
 
 <template>
   <div v-if="pageCount > 1" class="lb-pagination">
-    <n-pagination
-      :page="page"
+    <el-pagination
+      :current-page="page"
       :page-count="pageCount"
       :page-size="pageSize"
       :disabled="disabled"
-      show-quick-jumper
-      @update:page="(p: number) => emit('update:page', p)"
+      layout="prev, pager, next, jumper"
+      @update:current-page="(p: number) => emit('update:page', p)"
     />
   </div>
 </template>

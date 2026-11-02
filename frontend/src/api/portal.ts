@@ -1,10 +1,12 @@
-import { get, post } from './request'
+import { del, get, post } from './request'
 import type {
   CommentListDTO,
   CommentTargetType,
+  CommentViewDTO,
   ContentView,
   CreateCommentPayload,
   DiaryDTO,
+  GuestbookCreateResultDTO,
   GuestbookEntryDTO,
   InteractionTargetType,
   PageQuery,
@@ -12,6 +14,7 @@ import type {
   PortalContentQuery,
   PortalHomeDTO,
   PraiseToggleResultDTO,
+  ReportCreatePayload,
   ViewReportResultDTO,
   ViewTargetType,
 } from '@/types/api'
@@ -44,17 +47,28 @@ export function reportView(targetType: ViewTargetType, targetId: number): Promis
   return post<ViewReportResultDTO>('/views', { targetType, targetId })
 }
 
-/** §5.6 GET /guestbook：全部 visible 一级留言 + 两级回复（M3 未交付，预留契约） */
+/** §5.6 GET /guestbook：全部 visible 一级留言 + 两级回复（backend GuestbookView） */
 export function getGuestbook(): Promise<GuestbookEntryDTO[]> {
   return get<GuestbookEntryDTO[]>('/guestbook')
 }
 
 /** §5.6 POST /guestbook：{body, replyToId?}——新留言 replyToId 缺省；回复传目标留言/回复 id */
-export function createGuestbookEntry(body: string, replyToId?: number): Promise<void> {
-  return post<void>('/guestbook', replyToId === undefined ? { body } : { body, replyToId })
+export function createGuestbookEntry(
+  body: string,
+  replyToId?: number,
+): Promise<GuestbookCreateResultDTO> {
+  return post<GuestbookCreateResultDTO>(
+    '/guestbook',
+    replyToId === undefined ? { body } : { body, replyToId },
+  )
 }
 
-/** §5.5 GET /portal/{targetType}/{id}/comments：一级 + 楼中楼两段（M3 未交付，预留契约） */
+/** §5.6 DELETE /guestbook/{id}：作者或 message.wallModerate（逻辑删，一级连带回复） */
+export function deleteGuestbookEntry(id: number): Promise<void> {
+  return del<void>(`/guestbook/${id}`)
+}
+
+/** §5.5 GET /portal/{targetType}/{id}/comments：一级 + 楼中楼两段（backend CommentThread） */
 export function listComments(
   targetType: CommentTargetType,
   targetId: number,
@@ -63,17 +77,27 @@ export function listComments(
   return get<CommentListDTO>(`/portal/${targetType}/${targetId}/comments`, { page })
 }
 
-/** §5.5 POST /comments：{targetType, targetId, parent_id?, replyToCommentId?, body}（M3 未交付，预留契约） */
-export function createComment(payload: CreateCommentPayload): Promise<void> {
-  return post<void>('/comments', payload)
+/** §5.5 POST /comments：{targetType, targetId, parentId?, replyToCommentId?, body} → 评论视图 */
+export function createComment(payload: CreateCommentPayload): Promise<CommentViewDTO> {
+  return post<CommentViewDTO>('/comments', payload)
 }
 
-/** §5.5 POST /comments/{id}/praise：toggle → {active, count}（M3 未交付，预留契约） */
+/** §5.5 DELETE /comments/{id}：作者或 comment.moderate（一级删连带回复） */
+export function deleteComment(id: number): Promise<void> {
+  return del<void>(`/comments/${id}`)
+}
+
+/** §5.5 POST /comments/{id}/praise：toggle → {active, count}（游客 40100） */
 export function praiseComment(id: number): Promise<PraiseToggleResultDTO> {
   return post<PraiseToggleResultDTO>(`/comments/${id}/praise`)
 }
 
-/** §5.5 POST /interactions：内容/日记点赞 toggle（M3 未交付，预留契约） */
+/** §5.5 POST /comments/{id}/report：{reason∈白名单, detail≤200}（登录） */
+export function reportComment(id: number, payload: ReportCreatePayload): Promise<void> {
+  return post<void>(`/comments/${id}/report`, payload)
+}
+
+/** §5.5 POST /interactions：内容/日记点赞 toggle */
 export function praiseInteraction(
   targetType: InteractionTargetType,
   targetId: number,

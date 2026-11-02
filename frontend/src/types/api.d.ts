@@ -338,53 +338,46 @@ export interface ViewReportResultDTO {
   counted: boolean
 }
 
-/* ---------------- 评论与互动（§3.3 / §5.5） ---------------- */
+/* ---------------- 评论与互动（§3.3 / §5.5，对齐 backend CommentView） ---------------- */
 
-export type CommentTargetType = 'content' | 'diary' | 'guestbook'
+/** 评论挂载目标白名单（§4.2，服务端映射到表；article/image→content） */
+export type CommentTargetType = CommentViewTargetType
 
-export interface ReplyCommentDTO {
+/** 评论挂载目标白名单（§4.2，服务端映射到表） */
+export type CommentViewTargetType = 'article' | 'image' | 'diary' | 'guestbook'
+
+/** 统一评论视图：门户两段式与留言墙树共用（backend CommentView） */
+export interface CommentViewDTO {
   id: number
-  parentId: number
+  targetType: CommentViewTargetType
+  targetId: number
+  authorId: number
+  authorName: string
+  parentId: number | null
   replyToCommentId: number | null
   replyToUserId: number | null
-  replyToNickname: string | null
-  authorId: number
-  authorNickname: string
-  authorAvatarMediaId: number | null
+  replyToUserName: string | null
   body: string
   praiseCount: number
-  /** 里程碑 0 假设：后端可返回当前用户是否已点赞 */
-  praised?: boolean
-  createdAt: string
+  /** 仅登录请求方可能为 true */
+  liked: boolean
+  /** backend CommentView record 未输出 createdAt，可能缺省 */
+  createdAt?: string
+  /** 仅留言墙树形返回时填充；两段式接口不返回 */
+  subReplies?: CommentViewDTO[]
 }
 
-export interface RootCommentDTO {
-  id: number
-  authorId: number
-  authorNickname: string
-  authorAvatarMediaId: number | null
-  body: string
-  praiseCount: number
-  praised?: boolean
-  createdAt: string
-  /** 嵌套形态；若后端走两段式则由 replyComments 按 parentId 归组 */
-  replies?: ReplyCommentDTO[]
-}
-
-/** §5.5 两段返回（对应原 rootComments / replyComments） */
+/** §5.5 两段返回（backend CommentThread）：一级 + 楼中楼平铺 */
 export interface CommentListDTO {
-  rootComments: RootCommentDTO[]
-  replyComments: ReplyCommentDTO[]
-  total: number
-  page: number
-  pageSize: number
+  rootComments: CommentViewDTO[]
+  replyComments: CommentViewDTO[]
 }
 
 export interface CreateCommentPayload {
   targetType: CommentTargetType
   targetId: number
-  /** 文档 §5.5 原文为 parent_id（snake_case），契约生成前保持原文 */
-  parent_id?: number
+  /** 一级评论的父评论 id；后端 CommentCreateRequest 接受 parent_id/parentId 双写，前端统一 camelCase */
+  parentId?: number
   replyToCommentId?: number | null
   body: string
 }
@@ -396,40 +389,92 @@ export interface PraiseToggleResultDTO {
 
 export type InteractionTargetType = 'content' | 'diary'
 
-/* ---------------- 留言墙（§3.4 / §5.6） ---------------- */
+/* ---------------- 评论举报工作台（§5.5 CommentReportAdminController） ---------------- */
 
-export interface GuestbookAuthorDTO {
-  id: number
-  nickname: string
-  avatarMediaId: number | null
-}
+export type ReportStatus = 'pending' | 'resolved' | 'dismissed'
+export type ReportAction = 'resolved' | 'dismissed'
 
-export interface GuestbookReplyDTO {
+/** 举报工作台行（backend ReportView 为 NON_NULL → 缺省字段全部可选） */
+export interface ReportViewDTO {
   id: number
-  parentId: number | null
-  replyToCommentId: number | null
-  replyToUserId: number | null
-  replyToNickname: string | null
-  author: GuestbookAuthorDTO
-  body: string
-  praiseCount: number
+  commentId: number
+  commentBody?: string
+  commentAuthorId?: number
+  commentAuthorName?: string
+  commentStatus?: string
+  reporterId?: number
+  reporterName?: string
+  reason: string
+  detail?: string
+  status: ReportStatus
+  handledByName?: string
+  handleNote?: string
   createdAt: string
+  handledAt?: string
 }
+
+/** PATCH /admin/comment-reports/{id}：{action: resolved|dismissed, note≤200} */
+export interface ReportHandlePayload {
+  action: ReportAction
+  note?: string
+}
+
+/** POST /admin/comment-reports/batch：{ids≤200, action} */
+export interface ReportBatchPayload {
+  ids: number[]
+  action: ReportAction
+}
+
+export interface ReportBatchResultDTO {
+  updated: number
+  skipped: number
+}
+
+export type ReportQuery = PageQuery & {
+  /** 缺省 pending */
+  status?: ReportStatus
+}
+
+/** 举报原因白名单（backend ReportService.REASONS） */
+export type ReportReason = 'spam' | 'abuse' | 'porn' | 'illegal' | 'misinformation' | 'other'
+
+/** POST /comments/{id}/report：{reason, detail≤200} */
+export interface ReportCreatePayload {
+  reason: ReportReason
+  detail?: string
+}
+
+/* ---------------- 留言墙（§3.4 / §5.6，对齐 backend GuestbookView） ---------------- */
 
 export interface GuestbookEntryDTO {
   id: number
-  user: GuestbookAuthorDTO
+  userId: number
+  userName: string
   body: string
-  status: 'visible' | 'deleted'
   createdAt: string
-  replies: GuestbookReplyDTO[]
+  /** 两级回复（来自 comments 表，backend GuestbookView.replies） */
+  replies: CommentViewDTO[]
 }
 
-/* ---------------- 私信（§5.6；本轮仅定义基础形状） ---------------- */
+/** POST /guestbook 结果：kind=entry（一级留言）| reply（回复，落 comments 表） */
+export interface GuestbookCreateResultDTO {
+  kind: 'entry' | 'reply'
+  entry?: GuestbookEntryDTO
+  comment?: CommentViewDTO
+}
+
+/* ---------------- 私信（§5.6；对齐 backend MessageService ConversationView/DirectMessageView） ---------------- */
+
+/** 会话对方信息（backend MessageService.Peer） */
+export interface MessagePeerDTO {
+  id: number
+  username: string
+  nickname: string
+}
 
 export interface ConversationDTO {
   id: number
-  peer: GuestbookAuthorDTO
+  peer: MessagePeerDTO
   lastMessageAt: string | null
   lastMessagePreview: string | null
   unread: number
@@ -442,6 +487,23 @@ export interface MessageDTO {
   body: string
   readAt: string | null
   createdAt: string
+}
+
+/** GET /messages/conversations/{id}?before= 游标倒查结果（records 正序） */
+export interface MessagePageDTO {
+  records: MessageDTO[]
+  hasMore: boolean
+}
+
+/** POST /messages/conversations：建会话并发出首条消息 */
+export interface CreateConversationPayload {
+  recipientId: number
+  body: string
+}
+
+/** POST /messages/conversations/{id} */
+export interface SendMessagePayload {
+  body: string
 }
 
 /* ---------------- 权限目录（§5.2；对齐 backend PermissionController/PermissionKeys） ---------------- */
@@ -474,23 +536,56 @@ export interface PermissionMeDTO {
 /** PUT /permissions/matrix：role → 该角色授予的权限键列表（超管固定全量，不可编辑） */
 export type PermissionMatrix = Partial<Record<RoleCode, PermissionKey[]>>
 
-/* ---------------- 后台概览（§5.8） ---------------- */
+/* ---------------- 后台概览（§5.8；对齐 backend SummaryResult/VisitStatsResult） ---------------- */
 
+/** GET /admin/overview/summary（overview.view） */
 export interface OverviewSummaryDTO {
-  contentCount: number
-  commentCount: number
-  unreadMessageCount: number
-  fileCount: number
+  contents: number
+  comments: number
+  unreadMessages: number
+  files: number
   viewsToday: number
   viewsWeek: number
 }
 
+/** GET /admin/overview/visit-stats?range=week|moon（缺数日补零） */
 export type VisitStatsRange = 'week' | 'moon'
 
 export interface VisitStatsPointDTO {
   date: string
-  views: number
+  count: number
 }
+
+export interface VisitStatsResultDTO {
+  range: VisitStatsRange
+  points: VisitStatsPointDTO[]
+}
+
+/* ---------------- 系统日志（§5.8；对齐 backend SystemLogAdminController/SystemLogView） ---------------- */
+
+export interface SystemLogQuery {
+  page: number
+  pageSize: number
+  module?: string
+  action?: string
+}
+
+export interface SystemLogViewDTO {
+  id: number
+  userId?: number
+  userName?: string
+  module: string
+  action: string
+  targetType?: string
+  targetId?: number
+  detail?: string
+  ip?: string
+  createdAt: string
+}
+
+/* ---------------- 系统设置（§5.8；对齐 backend SettingController：Map<String,String>） ---------------- */
+
+export type SettingsDTO = Record<string, string>
 
 /* ---------------- 后台用户管理（§5.6；对齐 backend AdminUserController/AdminUserService） ---------------- */
 
@@ -533,4 +628,32 @@ export interface AdminUserResetPasswordPayload {
 /** PATCH /admin/users/{id}/role：仅超管可改；不可降级 super_admin → 40900 */
 export interface AdminUserRolePayload {
   role: RoleCode
+}
+
+/* ---------------- 文件管理（§5.7；对齐 backend FileAdminController/FileAdminView/StorageStatus） ---------------- */
+
+/** GET /admin/files 列表项（state: active 主区 / trashed 备份区） */
+export interface FileAdminViewDTO {
+  id: number
+  uploaderId?: number
+  uploaderName?: string
+  storageKey: string
+  originalName: string
+  mimeType: string
+  sizeBytes: number
+  sha256?: string
+  state: 'active' | 'trashed'
+  trashedAt?: string
+  createdAt: string
+}
+
+/** GET /admin/files/storage-status：主区=active，备份区=trash；配额 2GiB，备份区 ≥80% 告警 */
+export interface StorageStatusDTO {
+  primaryBytes: number
+  primaryCount: number
+  backupBytes: number
+  backupCount: number
+  quotaBytes: number
+  backupPercent: number
+  alert: boolean
 }

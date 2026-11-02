@@ -70,8 +70,8 @@ describe('GET 封装', () => {
   })
 
   it('listComments → GET /portal/{targetType}/{id}/comments，page 缺省 1', async () => {
-    await listComments('content', 7)
-    expect(mockedGet).toHaveBeenCalledWith('/portal/content/7/comments', { page: 1 })
+    await listComments('article', 7)
+    expect(mockedGet).toHaveBeenCalledWith('/portal/article/7/comments', { page: 1 })
 
     await listComments('diary', 9, 3)
     expect(mockedGet).toHaveBeenLastCalledWith('/portal/diary/9/comments', { page: 3 })
@@ -95,7 +95,7 @@ describe('POST 封装', () => {
   })
 
   it('createComment → POST /comments 透传 payload', async () => {
-    const payload = { targetType: 'content' as const, targetId: 1, body: '评论' }
+    const payload = { targetType: 'article' as const, targetId: 1, body: '评论' }
     await createComment(payload)
     expect(mockedPost).toHaveBeenCalledWith('/comments', payload)
   })

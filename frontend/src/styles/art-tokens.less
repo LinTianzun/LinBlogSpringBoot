@@ -1,0 +1,83 @@
+/* art-design-pro 设计 token（vendor 自 Daymychen/art-design-pro，裁剪 tailwind 部分）。
+ * 亮/暗变量 + element-plus 主色覆盖（9 档色阶用 color-mix 纯 CSS 生成，免 JS 计算）。
+ * --lb-* 为门户旧变量，桥接到 art token 以便亮暗自适应。 */
+
+:root {
+  /* 主色（art 默认 #5D87FF）；element-plus 组件读 --el-color-* */
+  --main-color: #5d87ff;
+  --el-color-primary: var(--main-color);
+  --el-color-primary-light-3: color-mix(in srgb, var(--main-color) 70%, #ffffff);
+  --el-color-primary-light-5: color-mix(in srgb, var(--main-color) 50%, #ffffff);
+  --el-color-primary-light-7: color-mix(in srgb, var(--main-color) 30%, #ffffff);
+  --el-color-primary-light-8: color-mix(in srgb, var(--main-color) 20%, #ffffff);
+  --el-color-primary-light-9: color-mix(in srgb, var(--main-color) 10%, #ffffff);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--main-color) 80%, #000000);
+
+  /* 功能色（art 取值） */
+  --el-color-success: #13deb9;
+  --el-color-warning: #ffae1f;
+  --el-color-danger: #ff4d4f;
+  --el-color-error: #ff4d4f;
+
+  /* 圆角基准（art --custom-radius） */
+  --custom-radius: 6px;
+  --el-border-radius-base: var(--custom-radius);
+
+  /* 灰阶（亮） */
+  --art-gray-100: #f9fafb;
+  --art-gray-200: #f2f4f5;
+  --art-gray-300: #e6eaeb;
+  --art-gray-400: #dbdfe1;
+  --art-gray-500: #949eb7;
+  --art-gray-600: #7987a1;
+  --art-gray-700: #4d5875;
+  --art-gray-800: #383853;
+  --art-gray-900: #323251;
+
+  /* 边框与背景（亮） */
+  --art-card-border: rgba(0, 0, 0, 0.08);
+  --default-border: #e2e8ee;
+  --default-bg-color: #fafbfc;
+  --default-box-color: #ffffff;
+  --art-hover-color: #edeff0;
+  --art-active-color: #f2f4f5;
+
+  /* 门户旧变量桥接（亮暗自适应） */
+  --lb-primary: var(--main-color);
+  --lb-text: #29343d;
+  --lb-text-secondary: var(--art-gray-600);
+  --lb-bg: var(--default-bg-color);
+  --lb-card-bg: var(--default-box-color);
+  --lb-border: var(--default-border);
+  --lb-danger: var(--el-color-danger);
+}
+
+/* 暗色：element-plus 的 .dark 基础变量已由 css-vars.css 提供，这里覆盖 art 层 */
+html.dark {
+  --art-gray-100: #110f0f;
+  --art-gray-200: #17171c;
+  --art-gray-300: #393946;
+  --art-gray-400: #505062;
+  --art-gray-500: #73738c;
+  --art-gray-600: #8f8fa3;
+  --art-gray-700: #ababba;
+  --art-gray-800: #c7c7d1;
+  --art-gray-900: #e3e3e8;
+
+  --art-card-border: rgba(255, 255, 255, 0.08);
+  --default-border: rgba(255, 255, 255, 0.1);
+  --default-bg-color: #070707;
+  --default-box-color: #161618;
+  --art-hover-color: #252530;
+  --art-active-color: #202226;
+
+  --lb-text: #d9dadb;
+  --lb-text-secondary: var(--art-gray-600);
+}
+
+/* art 卡片观感：白盒 + 细边 + 圆角（页面容器通用） */
+.art-card {
+  background: var(--default-box-color);
+  border: 1px solid var(--art-card-border);
+  border-radius: calc(var(--custom-radius) + 4px);
+}

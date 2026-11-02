@@ -53,10 +53,10 @@ onMounted(load)
 
 <template>
   <div class="lb-gallery-wall">
-    <n-h3 class="lb-gallery-title">画廊</n-h3>
-    <n-spin :show="loading">
-      <n-alert v-if="errorMessage" type="error" class="lb-wall-alert">{{ errorMessage }}</n-alert>
-      <n-empty v-if="columns.length === 0 && !loading" description="暂无作品" class="lb-wall-empty" />
+    <h3 class="lb-gallery-title">画廊</h3>
+    <div v-loading="loading">
+      <el-alert v-if="errorMessage" type="error" class="lb-wall-alert" :title="errorMessage" :closable="false" />
+      <el-empty v-if="columns.length === 0 && !loading" description="暂无作品" class="lb-wall-empty" />
       <div v-else class="lb-masonry">
         <RouterLink v-for="item in columns" :key="item.id" :to="`/gallery/${item.id}`" class="lb-masonry-item">
           <div class="lb-masonry-media lb-cover-fallback" aria-hidden="true">🖼</div>
@@ -67,7 +67,7 @@ onMounted(load)
         </RouterLink>
       </div>
       <PaginationBar v-model:page="page" :page-size="24" :total="total" :disabled="loading" />
-    </n-spin>
+    </div>
   </div>
 </template>
 

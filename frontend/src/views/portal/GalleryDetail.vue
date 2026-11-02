@@ -56,27 +56,27 @@ onMounted(load)
 
 <template>
   <div class="lb-gallery-detail">
-    <n-spin :show="loading">
-      <n-empty v-if="errorMessage && !content" :description="errorMessage" class="lb-detail-empty" />
+    <div v-loading="loading">
+      <el-empty v-if="errorMessage && !content" :description="errorMessage" class="lb-detail-empty" />
 
       <template v-if="content">
-        <n-card>
+        <el-card shadow="never">
           <div class="lb-gallery-image lb-cover-fallback" aria-hidden="true">🖼</div>
-          <n-space align="center" size="small" class="lb-gallery-meta">
-            <n-h3 class="lb-gallery-name">{{ content.title }}</n-h3>
+          <div class="lb-gallery-meta">
+            <h3 class="lb-gallery-name">{{ content.title }}</h3>
             <span class="lb-muted">👁 {{ formatCount(content.views) }}</span>
-            <n-button size="tiny" secondary @click="togglePraise">👍 {{ formatCount(content.praises) }}</n-button>
-          </n-space>
+            <el-button size="small" @click="togglePraise">👍 {{ formatCount(content.praises) }}</el-button>
+          </div>
           <p class="lb-muted">{{ content.introduce }}</p>
           <p class="lb-muted">{{ formatDateTime(content.publishedAt ?? content.createdAt) }}</p>
           <ContentRenderer :doc="doc" />
-        </n-card>
+        </el-card>
 
-        <n-card class="lb-comments-card">
-          <CommentTree target-type="content" :target-id="content.id" />
-        </n-card>
+        <el-card shadow="never" class="lb-comments-card">
+          <CommentTree target-type="image" :target-id="content.id" />
+        </el-card>
       </template>
-    </n-spin>
+    </div>
   </div>
 </template>
 
@@ -101,6 +101,9 @@ onMounted(load)
 
 .lb-gallery-meta {
   margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .lb-gallery-name {

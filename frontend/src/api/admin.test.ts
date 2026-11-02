@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
- * admin.ts 接口契约：内容/标签/合集/日记/媒体/总览各端点的
- * 路径、query、body 形状与 HTTP 动词（§5.3-§5.8）。
+ * admin.ts 接口契约：内容/标签/合集/日记/媒体/总览/举报/文件/日志/设置/私信
+ * 各端点的路径、query、body 形状与 HTTP 动词（§5.3-§5.8，M3/M4）。
  */
 
 vi.mock('@/api/request', () => ({
@@ -15,7 +15,9 @@ vi.mock('@/api/request', () => ({
 
 import { del as apiDel, get as apiGet, patch as apiPatch, post as apiPost, put as apiPut } from '@/api/request'
 import {
+  batchHandleCommentReports,
   createContent,
+  createConversation,
   createDiary,
   createLabel,
   createSubset,
@@ -26,18 +28,34 @@ import {
   getAdminContent,
   getAdminDiary,
   getOverviewSummary,
+  getSettings,
+  getStorageStatus,
   getSubset,
   getSubsetItems,
+  getUnreadCount,
+  getVisitStats,
+  handleCommentReport,
   listAdminContents,
   listAdminDiaries,
+  listAdminFiles,
+  listCommentReports,
+  listConversations,
   listLabels,
+  listMessages,
   listSubsets,
+  listSystemLogs,
+  markConversationRead,
   purgeContent,
+  purgeFile,
   replaceSubsetItems,
+  restoreFile,
+  sendMessage,
+  trashFile,
   updateContent,
   updateContentState,
   updateDiary,
   updateLabel,
+  updateSettings,
   updateSubset,
   uploadMedia,
 } from '@/api/admin'
@@ -180,5 +198,101 @@ describe('媒体与总览', () => {
   it('getOverviewSummary → GET /admin/overview/summary', async () => {
     await getOverviewSummary()
     expect(mockedGet).toHaveBeenCalledWith('/admin/overview/summary')
+  })
+
+  it('getVisitStats → GET /admin/overview/visit-stats?range=', async () => {
+    await getVisitStats('week')
+    expect(mockedGet).toHaveBeenCalledWith('/admin/overview/visit-stats', { range: 'week' })
+  })
+})
+
+describe('举报工作台（/admin/comment-reports，M3）', () => {
+  it('listCommentReports → GET /admin/comment-reports 透传 status 分页', async () => {
+    const query = { page: 1, pageSize: 10, status: 'pending' as const }
+    await listCommentReports(query)
+    expect(mockedGet).toHaveBeenCalledWith('/admin/comment-reports', query)
+  })
+
+  it('handleCommentReport → PATCH /admin/comment-reports/{id} {action, note?}', async () => {
+    await handleCommentReport(11, { action: 'resolved', note: '已处理' })
+    expect(mockedPatch).toHaveBeenCalledWith('/admin/comment-reports/11', { action: 'resolved', note: '已处理' })
+  })
+
+  it('batchHandleCommentReports → POST /admin/comment-reports/batch {ids, action}', async () => {
+    await batchHandleCommentReports({ ids: [1, 2, 3], action: 'dismissed' })
+    expect(mockedPost).toHaveBeenCalledWith('/admin/comment-reports/batch', { ids: [1, 2, 3], action: 'dismissed' })
+  })
+})
+
+describe('文件管理（/admin/files，M4）', () => {
+  it('listAdminFiles → GET /admin/files 透传 state 分页', async () => {
+    await listAdminFiles({ page: 1, pageSize: 12, state: 'trashed' })
+    expect(mockedGet).toHaveBeenCalledWith('/admin/files', { page: 1, pageSize: 12, state: 'trashed' })
+  })
+
+  it('getStorageStatus → GET /admin/files/storage-status', async () => {
+    await getStorageStatus()
+    expect(mockedGet).toHaveBeenCalledWith('/admin/files/storage-status')
+  })
+
+  it('trash/restore → PATCH /{id}/trash|restore；purge → DELETE /{id}', async () => {
+    await trashFile(9)
+    expect(mockedPatch).toHaveBeenCalledWith('/admin/files/9/trash')
+
+    await restoreFile(9)
+    expect(mockedPatch).toHaveBeenLastCalledWith('/admin/files/9/restore')
+
+    await purgeFile(9)
+    expect(mockedDel).toHaveBeenCalledWith('/admin/files/9')
+  })
+})
+
+describe('系统日志与设置（M4）', () => {
+  it('listSystemLogs → GET /admin/system-logs 透传 module/action', async () => {
+    await listSystemLogs({ page: 1, pageSize: 20, module: 'content', action: 'publish' })
+    expect(mockedGet).toHaveBeenCalledWith('/admin/system-logs', { page: 1, pageSize: 20, module: 'content', action: 'publish' })
+  })
+
+  it('getSettings → GET /admin/settings；updateSettings → PUT /admin/settings {settings}', async () => {
+    await getSettings()
+    expect(mockedGet).toHaveBeenCalledWith('/admin/settings')
+
+    await updateSettings({ siteName: 'LinBlog' })
+    expect(mockedPut).toHaveBeenCalledWith('/admin/settings', { settings: { siteName: 'LinBlog' } })
+  })
+})
+
+describe('私信（/messages，M4）', () => {
+  it('listConversations → GET /messages/conversations 透传分页', async () => {
+    await listConversations({ page: 1, pageSize: 20 })
+    expect(mockedGet).toHaveBeenCalledWith('/messages/conversations', { page: 1, pageSize: 20 })
+  })
+
+  it('createConversation → POST /messages/conversations {recipientId, body}', async () => {
+    await createConversation({ recipientId: 5, body: '你好' })
+    expect(mockedPost).toHaveBeenCalledWith('/messages/conversations', { recipientId: 5, body: '你好' })
+  })
+
+  it('listMessages → GET /messages/conversations/{id}，before 有无分别处理', async () => {
+    await listMessages(8)
+    expect(mockedGet).toHaveBeenCalledWith('/messages/conversations/8', undefined)
+
+    await listMessages(8, 100)
+    expect(mockedGet).toHaveBeenLastCalledWith('/messages/conversations/8', { before: 100 })
+  })
+
+  it('sendMessage → POST /messages/conversations/{id} {body}', async () => {
+    await sendMessage(8, { body: '在吗' })
+    expect(mockedPost).toHaveBeenCalledWith('/messages/conversations/8', { body: '在吗' })
+  })
+
+  it('markConversationRead → PATCH /messages/conversations/{id}/read', async () => {
+    await markConversationRead(8)
+    expect(mockedPatch).toHaveBeenCalledWith('/messages/conversations/8/read')
+  })
+
+  it('getUnreadCount → GET /messages/unread-count', async () => {
+    await getUnreadCount()
+    expect(mockedGet).toHaveBeenCalledWith('/messages/unread-count')
   })
 })

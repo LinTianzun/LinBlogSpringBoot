@@ -46,6 +46,6 @@ describe('AdminPlaceholder', () => {
   it('空权限列表：权限区保留但不渲染任何标签', () => {
     const wrapper = mountPlaceholder({ title: '设置', permission: [] })
     expect(wrapper.text()).toContain('所需权限（任一即可）')
-    expect(wrapper.findAll('.n-tag').length).toBe(0)
+    expect(wrapper.findAll('.el-tag').length).toBe(0)
   })
 })
