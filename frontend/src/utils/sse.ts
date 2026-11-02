@@ -1,12 +1,13 @@
 /**
- * SSE 封装（§5.9 GET /api/v1/events）：EventSource 自动携带 Cookie。
+ * SSE 封装（backend EventController：GET /events 根路径，非 /api/v1 前缀）：
+ * EventSource 自动携带 Cookie（withCredentials）。
  * 事件类型：message.new / report.new / heartbeat。
  * 断线自动指数退避重连（1s 起，封顶 30s），手动 close 后不再重连。
  */
 
 export type SseEventHandler = (data: unknown) => void
 
-const BASE = '/api/v1/events'
+const BASE = '/events'
 const MIN_BACKOFF_MS = 1000
 const MAX_BACKOFF_MS = 30_000
 

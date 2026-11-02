@@ -11,7 +11,6 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AdminPlaceholder: typeof import('./src/components/AdminPlaceholder.vue')['default']
     CommentTree: typeof import('./src/components/CommentTree.vue')['default']
     ContentRenderer: typeof import('./src/components/ContentRenderer.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
