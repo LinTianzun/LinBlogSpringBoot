@@ -3,7 +3,6 @@ package com.linblog.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.context.properties.bind.Bindable;
@@ -18,7 +17,6 @@ import java.util.List;
  * 以 BeanFactoryPostProcessor 身份在任何业务 Bean / DataSource / Flyway 之前执行，
  * 所有配置问题一次性聚合报告，拒绝启动。
  */
-@Component
 public class AppStartupGuard implements BeanFactoryPostProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(AppStartupGuard.class);
