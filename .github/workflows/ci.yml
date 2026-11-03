@@ -249,23 +249,19 @@ jobs:
             pnpm install
           fi
 
-      # Playwright 依赖与 §8.3 的 12 条冒烟用例由后续里程碑落地；
-      # 就绪前本 job 仅验证：compose 全栈起得来 + Caddy 静态与 /api 反代链路通
-      - name: 冒烟检查（Playwright 就绪前为 curl 占位）
+      # §8.3 的 12 条 Playwright 冒烟用例（frontend/e2e）。E2E_BASE_URL 指向
+      # compose 的 Caddy（http，:80）；超管初始密码见 deploy 文档，首登会被强制改密，
+      # helpers.ensureAdminReady() 在首个用例前完成首改并复用 E2E_ADMIN_PASSWORD_AFTER。
+      - name: Playwright E2E 冒烟
         working-directory: frontend
+        env:
+          E2E_BASE_URL: http://localhost
+          E2E_ADMIN_ACCOUNT: admin@linlog.com
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD || 'LinBlog@2026' }}
+          E2E_ADMIN_PASSWORD_AFTER: ${{ secrets.E2E_ADMIN_PASSWORD_AFTER || '{{SECRET_zk3pq8dm}}' }}
         run: |
-          if [ -f playwright.config.ts ]; then
-            pnpm exec playwright install --with-deps chromium
-            pnpm exec playwright test
-          else
-            curl -fsS http://localhost/ -o /dev/null -w "GET / -> %{http_code}\n"
-            code="$(curl -s -o /dev/null -w '%{http_code}' 'http://localhost/api/v1/auth/me')"
-            if [ "$code" = "000" ] || [ "$code" = "502" ] || [ "$code" = "504" ]; then
-              echo "::error::经 Caddy 反代访问 /api 失败（HTTP $code）"
-              exit 1
-            fi
-            echo "GET /api/v1/auth/me -> $code（反代链路通）"
-          fi
+          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright test
 
       - name: 上传 Playwright 报告
         if: failure()

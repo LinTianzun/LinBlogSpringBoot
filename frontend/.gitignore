@@ -3,3 +3,9 @@ dist/
 coverage/
 *.log
 *.local
+
+# Playwright（E2E）产物
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
