@@ -23,9 +23,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // 后端 Spring Boot 8080；SSE 一并透传（本地 dev 无 Caddy）
+      // 后端 Spring Boot 默认 8080；SSE 一并透传（本地 dev 无 Caddy）。
+      // 端口被占用时可用 VITE_API_TARGET 覆盖（如 VITE_API_TARGET=http://localhost:8081）。
       '/api': {
-        target: 'http://localhost:8080',
+        target: process.env.VITE_API_TARGET || 'http://localhost:8080',
         changeOrigin: true,
       },
     },
