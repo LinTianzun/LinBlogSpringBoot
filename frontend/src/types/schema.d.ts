@@ -1179,8 +1179,6 @@ export interface components {
             role?: string;
             /** Format: int32 */
             status?: number;
-            /** Format: int32 */
-            mustChangePassword?: number;
             /** Format: date-time */
             createdAt?: string;
         };
