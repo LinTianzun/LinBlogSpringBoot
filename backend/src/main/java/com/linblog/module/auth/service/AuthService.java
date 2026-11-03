@@ -61,10 +61,10 @@ public class AuthService {
     }
 
     public record UserView(Long id, String username, String nickname, String email, String role,
-                           Integer status, LocalDateTime createdAt) {
+                           Integer status, Integer mustChangePassword, LocalDateTime createdAt) {
         static UserView of(User u) {
             return new UserView(u.getId(), u.getUsername(), u.getNickname(), u.getEmail(),
-                    u.getRoleCode(), u.getStatus(), u.getCreatedAt());
+                    u.getRoleCode(), u.getStatus(), u.getMustChangePassword(), u.getCreatedAt());
         }
     }
 
@@ -213,6 +213,7 @@ public class AuthService {
         }
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setTokenVersion((user.getTokenVersion() == null ? 0 : user.getTokenVersion()) + 1);
+        user.setMustChangePassword(0);
         userMapper.updateById(user);
         refreshTokenService.revokeAllForUser(user.getId());
         authStateService.evict(user.getId());

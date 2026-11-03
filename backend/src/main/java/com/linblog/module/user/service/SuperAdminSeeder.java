@@ -49,9 +49,10 @@ public class SuperAdminSeeder implements ApplicationRunner {
         admin.setRoleCode("super_admin");
         admin.setStatus(1);
         admin.setTokenVersion(0);
+        admin.setMustChangePassword(1);
         try {
             userMapper.insert(admin);
-            log.info("已创建种子超管 {}（{}），初始密码见部署说明，请尽快修改", SEED_USERNAME, SEED_EMAIL);
+            log.info("已创建种子超管 {}（{}），初始密码见部署说明，首次登录将强制修改", SEED_USERNAME, SEED_EMAIL);
         } catch (DuplicateKeyException e) {
             log.warn("种子超管创建冲突（并发启动？）：{}", e.getMessage());
         }

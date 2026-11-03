@@ -22,6 +22,7 @@ public class User {
     private String roleCode;
     private Integer status;
     private Integer tokenVersion;
+    private Integer mustChangePassword;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -95,6 +96,14 @@ public class User {
 
     public void setTokenVersion(Integer tokenVersion) {
         this.tokenVersion = tokenVersion;
+    }
+
+    public Integer getMustChangePassword() {
+        return mustChangePassword;
+    }
+
+    public void setMustChangePassword(Integer mustChangePassword) {
+        this.mustChangePassword = mustChangePassword;
     }
 
     public LocalDateTime getCreatedAt() {

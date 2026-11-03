@@ -45,6 +45,7 @@ class SuperAdminSeederTest {
         assertEquals(SuperAdminSeeder.SEED_EMAIL, seeded.getEmail());
         assertEquals("super_admin", seeded.getRoleCode());
         assertEquals(1, seeded.getStatus());
+        assertEquals(1, seeded.getMustChangePassword(), "种子超管必须强制首次改密");
         assertTrue(encoder.matches(SuperAdminSeeder.SEED_PASSWORD, seeded.getPasswordHash()),
                 "密码哈希必须可验证（明文不落库）");
         assertNotEquals(SuperAdminSeeder.SEED_PASSWORD, seeded.getPasswordHash());

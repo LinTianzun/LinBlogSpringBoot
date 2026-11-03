@@ -60,7 +60,7 @@ class AuthControllerTest {
     void registerSuccessReturnsShellWithCode0() throws Exception {
         when(rateLimiter.tryLogin(anyString())).thenReturn(true);
         when(authService.register(eq("neo"), eq("neo@linlog.com"), anyString(), anyString()))
-                .thenReturn(new AuthService.UserView(1L, "neo", "neo", "neo@linlog.com", "viewer", 1, null));
+                .thenReturn(new AuthService.UserView(1L, "neo", "neo", "neo@linlog.com", "viewer", 1, 0, null));
 
         String body = objectMapper.writeValueAsString(
                 new AuthController.RegisterRequest("neo", "neo@linlog.com", "Password8"));
@@ -76,7 +76,7 @@ class AuthControllerTest {
         when(rateLimiter.tryLogin(anyString())).thenReturn(true);
         when(authService.login(eq("alice"), anyString(), anyString(), any()))
                 .thenReturn(new AuthService.LoginResult(9L, "jwt-token", "raw-refresh",
-                        new AuthService.UserView(9L, "alice", "alice", "a@b.c", "editor", 1, null)));
+                        new AuthService.UserView(9L, "alice", "alice", "a@b.c", "editor", 1, 0, null)));
 
         String body = objectMapper.writeValueAsString(new AuthController.LoginRequest("alice", "Password8"));
         mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))

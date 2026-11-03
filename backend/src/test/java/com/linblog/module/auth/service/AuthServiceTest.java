@@ -366,10 +366,24 @@ class AuthServiceTest {
 
         assertTrue(encoder.matches("NewPass88", u.getPasswordHash()));
         assertEquals(1, u.getTokenVersion());
+        assertEquals(0, u.getMustChangePassword(), "改密成功必须清除强制首改标记");
         verify(refreshTokenService).revokeAllForUser(9L);
         verify(authStateService).evict(9L);
         verify(systemLogService).record(eq(9L), eq("auth"), eq("password_change"),
                 eq("user"), eq(9L), eq(null), eq("ip"));
+    }
+
+    @Test
+    void changeClearsMustChangeFlagFromSeed() {
+        User u = user(9L, "alice", "a@b.c", encoder.encode("SeedPass01"), "super_admin", 1, 0);
+        u.setMustChangePassword(1);
+        when(userMapper.selectById(9L)).thenReturn(u);
+        AuthPrincipal principal = new AuthPrincipal(9L, "alice", "super_admin", true, Set.of());
+
+        service.change(principal, "SeedPass01", "NewPass88", "ip");
+
+        assertEquals(0, u.getMustChangePassword(), "初始密码改密后强制标记必须清零");
+        assertTrue(encoder.matches("NewPass88", u.getPasswordHash()));
     }
 
     @Test
