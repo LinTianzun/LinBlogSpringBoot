@@ -1,11 +1,11 @@
 /**
- * 里程碑 0 手写 API 契约（hand-written contract）。
+ * 领域投影层（hand-curated projection）。
  *
- * 后端 springdoc 产出 openapi.json 后，本文件将被
- * `pnpm gen:api`（openapi-typescript ../openapi.json -o src/types/api.d.ts）
- * 全量替换（开发文档 §1.2 类型单源）。替换前的所有手写形状均以
- * 《Vue3-SpringBoot重实现开发文档》§4（响应壳/错误码/Cookie）与 §5（API 清单）为准；
- * 少数文档未明确形状的字段以注释标注「里程碑 0 假设」，契约生成落地后以契约为准。
+ * 契约事实源 = src/types/schema.d.ts（`pnpm gen:api` 从 openapi.json 生成，
+ * CI contract job 对 schema.d.ts 做漂移检查）。本文件保持 40+ 消费文件的
+ * 领域名（ContentView/DiaryDTO/CommentViewDTO…）与必选形状（生成物因
+ * springdoc 不感知 @NotNull 而全 optional，在此投影层收紧），形状以
+ * schema.d.ts 为准；《Vue3-SpringBoot重实现开发文档》§4/§5 为需求来源。
  */
 
 /** 统一响应壳（§4.1） */
@@ -115,6 +115,8 @@ export interface UserDTO {
   roleCode: RoleCode
   isSuperAdmin: boolean
   status: 0 | 1
+  /** 强制首改标记（P3）：1 = 种子超管尚未完成首次改密，路由守卫强制跳转改密页 */
+  mustChangePassword: 0 | 1
   createdAt: string
 }
 

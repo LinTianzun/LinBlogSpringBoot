@@ -206,12 +206,14 @@ jobs:
       - name: 生成前端类型（openapi-typescript）
         run: pnpm run gen:api
 
-      # git add -N：api.d.ts 尚未被 git 跟踪时也能被 diff 捕捉（防止静默通过）
+      # git add -N：schema.d.ts 尚未被 git 跟踪时也能被 diff 捕捉（防止静默通过）。
+      # 契约事实源 = 生成物 src/types/schema.d.ts（gen:api 从 backend 导出的 openapi.json 重新生成，
+      # 与仓库内提交的 schema.d.ts diff 为零才算契约同步；手写 src/types/api.d.ts 是投影层，不在门禁内）。
       - name: 契约漂移检查（漂移即红）
         run: |
-          test -f src/types/api.d.ts
-          git add --intent-to-add src/types/api.d.ts 2>/dev/null || true
-          git diff --exit-code -- src/types/api.d.ts
+          test -f src/types/schema.d.ts
+          git add --intent-to-add src/types/schema.d.ts 2>/dev/null || true
+          git diff --exit-code -- src/types/schema.d.ts
 
   e2e:
     name: e2e（compose 全栈 + Playwright 冒烟）

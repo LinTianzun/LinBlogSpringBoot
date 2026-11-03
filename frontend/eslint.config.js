@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint'
 const vueRecommended = pluginVue.configs['flat/recommended'] ?? pluginVue.configs.recommended
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', 'components.d.ts'] },
+  { ignores: ['dist/**', 'node_modules/**', 'components.d.ts', 'src/types/schema.d.ts'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...vueRecommended,

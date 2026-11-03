@@ -17,7 +17,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "gen:api": "openapi-typescript ./openapi.json -o src/types/api.d.ts",
+    "gen:api": "openapi-typescript ./openapi.json -o src/types/schema.d.ts",
     "sizecheck": "size-limit"
   },
   "dependencies": {

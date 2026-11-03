@@ -3,3 +3,4 @@ dist
 coverage
 pnpm-lock.yaml
 components.d.ts
+src/types/schema.d.ts
