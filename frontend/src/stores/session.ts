@@ -65,6 +65,8 @@ export const useSessionStore = defineStore('session', {
   },
   getters: {
     isLoggedIn: (state): boolean => state.user !== null,
+    /** 强制首改（P3）：已登录且后端标记未清除 */
+    mustChangePassword: (state): boolean => state.user?.mustChangePassword === 1,
   },
   actions: {
     /** 超管短路：任意权限键均返回 true */

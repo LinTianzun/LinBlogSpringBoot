@@ -33,6 +33,7 @@ const USER: UserDTO = {
   roleCode: 'admin',
   isSuperAdmin: false,
   status: 1,
+  mustChangePassword: 0,
   createdAt: '2026-01-01T00:00:00',
 }
 
@@ -141,6 +142,20 @@ describe('can()/canAny()', () => {
     expect(session.can('user.view')).toBe(false)
     expect(session.canAny(['user.view', 'article.create'])).toBe(true)
     expect(session.canAny(['user.view', 'file.view'])).toBe(false)
+  })
+})
+
+describe('mustChangePassword getter（P3 强制首改）', () => {
+  it('mustChangePassword=1 → true；=0 → false；未登录 → false', async () => {
+    mockedMe.mockResolvedValueOnce(meResult({ user: { ...USER, mustChangePassword: 1 } }))
+    const session = useSessionStore()
+    expect(session.mustChangePassword).toBe(false) // 未登录
+    await session.init()
+    expect(session.mustChangePassword).toBe(true)
+
+    mockedMe.mockResolvedValueOnce(meResult())
+    await session.reload()
+    expect(session.mustChangePassword).toBe(false)
   })
 })
 

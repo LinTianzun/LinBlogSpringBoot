@@ -44,6 +44,7 @@ const router = createRouter({
         { path: 'guestbook', name: 'guestbook-wall', component: () => import('@/views/portal/GuestbookWall.vue'), meta: { title: '留言墙' } },
         { path: 'login-register', name: 'login-register', component: () => import('@/views/portal/LoginRegister.vue'), meta: { title: '登录 / 注册', authPage: true, noindex: true } },
         { path: 'reset-password', name: 'reset-password', component: () => import('@/views/portal/ResetPassword.vue'), meta: { title: '重置密码', authPage: true, noindex: true } },
+        { path: 'change-password', name: 'change-password', component: () => import('@/views/portal/ChangePassword.vue'), meta: { title: '修改初始密码', noindex: true } },
       ],
     },
     {
@@ -87,11 +88,29 @@ function redirectLoggedInAuthPages(): boolean {
   return true
 }
 
+/**
+ * 强制首改守卫（P3）：已登录且 mustChangePassword=1 时，除改密页外一律拦截。
+ * 404 伪装页不豁免——改密是唯一出口，阻断一切旁路。
+ */
+export function mustChangePasswordRedirect(
+  isLoggedIn: boolean,
+  mustChange: boolean,
+  targetPath: string,
+): boolean {
+  if (!isLoggedIn || !mustChange) return true
+  return targetPath === '/change-password'
+    ? true
+    : ({ path: '/change-password', replace: true } as unknown as boolean)
+}
+
 router.beforeEach(async (to) => {
   const session = useSessionStore()
   await session.init()
 
   if (to.meta.authPage) return redirectLoggedInAuthPages()
+
+  const forced = mustChangePasswordRedirect(session.isLoggedIn, session.mustChangePassword, to.path)
+  if (forced !== true) return forced
 
   const required = to.meta.permission
   // 无权限/未登录一律按「不存在」处理，避免暴露后台路由存在
