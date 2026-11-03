@@ -119,6 +119,69 @@ class MigrationSmokeTest {
         }
     }
 
+    /** V3__site_settings.sql：站点设置表 + 键唯一索引。 */
+    @Test
+    void v3SiteSettingsApplied() throws Exception {
+        try (Connection connection = migratedConnection()) {
+            assertTrue(tableExists(connection, "site_settings"), "缺少 site_settings 表");
+            assertTrue(primaryKeyExists(connection, "site_settings", "setting_key"),
+                    "site_settings 主键应在 setting_key 上");
+        }
+    }
+
+    /** V4__must_change_password.sql：users 增加 must_change_password 列，NOT NULL DEFAULT 0。 */
+    @Test
+    void v4MustChangePasswordColumnExists() throws Exception {
+        try (Connection connection = migratedConnection()) {
+            int count;
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "SELECT COUNT(*) FROM information_schema.columns "
+                            + "WHERE table_schema = DATABASE() AND table_name = 'users' "
+                            + "AND column_name = 'must_change_password' AND is_nullable = 'NO' "
+                            + "AND column_default = '0'")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    rs.next();
+                    count = rs.getInt(1);
+                }
+            }
+            assertEquals(1, count, "users.must_change_password 应为 NOT NULL DEFAULT 0");
+        }
+    }
+
+    private static Connection migratedConnection() throws Exception {
+        String url = MYSQL.getJdbcUrl() + "&allowPublicKeyRetrieval=true";
+        Connection connection = DriverManager.getConnection(url, MYSQL.getUsername(), MYSQL.getPassword());
+        org.flywaydb.core.Flyway.configure()
+                .dataSource(url, MYSQL.getUsername(), MYSQL.getPassword())
+                .load()
+                .migrate();
+        return connection;
+    }
+
+    private static boolean tableExists(Connection connection, String table) throws Exception {
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT COUNT(*) FROM information_schema.tables "
+                        + "WHERE table_schema = DATABASE() AND table_name = ?")) {
+            ps.setString(1, table);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        }
+    }
+
+    private static boolean primaryKeyExists(Connection connection, String table, String column) throws Exception {
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT COUNT(*) FROM information_schema.key_column_usage "
+                        + "WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ? "
+                        + "AND constraint_name = 'PRIMARY'")) {
+            ps.setString(1, table);
+            ps.setString(2, column);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        }
+    }
+
     private static boolean indexExists(Connection connection, String table, String indexName) throws Exception {
         try (PreparedStatement ps = connection.prepareStatement(
                 "SELECT COUNT(*) FROM information_schema.statistics "
