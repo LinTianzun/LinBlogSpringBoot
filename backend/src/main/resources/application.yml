@@ -9,6 +9,10 @@ spring:
   threads:
     virtual:
       enabled: true
+  # 本机开发口令等个性化变量放 backend/.env（已 gitignore，properties 语法），
+  # 不写进任何被跟踪的 yml；缺失不影响启动（optional）。
+  config:
+    import: optional:file:.env[.properties]
   datasource:
     url: ${DB_URL:}
     username: ${DB_USERNAME:}
