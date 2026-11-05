@@ -35,7 +35,7 @@ class PortalControllerTest {
     private MockMvc mockMvc;
 
     private static ContentView view(long id) {
-        return new ContentView(id, "article", "标题 " + id, null, null, null, null,
+        return new ContentView(id, "article", "标题 " + id, null, null, null, null, null,
                 "published", LocalDateTime.now(), 0, 0, 0, false, 7L, "作者",
                 null, null, LocalDateTime.now(), LocalDateTime.now());
     }

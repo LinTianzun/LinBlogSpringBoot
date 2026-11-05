@@ -465,6 +465,15 @@ public class ContentService {
                 .collect(Collectors.toMap(User::getId, User::getUsername, (a, b) -> a));
         Map<Long, Content> byId = records.stream()
                 .collect(Collectors.toMap(Content::getId, Function.identity(), (a, b) -> a));
+        // 批量取封面 media：收集所有非空 coverMediaId，一次 selectBatchIds 得 id→storageKey
+        Set<Long> coverMediaIds = records.stream()
+                .map(Content::getCoverMediaId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, String> storageKeyMap = coverMediaIds.isEmpty() ? Map.of()
+                : mediaMapper.selectBatchIds(coverMediaIds).stream()
+                        .collect(Collectors.toMap(Media::getId, m -> m.getStorageKey() == null ? "" : m.getStorageKey(),
+                                (a, b) -> a, java.util.HashMap::new));
         Map<Long, List<Long>> labelIdMap = new java.util.HashMap<>();
         Map<Long, List<String>> labelNameMap = new java.util.HashMap<>();
         if (!byId.isEmpty()) {
@@ -487,6 +496,7 @@ public class ContentService {
             views.add(new ContentView(content.getId(), content.getContentType(), content.getTitle(),
                     content.getIntroduce(), withBody ? content.getBody() : null,
                     withBody ? content.getPlainText() : null, content.getCoverMediaId(),
+                    content.getCoverMediaId() == null ? null : storageKeyMap.get(content.getCoverMediaId()),
                     content.getState(), content.getPublishedAt(), content.getViews(),
                     content.getPraises(), content.getCommentsCount(), content.getIsPinned(),
                     content.getAuthorId(), authorNames.get(content.getAuthorId()),

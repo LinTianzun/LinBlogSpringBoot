@@ -41,7 +41,7 @@ class ContentAdminControllerTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static ContentView view(long id) {
-        return new ContentView(id, "article", "标题", null, null, null, null,
+        return new ContentView(id, "article", "标题", null, null, null, null, null,
                 "draft", null, 0, 0, 0, false, 7L, "作者",
                 null, null, LocalDateTime.now(), LocalDateTime.now());
     }

@@ -15,6 +15,7 @@ public record ContentView(
         String body,
         String plainText,
         Long coverMediaId,
+        String coverStorageKey,
         String state,
         LocalDateTime publishedAt,
         Integer views,
@@ -31,7 +32,7 @@ public record ContentView(
     /** 列表视图：去掉 body/plainText（列表不回传大字段）。 */
     public static ContentView brief(ContentView full) {
         return new ContentView(full.id(), full.contentType(), full.title(), full.introduce(),
-                null, null, full.coverMediaId(), full.state(), full.publishedAt(),
+                null, null, full.coverMediaId(), full.coverStorageKey(), full.state(), full.publishedAt(),
                 full.views(), full.praises(), full.commentsCount(), full.isPinned(),
                 full.authorId(), full.authorName(), full.labelIds(), full.labels(),
                 full.createdAt(), full.updatedAt());
