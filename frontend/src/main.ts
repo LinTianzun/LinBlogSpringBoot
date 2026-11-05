@@ -6,6 +6,8 @@ import { setAuthErrorHandler } from './api/request'
 import { useSessionStore } from './stores/session'
 import './styles/main.less'
 import './styles/art-tokens.less'
+import './styles/app-tokens.less'
+import './styles/editorial.less'
 // element-plus 暗色变量（.dark 选择器版）；组件样式由 ElementPlusResolver 按需引入
 import 'element-plus/theme-chalk/dark/css-vars.css'
 // ElMessage/ElMessageBox 是函数式 API，不走模板解析，样式需手动引入

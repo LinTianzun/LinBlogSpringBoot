@@ -225,38 +225,44 @@ onMounted(load)
           <el-option label="正常" :value="1" />
           <el-option label="已停用" :value="0" />
         </el-select>
-        <el-button size="small" @click="search">搜索</el-button>
+        <el-button @click="search">搜索</el-button>
       </div>
 
       <el-alert v-if="errorMessage" type="warning" :title="errorMessage" class="lb-load-alert" :closable="false">
         <el-button size="small" link @click="load">重试</el-button>
       </el-alert>
 
-      <el-table v-loading="loading" :data="records" row-key="id">
-        <el-table-column label="ID" prop="id" width="72" />
-        <el-table-column label="用户名" prop="username" min-width="110" />
-        <el-table-column label="昵称" min-width="100">
-          <template #default="{ row }">{{ row.nickname || '—' }}</template>
+      <el-table v-loading="loading" :data="records" row-key="id" class="lb-user-table" empty-text="没有匹配的用户">
+        <el-table-column label="用户名" min-width="150">
+          <template #default="{ row }">
+            <div class="lb-user-cell">
+              <span class="lb-user-avatar">{{ (row.nickname || row.username).slice(0, 1).toUpperCase() }}</span>
+              <div class="lb-user-id">
+                <span class="lb-user-nick">{{ row.nickname || row.username }}</span>
+                <span class="lb-user-handle">@{{ row.username }}</span>
+              </div>
+            </div>
+          </template>
         </el-table-column>
-        <el-table-column label="邮箱" prop="email" min-width="160" />
-        <el-table-column label="角色" min-width="100">
+        <el-table-column label="邮箱" prop="email" min-width="200" show-overflow-tooltip />
+        <el-table-column label="角色" width="130">
           <template #default="{ row }">
             <el-tag size="small" effect="plain" :type="row.role === 'super_admin' ? 'warning' : 'info'">
               {{ ROLE_OPTIONS.find((item) => item.value === row.role)?.label ?? row.role }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="88">
+        <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag size="small" effect="plain" :type="STATE_TAG_TYPE[row.status as 0 | 1]">
               {{ row.status === 1 ? '正常' : '已停用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" width="120">
+        <el-table-column label="创建时间" width="140" class-name="lb-num">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="250">
+        <el-table-column label="操作" width="250" fixed="right">
           <template #default="{ row }">
             <el-button v-if="canEdit" link size="small" @click="openEdit(row as AdminUserView)">编辑</el-button>
             <el-popconfirm
@@ -265,7 +271,11 @@ onMounted(load)
               @confirm="toggleStatus(row as AdminUserView)"
             >
               <template #reference>
-                <el-button link size="small" :type="row.status === 1 ? 'warning' : 'primary'">
+                <el-button
+                  link
+                  size="small"
+                  :type="row.status === 1 ? 'warning' : 'primary'"
+                >
                   {{ row.status === 1 ? '停用' : '启用' }}
                 </el-button>
               </template>
@@ -368,33 +378,57 @@ onMounted(load)
 </template>
 
 <style scoped>
-.lb-page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+/* 页头/工具栏/分页与表格（去斑马、12px 小表头、数字右对齐）由 AdminLayout + app-tokens(.lb-app) 设计层统一。
+   此处仅保留表格内的用户单元格（头像+昵称）与弹窗操作行样式。 */
+.lb-user-table :deep(a) {
+  color: var(--ed-accent-ink);
 }
 
-.lb-page-header h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.lb-manage-filters {
+/* 用户单元格：头像圈 + 昵称/用户名双行 */
+.lb-user-cell {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
+  min-width: 0;
 }
 
-.lb-load-alert {
-  margin: 0 0 12px;
+.lb-user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--ed-font-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #fff;
+  background: linear-gradient(135deg, var(--ed-accent), var(--ed-accent-ink));
+  flex: 0 0 auto;
 }
 
-.lb-manage-pagination {
+.lb-user-id {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.lb-user-nick {
+  font-weight: 600;
+  color: var(--ed-ink);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-user-handle {
+  font-size: 0.75rem;
+  color: var(--ed-ink-soft);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .lb-dialog-actions {

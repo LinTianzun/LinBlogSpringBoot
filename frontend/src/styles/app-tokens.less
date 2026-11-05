@@ -1,0 +1,285 @@
+/* ============================================================================
+ * app-tokens.less — 后台 admin「accent-ladder」应用层设计系统
+ * 依据 design-taste-frontend 的 app-screens 规则 + accent-ladder 配方，
+ * 把品牌 hue 映射到既有 --main-color（4 套主题/暗色自动生效）。
+ * 核心 move：整段色只出现在小标记（数据系列 / 一条填充按钮 / 当前导航图标），
+ * 大面积用它的极淡 tint；表面靠 1px 边线或一层色调台阶分隔，不用阴影。
+ * 命名对齐 app-screens.md §9.5 的默认 token 名（ground/surface/border/text...）。
+ * ========================================================================== */
+:root {
+  /* ---- 中性色板（亮）---- */
+  --app-ground: #f9fafb;
+  --app-surface: #ffffff;
+  --app-raised: #f6f7f8;
+  --app-active: #eeeeef;
+  --app-border: #e7e8ea;
+  --app-rule: #f1f2f3;
+  --app-control: #d1d5db;
+  --app-text: #14161a;
+  --app-muted: #5c626b;
+  --app-faint: #6b6b6b;
+  /* 主文字层（inch/ink）与软文字层 */
+  --app-ink: var(--app-text);
+
+  /* ---- accent ladder：整段 hue 只给小标记，tint 做面积 ---- */
+  --app-accent: var(--main-color);
+  --app-accent-soft: color-mix(in srgb, var(--main-color) 8%, #ffffff);
+  --app-accent-track: color-mix(in srgb, var(--main-color) 22%, #ffffff);
+  --app-accent-ink: color-mix(in srgb, var(--main-color) 62%, #000000);
+  /* 主行动按钮：近黑，不用品牌色铺满（app-screens §4.3 / tells 表） */
+  --app-primary: #1a1c1f;
+  --app-primary-ink: #ffffff;
+
+  /* ---- 状态色（pale pill 对 + 可读文字色）---- */
+  --app-positive: #247b50;
+  --app-negative: #c4242a;
+  --app-warning: #92400e;
+  --app-pill-positive-bg: #dcfce7;
+  --app-pill-positive-ink: #14532d;
+  --app-pill-negative-bg: #ffedea;
+  --app-pill-negative-ink: #831c1e;
+  --app-pill-warning-bg: #fffbeb;
+  --app-pill-warning-ink: #92400e;
+  --app-pill-neutral-bg: #f3f4f6;
+  --app-pill-neutral-ink: #374151;
+  --app-pill-accent-bg: var(--app-accent-soft);
+  --app-pill-accent-ink: var(--app-accent-ink);
+
+  /* ---- 图表 ---- */
+  --app-chart-1: var(--main-color);
+  --app-chart-2: #8a9099;
+  --app-chart-3: color-mix(in srgb, var(--main-color) 55%, #ffffff);
+  --app-grid: #eceef0;
+
+  /* ---- 几何 / 密度（accent-ladder sheet 指标）---- */
+  --app-radius-card: 8px;
+  --app-radius-control: 6px;
+  --app-radius-chip: 6px;
+  --app-row-height: 45px;
+  --app-sidebar-width: 232px;
+  --app-gap: 24px;
+  --app-pad: 24px;
+  --app-control-height: 32px;
+  --app-nav-row: 32px;
+  --app-nav-pitch: 34px;
+
+  /* ---- 字号（DM Sans；title32/section18/kpi24/body14/small12）---- */
+  --app-fs-title: 32px;
+  --app-fs-section: 18px;
+  --app-fs-kpi: 24px;
+  --app-fs-card: 16px;
+  --app-fs-body: 14px;
+  --app-fs-small: 12px;
+
+  /* ---- 字体 ---- */
+  --app-font: 'DM Sans', 'Inter', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+/* 暗色：真中性暗（#000/#111 系，不用 navy/slate），色只在数据上 */
+html.dark {
+  --app-ground: #0b0c0d;
+  --app-surface: #131415;
+  --app-raised: #1a1c1e;
+  --app-active: #202224;
+  --app-border: #26282b;
+  --app-rule: #1b1d1f;
+  --app-control: #3a3d41;
+  --app-text: #f2f3f4;
+  --app-muted: #a7abb2;
+  --app-faint: #8b8f95;
+  --app-accent-soft: color-mix(in srgb, var(--main-color) 16%, #131415);
+  --app-accent-track: color-mix(in srgb, var(--main-color) 30%, #131415);
+  --app-accent-ink: color-mix(in srgb, var(--main-color) 78%, #ffffff);
+  --app-primary: #f2f3f4;
+  --app-primary-ink: #0b0c0d;
+  --app-positive: #3fc07a;
+  --app-negative: #e5566f;
+  --app-pill-positive-bg: #172a1d;
+  --app-pill-positive-ink: #3fc07a;
+  --app-pill-negative-bg: #2c1a20;
+  --app-pill-negative-ink: #e5566f;
+  --app-pill-warning-bg: #2a2113;
+  --app-pill-warning-ink: #e7b465;
+  --app-pill-neutral-bg: #202224;
+  --app-pill-neutral-ink: #c7cbd1;
+  --app-chart-2: #8f959d;
+  --app-grid: #24262a;
+}
+
+/* ---- 基础应用壳样式（admin 各页共享）---- */
+.lb-app {
+  font-family: var(--app-font);
+  color: var(--app-text);
+  font-size: var(--app-fs-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 数字统一等宽对齐 */
+.lb-num,
+.lb-app .num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 面板（卡片）：1px 边线 + 圆角，无阴影；与地面之间靠色调/边线分隔 */
+.lb-panel {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-card);
+}
+
+/* KPI 分隔带：一个容器，用 1px 分隔线切成等分（不做独立 icon 卡）*/
+.lb-kpi-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-card);
+  overflow: hidden;
+}
+
+.lb-kpi-cell {
+  padding: 16px 20px;
+  border-left: 1px solid var(--app-rule);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lb-kpi-cell:first-child {
+  border-left: 0;
+}
+
+.lb-kpi-label {
+  font-size: var(--app-fs-small);
+  color: var(--app-muted);
+}
+
+.lb-kpi-value {
+  font-size: var(--app-fs-kpi);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.lb-kpi-caption {
+  font-size: 12px;
+  color: var(--app-faint);
+}
+
+/* 状态 pill：pale tint + 同 hue 深字，绝不铺满饱和色 */
+.lb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  border-radius: var(--app-radius-chip);
+  background: var(--app-pill-neutral-bg);
+  color: var(--app-pill-neutral-ink);
+  white-space: nowrap;
+  flex: none;
+}
+
+.lb-pill--positive { background: var(--app-pill-positive-bg); color: var(--app-pill-positive-ink); }
+.lb-pill--negative { background: var(--app-pill-negative-bg); color: var(--app-pill-negative-ink); }
+.lb-pill--warning  { background: var(--app-pill-warning-bg);  color: var(--app-pill-warning-ink); }
+.lb-pill--accent   { background: var(--app-pill-accent-bg);   color: var(--app-pill-accent-ink); }
+
+/* 主/次/文字按钮 */
+.lb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--app-control-height);
+  padding: 0 14px;
+  border-radius: var(--app-radius-control);
+  font-family: inherit;
+  font-size: var(--app-fs-body);
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.lb-btn--primary {
+  background: var(--app-primary);
+  color: var(--app-primary-ink);
+  border-color: var(--app-primary);
+}
+
+.lb-btn--primary:hover { opacity: 0.9; }
+
+.lb-btn--secondary {
+  background: var(--app-surface);
+  color: var(--app-text);
+  border-color: var(--app-control);
+}
+
+.lb-btn--secondary:hover { background: var(--app-raised); }
+
+.lb-btn--text {
+  background: transparent;
+  color: var(--app-accent-ink);
+  padding: 0 6px;
+}
+
+.lb-btn--text:hover { text-decoration: underline; }
+
+/* 页面标题行 */
+.lb-page-title {
+  font-size: var(--app-fs-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.lb-page-sub {
+  font-size: var(--app-fs-body);
+  color: var(--app-muted);
+  margin-top: 6px;
+}
+
+/* 章节标题 */
+.lb-section-title {
+  font-size: var(--app-fs-section);
+  font-weight: 600;
+  margin: 0;
+}
+
+/* 表格：无斑马、无表头条带；12px 灰体小写表头；数字右对齐 */
+.lb-app .el-table {
+  --el-table-border-color: var(--app-rule);
+  --el-table-header-bg-color: transparent;
+  --el-table-row-hover-bg-color: var(--app-raised);
+  font-size: var(--app-fs-body);
+  color: var(--app-text);
+  background: transparent;
+}
+
+.lb-app .el-table th.el-table__cell {
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--app-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.lb-app .el-table td.el-table__cell,
+.lb-app .el-table th.el-table__cell {
+  border-bottom: 1px solid var(--app-rule);
+}
+
+/* 空状态 */
+.lb-empty {
+  border: 1px dashed var(--app-control);
+  border-radius: var(--app-radius-card);
+  padding: 22px 20px;
+  color: var(--app-muted);
+  font-size: var(--app-fs-body);
+  text-align: center;
+}

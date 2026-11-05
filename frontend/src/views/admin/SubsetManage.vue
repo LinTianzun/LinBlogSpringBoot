@@ -19,6 +19,7 @@ import type { ContentView, SubsetDTO, SubsetItemDTO } from '@/types/api'
  * 合集管理（重设计蓝图「合集」，后端 SubsetAdminController /admin/subsets）：
  * 列表（viewAll|viewOwn gate）+ 新建/编辑 + 条目管理（PUT /{id}/items 全量替换定序）。
  * 条目选择自已发布的文章/图片（admin/contents state=published），上下移排序。
+ * 形态：合集卡片网格 —— 每个合集一张卡（名称/描述/创建时间/操作）。
  */
 
 const records = ref<SubsetDTO[]>([])
@@ -220,7 +221,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div>
+  <div class="lb-sub">
     <div class="lb-page-header">
       <div>
         <h2>合集管理</h2>
@@ -229,34 +230,50 @@ onMounted(load)
       <el-button type="primary" data-testid="subset-create" @click="openCreate">新建合集</el-button>
     </div>
 
-    <el-card shadow="never">
-      <el-alert v-if="errorMessage" type="warning" style="margin-bottom: 12px" :closable="false">
-        {{ errorMessage }}
-        <el-button link size="small" @click="load">重试</el-button>
-      </el-alert>
+    <el-alert v-if="errorMessage" type="warning" style="margin-bottom: 12px" :closable="false">
+      {{ errorMessage }}
+      <el-button link size="small" @click="load">重试</el-button>
+    </el-alert>
 
-      <el-table v-loading="loading" :data="records" row-key="id">
-        <el-table-column label="ID" prop="id" width="70" />
-        <el-table-column label="名称" prop="name" />
-        <el-table-column label="描述" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.description ?? '—' }}</template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="130">
-          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="200">
-          <template #default="{ row }">
-            <el-button link size="small" @click="openItems(row as SubsetDTO)">条目</el-button>
-            <el-button link size="small" type="primary" @click="openEdit(row as SubsetDTO)">编辑</el-button>
-            <el-button link size="small" type="danger" @click="confirmRemove(row as SubsetDTO)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div class="lb-manage-pagination">
-        <PaginationBar v-model:page="page" :total="total" :page-size="pageSize" @update:page="load" />
+    <!-- 加载骨架 -->
+    <div v-if="loading" class="lb-sub-grid">
+      <div v-for="n in 4" :key="n" class="lb-sub-card lb-ed-card">
+        <div class="lb-ed-skel" style="width: 60%; height: 16px" />
+        <div class="lb-ed-skel" style="width: 90%; height: 12px; margin-top: 12px" />
+        <div class="lb-ed-skel" style="width: 40%; height: 12px; margin-top: 8px" />
       </div>
-    </el-card>
+    </div>
+
+    <!-- 空态 -->
+    <div v-else-if="records.length === 0" class="lb-ed-empty lb-ed-card lb-sub-empty">
+      <p>还没有合集</p>
+      <span class="lb-ed-caption">点右上角「新建合集」把内容归类</span>
+    </div>
+
+    <!-- 合集卡网格 -->
+    <div v-else class="lb-sub-grid">
+      <article
+        v-for="row in records"
+        :key="row.id"
+        class="lb-sub-card lb-ed-card"
+      >
+        <div class="lb-sub-card-head">
+          <span class="lb-ed-pill lb-ed-pill--soft">#{{ row.id }}</span>
+          <span class="lb-sub-date lb-ed-caption">{{ formatDate(row.createdAt) }}</span>
+        </div>
+        <h3 class="lb-sub-name">{{ row.name }}</h3>
+        <p class="lb-sub-desc">{{ row.description || '暂无描述' }}</p>
+        <div class="lb-sub-card-foot">
+          <el-button link size="small" @click="openItems(row)">条目</el-button>
+          <el-button link size="small" type="primary" @click="openEdit(row)">编辑</el-button>
+          <el-button link size="small" type="danger" @click="confirmRemove(row)">删除</el-button>
+        </div>
+      </article>
+    </div>
+
+    <div class="lb-manage-pagination">
+      <PaginationBar v-model:page="page" :total="total" :page-size="pageSize" @update:page="load" />
+    </div>
 
     <!-- 新建/编辑合集 -->
     <el-dialog
@@ -331,24 +348,74 @@ onMounted(load)
 </template>
 
 <style scoped>
-.lb-page-header {
+.lb-sub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.lb-sub-card {
+  padding: clamp(16px, 2vw, 20px);
+  overflow: visible;
+  gap: 0;
+}
+
+.lb-sub-card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  gap: 10px;
 }
 
-.lb-page-header h2 {
-  margin: 0;
-  font-size: 18px;
+.lb-sub-date {
+  color: var(--ed-ink-faint);
 }
 
-.lb-manage-pagination {
+.lb-sub-name {
+  margin: 12px 0 0;
+  font-family: var(--ed-font-display);
+  font-size: var(--ed-step-h3);
+  font-weight: 500;
+  line-height: 1.28;
+  color: var(--ed-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-sub-desc {
+  margin: 8px 0 0;
+  color: var(--ed-ink-soft);
+  font-size: var(--ed-step-small);
+  line-height: var(--ed-leading-body);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: calc(var(--ed-step-small) * var(--ed-leading-body) * 2);
+}
+
+.lb-sub-card-foot {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ed-rule-soft);
   display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
+.lb-sub-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lb-sub-empty p {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ed-ink);
+}
+
+/* 弹窗表单与条目排序行 */
 .lb-form-stack {
   display: flex;
   flex-direction: column;
@@ -360,12 +427,12 @@ onMounted(load)
   align-items: center;
   gap: 10px;
   padding: 8px 0;
-  border-bottom: 1px dashed var(--lb-border);
+  border-bottom: 1px solid var(--ed-rule-soft);
 }
 
 .lb-subset-order {
   width: 24px;
-  color: var(--lb-muted, #888);
+  color: var(--ed-ink-soft);
   font-variant-numeric: tabular-nums;
 }
 
@@ -375,10 +442,17 @@ onMounted(load)
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--ed-ink);
 }
 
 .lb-field-error {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--app-negative);
   font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .lb-sub-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

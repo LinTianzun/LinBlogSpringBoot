@@ -10,6 +10,7 @@ import type { ReportAction, ReportStatus, ReportViewDTO } from '@/types/api'
 /**
  * 评论举报工作台（§5.5 CommentReportAdminController，comment.moderate）：
  * 状态过滤（缺省 pending）+ 单条处理（{action, note≤200}）+ 批量处理（{ids≤200, action}）。
+ * 形态：举报工单卡 —— 每条举报一张卡，卡片左上 checkbox 勾选→顶部批量处理。
  */
 
 const STATUS_OPTIONS: Array<{ label: string; value: ReportStatus }> = [
@@ -75,8 +76,25 @@ async function load(): Promise<void> {
   }
 }
 
-function onSelectionChange(rows: ReportViewDTO[]): void {
-  checkedRowKeys.value = rows.map((row) => row.id)
+/** checkbox 勾选 ↔ id 列表 */
+function isChecked(id: number): boolean {
+  return checkedRowKeys.value.includes(id)
+}
+
+function toggleCheck(id: number, checked: boolean): void {
+  if (checked) {
+    if (!checkedRowKeys.value.includes(id)) checkedRowKeys.value = [...checkedRowKeys.value, id]
+  } else {
+    checkedRowKeys.value = checkedRowKeys.value.filter((key) => key !== id)
+  }
+}
+
+const allChecked = computed(
+  () => records.value.length > 0 && records.value.every((row) => checkedRowKeys.value.includes(row.id)),
+)
+
+function toggleAll(checked: boolean): void {
+  checkedRowKeys.value = checked ? records.value.map((row) => row.id) : []
 }
 
 function pickStatus(value: ReportStatus): void {
@@ -144,92 +162,135 @@ onMounted(load)
 </script>
 
 <template>
-  <div>
+  <div class="lb-rp">
     <div class="lb-page-header">
-      <h2>举报处理</h2>
-      <span class="lb-muted">评论举报工作台</span>
+      <div>
+        <h2>举报处理</h2>
+        <span class="lb-muted">评论举报工作台</span>
+      </div>
     </div>
 
-    <el-card shadow="never">
-      <div class="lb-manage-filters">
-        <el-select
-          :model-value="status"
-          style="width: 160px"
-          @update:model-value="(value: ReportStatus) => pickStatus(value)"
-        >
-          <el-option v-for="option in STATUS_OPTIONS" :key="option.value" :label="option.label" :value="option.value" />
-        </el-select>
-        <el-button
-          size="small"
-          :disabled="checkedRowKeys.length === 0"
-          :loading="batchSubmitting"
-          @click="confirmBatch('resolved')"
-        >
-          批量标记已解决（{{ checkedRowKeys.length }}）
-        </el-button>
-        <el-button
-          size="small"
-          :disabled="checkedRowKeys.length === 0"
-          :loading="batchSubmitting"
-          @click="confirmBatch('dismissed')"
-        >
-          批量驳回（{{ checkedRowKeys.length }}）
-        </el-button>
+    <!-- 工具栏 -->
+    <div class="lb-rp-bar">
+      <el-select
+        :model-value="status"
+        style="width: 160px"
+        @update:model-value="(value: ReportStatus) => pickStatus(value)"
+      >
+        <el-option v-for="option in STATUS_OPTIONS" :key="option.value" :label="option.label" :value="option.value" />
+      </el-select>
+
+      <label class="lb-rp-checkall">
+        <el-checkbox
+          :model-value="allChecked"
+          :disabled="records.length === 0"
+          @update:model-value="(v: any) => toggleAll(Boolean(v))"
+        />
+        <span class="lb-ed-caption">全选本页</span>
+      </label>
+
+      <span class="lb-rp-bar-spacer" />
+
+      <el-button
+        size="small"
+        :disabled="checkedRowKeys.length === 0"
+        :loading="batchSubmitting"
+        @click="confirmBatch('resolved')"
+      >
+        批量标记已解决（{{ checkedRowKeys.length }}）
+      </el-button>
+      <el-button
+        size="small"
+        :disabled="checkedRowKeys.length === 0"
+        :loading="batchSubmitting"
+        @click="confirmBatch('dismissed')"
+      >
+        批量驳回（{{ checkedRowKeys.length }}）
+      </el-button>
+    </div>
+
+    <el-alert v-if="errorMessage" type="warning" :title="errorMessage" class="lb-load-alert" :closable="false">
+      <el-button size="small" link @click="load">重试</el-button>
+    </el-alert>
+
+    <!-- 加载骨架 -->
+    <div v-if="loading" class="lb-rp-grid">
+      <div v-for="n in 4" :key="n" class="lb-rp-card lb-ed-card">
+        <div class="lb-ed-skel" style="width: 70%; height: 15px" />
+        <div class="lb-ed-skel" style="width: 94%; height: 12px; margin-top: 12px" />
+        <div class="lb-ed-skel" style="width: 52%; height: 12px; margin-top: 8px" />
       </div>
+    </div>
 
-      <el-alert v-if="errorMessage" type="warning" :title="errorMessage" class="lb-load-alert" :closable="false">
-        <el-button size="small" link @click="load">重试</el-button>
-      </el-alert>
+    <!-- 空态 -->
+    <div v-else-if="records.length === 0" class="lb-ed-empty lb-ed-card lb-rp-empty">
+      <p>暂无{{ STATUS_LABEL[status] }}的举报</p>
+      <span class="lb-ed-caption">切换到其它状态，或等待新的举报</span>
+    </div>
 
-      <el-table v-loading="loading" :data="records" row-key="id" @selection-change="onSelectionChange">
-        <el-table-column type="selection" width="44" />
-        <el-table-column label="被举报评论" min-width="220" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.commentBody ?? '（原文已删除）' }}</template>
-        </el-table-column>
-        <el-table-column label="评论作者" width="110">
-          <template #default="{ row }">{{ row.commentAuthorName ?? '—' }}</template>
-        </el-table-column>
-        <el-table-column label="评论状态" width="90">
-          <template #default="{ row }">
+    <!-- 举报工单卡 -->
+    <div v-else class="lb-rp-grid">
+      <article
+        v-for="row in records"
+        :key="row.id"
+        class="lb-rp-card lb-ed-card"
+        :class="{ 'is-checked': isChecked(row.id) }"
+      >
+        <div class="lb-rp-card-head">
+          <el-checkbox
+            :model-value="isChecked(row.id)"
+            class="lb-rp-card-check"
+            @update:model-value="(v: any) => toggleCheck(row.id, Boolean(v))"
+          />
+          <span class="lb-ed-pill lb-ed-pill--soft">#{{ row.id }}</span>
+          <el-tag size="small" effect="plain" :type="STATUS_TAG_TYPE[row.status as ReportStatus]">
+            {{ STATUS_LABEL[row.status as ReportStatus] }}
+          </el-tag>
+          <span class="lb-rp-time lb-ed-caption">{{ formatDateTime(row.createdAt) }}</span>
+        </div>
+
+        <!-- 被举报评论 -->
+        <div class="lb-rp-quote">
+          <div class="lb-rp-quote-meta lb-ed-caption">
+            <span>被举报评论 #{{ row.commentId }}</span>
+            <span>· {{ row.commentAuthorName ?? '—' }}</span>
             <el-tag size="small" effect="plain">{{ COMMENT_STATUS_LABEL[row.commentStatus ?? ''] ?? (row.commentStatus || '—') }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="举报人" width="110">
-          <template #default="{ row }">{{ row.reporterName ?? '—' }}</template>
-        </el-table-column>
-        <el-table-column label="原因" width="150" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.detail ? `${row.reason}（${row.detail}）` : row.reason }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="90">
-          <template #default="{ row }">
-            <el-tag size="small" effect="plain" :type="STATUS_TAG_TYPE[row.status as ReportStatus]">
-              {{ STATUS_LABEL[row.status as ReportStatus] }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="举报时间" width="160">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="处理结果" width="160" show-overflow-tooltip>
-          <template #default="{ row }">
-            <template v-if="row.status !== 'pending'">
-              {{ (row.handledByName ?? '—') + (row.handleNote ? `：${row.handleNote}` : '') }}
-            </template>
-            <template v-else>—</template>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="80">
-          <template #default="{ row }">
-            <el-button v-if="row.status === 'pending'" link type="primary" size="small" @click="openHandle(row as ReportViewDTO)">处理</el-button>
-            <span v-else class="lb-muted">—</span>
-          </template>
-        </el-table-column>
-      </el-table>
+          </div>
+          <p class="lb-rp-quote-body">{{ row.commentBody ?? '（原文已删除）' }}</p>
+        </div>
 
-      <div class="lb-manage-pagination">
-        <PaginationBar v-model:page="page" :total="total" :page-size="pageSize" @update:page="load" />
-      </div>
-    </el-card>
+        <dl class="lb-rp-fields">
+          <div>
+            <dt>举报原因</dt>
+            <dd>{{ row.detail ? `${row.reason}（${row.detail}）` : row.reason }}</dd>
+          </div>
+          <div>
+            <dt>举报人</dt>
+            <dd>{{ row.reporterName ?? '—' }}</dd>
+          </div>
+          <div v-if="row.status !== 'pending'">
+            <dt>处理结果</dt>
+            <dd>{{ (row.handledByName ?? '—') + (row.handleNote ? `：${row.handleNote}` : '') }}</dd>
+          </div>
+        </dl>
+
+        <div class="lb-rp-card-foot">
+          <el-button
+            v-if="row.status === 'pending'"
+            type="primary"
+            size="small"
+            @click="openHandle(row)"
+          >
+            处理
+          </el-button>
+          <span v-else class="lb-ed-caption">已处理</span>
+        </div>
+      </article>
+    </div>
+
+    <div class="lb-manage-pagination">
+      <PaginationBar v-model:page="page" :total="total" :page-size="pageSize" @update:page="load" />
+    </div>
 
     <!-- 单条处理 -->
     <el-dialog
@@ -265,45 +326,128 @@ onMounted(load)
 </template>
 
 <style scoped>
-.lb-page-header {
+.lb-rp-bar {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
-.lb-page-header h2 {
-  margin: 0;
-  font-size: 18px;
+.lb-rp-checkall {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
 }
 
-.lb-manage-filters {
+.lb-rp-bar-spacer {
+  flex: 1;
+}
+
+.lb-rp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.lb-rp-card {
+  padding: clamp(16px, 2vw, 20px);
+  overflow: visible;
+  border: 1px solid transparent;
+}
+.lb-rp-card.is-checked {
+  border-color: var(--ed-accent);
+  box-shadow: 0 0 0 1px var(--ed-accent-soft), var(--ed-shadow-md);
+}
+
+.lb-rp-card-head {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
-.lb-load-alert {
-  margin: 0 0 12px;
+.lb-rp-card-check {
+  margin-right: 2px;
 }
 
-.lb-manage-pagination {
+.lb-rp-time {
+  margin-left: auto;
+}
+
+.lb-rp-quote {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--ed-radius-sm);
+  background: color-mix(in srgb, var(--ed-ink) 5%, var(--ed-paper));
+}
+
+.lb-rp-quote-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lb-rp-quote-body {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ed-ink);
+  line-height: var(--ed-leading-body);
+}
+
+.lb-rp-fields {
+  margin: 14px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lb-rp-fields > div {
+  display: flex;
+  gap: 10px;
+  font-size: var(--ed-step-small);
+}
+.lb-rp-fields dt {
+  flex: none;
+  width: 64px;
+  color: var(--ed-ink-soft);
+}
+.lb-rp-fields dd {
+  margin: 0;
+  color: var(--ed-ink);
+  word-break: break-word;
+}
+
+.lb-rp-card-foot {
+  margin-top: 16px;
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+}
+
+.lb-rp-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lb-rp-empty p {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ed-ink);
 }
 
 .lb-report-quote {
   padding: 10px 12px;
-  border-radius: 4px;
-  background: var(--art-bg-hover, rgba(128, 128, 128, 0.08));
+  border-radius: var(--ed-radius-sm);
+  background: color-mix(in srgb, var(--ed-ink) 5%, var(--ed-paper));
 }
 
 .lb-report-body {
   margin: 6px 0 0;
   white-space: pre-wrap;
   word-break: break-word;
+  color: var(--ed-ink);
 }
 
 .lb-handle-actions {
@@ -315,5 +459,11 @@ onMounted(load)
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .lb-rp-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

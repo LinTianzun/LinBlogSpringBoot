@@ -9,6 +9,7 @@ import type { LabelDTO, LabelPayload } from '@/types/api'
 /**
  * 标签管理（§5.3 LabelController，label.manage）：
  * GET /labels 公开全量 + POST/PATCH/DELETE /admin/labels。
+ * 形态：标签云 chip + 标签列表卡网格 —— 每个标签是一枚可悬停出「编辑/删除」的 pill 卡。
  */
 
 const records = ref<LabelDTO[]>([])
@@ -32,6 +33,12 @@ async function load(): Promise<void> {
   } finally {
     loading.value = false
   }
+}
+
+/** LabelDTO 未声明 createdAt（后端标签实体直出），有则格式化，无则占位 */
+function labelCreatedAt(row: LabelDTO): string {
+  const value = (row as LabelDTO & { createdAt?: string }).createdAt
+  return value ? formatDateTime(value) : '—'
 }
 
 function openCreate(): void {
@@ -106,7 +113,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div>
+  <div class="lb-lb">
     <div class="lb-page-header">
       <div>
         <h2>标签管理</h2>
@@ -115,26 +122,48 @@ onMounted(load)
       <el-button type="primary" data-testid="label-create" @click="openCreate">新建标签</el-button>
     </div>
 
-    <el-card shadow="never">
-      <el-alert v-if="errorMessage" type="warning" style="margin-bottom: 12px" :closable="false">
-        {{ errorMessage }}
-        <el-button link size="small" @click="load">重试</el-button>
-      </el-alert>
+    <el-alert v-if="errorMessage" type="warning" style="margin-bottom: 12px" :closable="false">
+      {{ errorMessage }}
+      <el-button link size="small" @click="load">重试</el-button>
+    </el-alert>
 
-      <el-table v-loading="loading" :data="records" row-key="id">
-        <el-table-column label="ID" prop="id" width="80" />
-        <el-table-column label="标签名" prop="name" />
-        <el-table-column label="创建时间" width="180">
-          <template #default="{ row }">{{ row.createdAt ? formatDateTime(row.createdAt) : '—' }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="140">
-          <template #default="{ row }">
-            <el-button link size="small" type="primary" @click="openEdit(row as LabelDTO)">编辑</el-button>
-            <el-button link size="small" type="danger" @click="confirmRemove(row as LabelDTO)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+    <!-- 标签云（只读、指向列表编辑） -->
+    <section v-if="!loading && records.length > 0" class="lb-lb-cloud">
+      <p class="lb-lb-cloud-label lb-ed-caption">标签云</p>
+      <div class="lb-lb-cloud-items">
+        <span v-for="row in records" :key="`cloud-${row.id}`" class="lb-lb-chip">#{{ row.name }}</span>
+      </div>
+    </section>
+
+    <!-- 加载骨架 -->
+    <div v-if="loading" class="lb-lb-grid">
+      <div v-for="n in 6" :key="n" class="lb-ed-skel lb-lb-skel" />
+    </div>
+
+    <!-- 空态 -->
+    <div v-else-if="records.length === 0" class="lb-ed-empty lb-ed-card lb-lb-empty">
+      <p>还没有标签</p>
+      <span class="lb-ed-caption">点右上角「新建标签」开始</span>
+    </div>
+
+    <!-- 标签列表卡 -->
+    <div v-else class="lb-lb-grid">
+      <div
+        v-for="row in records"
+        :key="row.id"
+        class="lb-lb-card"
+      >
+        <div class="lb-lb-card-main">
+          <span class="lb-ed-dot" />
+          <span class="lb-lb-name">#{{ row.name }}</span>
+        </div>
+        <span class="lb-lb-time lb-ed-caption">{{ labelCreatedAt(row) }}</span>
+        <div class="lb-lb-actions">
+          <button type="button" class="lb-lb-act lb-lb-act--edit" @click="openEdit(row)">编辑</button>
+          <button type="button" class="lb-lb-act lb-lb-act--del" @click="confirmRemove(row)">删除</button>
+        </div>
+      </div>
+    </div>
 
     <el-dialog
       v-model="showModal"
@@ -160,21 +189,130 @@ onMounted(load)
 </template>
 
 <style scoped>
-.lb-page-header {
+.lb-lb-cloud {
+  margin-bottom: 20px;
+}
+.lb-lb-cloud-label {
+  margin: 0 0 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.lb-lb-cloud-items {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lb-lb-chip {
+  font-family: var(--ed-font-ui);
+  font-size: var(--ed-step-caption);
+  font-weight: 600;
+  color: var(--ed-accent-ink);
+  background: var(--ed-accent-soft);
+  padding: 5px 12px;
+  border-radius: var(--ed-radius-pill);
 }
 
-.lb-page-header h2 {
+.lb-lb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+.lb-lb-skel {
+  height: 92px;
+  border-radius: var(--ed-radius-md);
+}
+
+.lb-lb-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lb-lb-empty p {
   margin: 0;
-  font-size: 18px;
+  font-weight: 600;
+  color: var(--ed-ink);
+}
+
+/* 标签列表卡：白卡 + 圆角 + 阴影；hover 出操作 */
+.lb-lb-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  min-height: 92px;
+  background: var(--ed-card);
+  border-radius: var(--ed-radius-md);
+  border: 1px solid color-mix(in srgb, var(--ed-ink) 5%, transparent);
+  box-shadow: var(--ed-shadow-sm);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms ease, border-color 160ms ease;
+}
+.lb-lb-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--ed-shadow-md);
+  border-color: color-mix(in srgb, var(--ed-accent) 40%, transparent);
+}
+
+.lb-lb-card-main {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.lb-lb-name {
+  font-size: var(--ed-step-body);
+  font-weight: 600;
+  color: var(--ed-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lb-lb-time {
+  color: var(--ed-ink-faint);
+}
+
+.lb-lb-actions {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.lb-lb-card:hover .lb-lb-actions,
+.lb-lb-card:focus-within .lb-lb-actions {
+  opacity: 1;
+}
+
+.lb-lb-act {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px 0;
+  font-family: var(--ed-font-ui);
+  font-size: var(--ed-step-caption);
+  font-weight: 500;
+  transition: opacity 160ms ease;
+}
+.lb-lb-act:hover {
+  opacity: 0.65;
+}
+.lb-lb-act--edit {
+  color: var(--ed-accent-ink);
+}
+.lb-lb-act--del {
+  color: var(--app-negative, #c0392b);
 }
 
 .lb-field-error {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--app-negative);
   font-size: 12px;
   margin-top: 6px;
+}
+
+/* 触屏设备：始终显示操作（无 hover） */
+@media (hover: none) {
+  .lb-lb-actions {
+    opacity: 1;
+  }
 }
 </style>

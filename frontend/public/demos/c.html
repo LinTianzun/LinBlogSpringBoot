@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方案 C · 杂志编辑 — 林深的小站</title>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<style>
+  :root{
+    --paper:#fbfaf7; --ink:#181613; --muted:#7a746a; --line:#e4dnone; --line:#e3ddd1;
+    --accent:#8a1f2b; /* 深酒红，唯一彩色 */
+    --f-sans:'DM Sans',system-ui,sans-serif; --f-serif:'Newsreader',Georgia,serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--paper);color:var(--ink);font-family:var(--f-serif);-webkit-font-smoothing:antialiased;line-height:1.55}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 30px}
+  a{color:inherit;text-decoration:none}
+  img{display:block;width:100%;height:100%;object-fit:cover}
+  .sans{font-family:var(--f-sans)}
+
+  /* masthead */
+  header{border-bottom:1px solid var(--line)}
+  .top{display:flex;justify-content:space-between;align-items:center;height:40px;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+  .mast{display:flex;flex-direction:column;align-items:center;padding:26px 0 22px}
+  .mast h1{font-family:var(--f-serif);font-weight:400;font-size:clamp(34px,6vw,64px);letter-spacing:.02em;line-height:1}
+  .mast .tag{font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--muted);margin-top:10px}
+  nav{border-bottom:1px solid var(--line)}
+  .nav{display:flex;justify-content:center;gap:40px;height:50px;align-items:center;font-family:var(--f-sans);font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+  .nav a:hover{color:var(--accent)}
+
+  /* lead story */
+  .lead{display:grid;grid-template-columns:1.55fr 1fr;gap:46px;padding:52px 0;border-bottom:1px solid var(--line)}
+  .lead .kicker{font-family:var(--f-sans);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
+  .lead h2{font-family:var(--f-serif);font-weight:400;font-size:clamp(34px,4.4vw,58px);line-height:1.06;letter-spacing:-.015em;margin:16px 0 20px;max-width:18ch}
+  .lead h2 em{font-style:italic}
+  .lead .dek{font-size:18px;color:#4a453d;line-height:1.6;max-width:44ch;font-family:var(--f-serif)}
+  .lead .byline{margin-top:24px;font-family:var(--f-sans);font-size:12.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);display:flex;gap:14px;align-items:center}
+  .lead .figure{position:relative}
+  .lead .figure img{aspect-ratio:4/5;border-radius:2px;filter:saturate(.92)}
+  .lead .figure figcaption{margin-top:10px;font-family:var(--f-sans);font-size:12px;color:var(--muted);font-style:italic}
+
+  /* rule sections */
+  .grid2{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;padding:48px 0;border-bottom:1px solid var(--line)}
+  article .cat{font-family:var(--f-sans);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
+  article h3{font-family:var(--f-serif);font-weight:400;font-size:26px;line-height:1.18;letter-spacing:-.01em;margin:12px 0 10px}
+  article p{font-size:15px;color:#4a453d;line-height:1.62}
+  article .meta{font-family:var(--f-sans);font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-top:14px}
+  article .pic{aspect-ratio:16/10;border-radius:2px;margin-bottom:18px;overflow:hidden;filter:saturate(.9)}
+
+  /* two column feature */
+  .feature{display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--line)}
+  .feature .txt{padding:52px 46px 52px 0;display:flex;flex-direction:column;justify-content:center}
+  .feature .txt .kicker{font-family:var(--f-sans);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+  .feature .txt h2{font-family:var(--f-serif);font-weight:400;font-size:clamp(28px,3.4vw,44px);line-height:1.1;margin:14px 0 18px}
+  .feature .txt p{font-size:16px;color:#4a453d;line-height:1.66;max-width:40ch}
+  .feature .txt .read{margin-top:24px;font-family:var(--f-sans);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--accent);align-self:flex-start;padding-bottom:3px}
+  .feature .pic{background:#efe9dd;display:grid;place-items:center;min-height:360px}
+  .feature .pic .frame{width:74%;aspect-ratio:4/5;background:conic-gradient(from 210deg at 60% 40%,#b6472f,#c9964a,#7c8a5c,#2f5d6e,#b6472f);filter:grayscale(.15) contrast(1.02);border-radius:2px}
+
+  /* numbers row */
+  .figures{display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:38px 0;border-bottom:1px solid var(--line);text-align:center}
+  .figures .f{padding:0 12px;border-right:1px solid var(--line)}
+  .figures .f:last-child{border-right:0}
+  .figures .n{font-family:var(--f-serif);font-size:44px;font-weight:400;line-height:1;color:var(--accent)}
+  .figures .l{font-family:var(--f-sans);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:10px}
+
+  footer{padding:44px 0 60px;text-align:center;font-family:var(--f-sans);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  footer .fm{font-family:var(--f-serif);font-size:15px;letter-spacing:.02em;text-transform:none;color:var(--ink);margin-bottom:12px}
+  @media(max-width:900px){.lead{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}.feature{grid-template-columns:1fr}.feature .txt{padding:36px 0}.figures{grid-template-columns:1fr 1fr;gap:24px 0}.figures .f:nth-child(2n){border-right:0}.nav{flex-wrap:wrap;gap:20px;height:auto;padding:14px 0}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="top"><span>2026 年 11 月 5 日 · 星期三</span><span>个人博客 · 第 128 期</span></div>
+  <div class="mast"><h1>林深的小站</h1><div class="tag">Write · Shoot · Live</div></div>
+  <nav><div class="nav"><a>文章</a><a>画廊</a><a>日记</a><a>留言墙</a><a>关于</a></div></nav>
+</div></header>
+
+<div class="wrap">
+  <section class="lead">
+    <div>
+      <div class="kicker">封面故事 · 后端</div>
+      <h2>把 P99 延迟压到 <em>90ms</em>：一次缓存层重构的完整记录</h2>
+      <p class="dek">从一次线上事故出发，回顾我们对缓存层做的三处关键改造，以及最终把 P99 延迟从 380ms 压到 90ms 的全过程。</p>
+      <div class="byline"><span>文 / 林深</span><span>·</span><span>8 分钟阅读</span><span>·</span><span>1.2k 次浏览</span></div>
+    </div>
+    <figure class="figure">
+      <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='700'%3E%3Crect width='560' height='700' fill='%23e6dccb'/%3E%3Ccircle cx='380' cy='240' r='180' fill='%23b6472f' opacity='.85'/%3E%3Crect y='520' width='560' height='180' fill='%232f5d6e' opacity='.55'/%3E%3C/svg%3E" alt="">
+      <figcaption>重构后的缓存命中率曲线，摄于深夜的机房。</figcaption>
+    </figure>
+  </section>
+
+  <section class="grid2">
+    <article><div class="cat">工程 · 分布式</div><div class="pic"><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='300'%3E%3Crect width='480' height='300' fill='%23ddd3c2'/%3E%3Crect x='60' y='80' width='360' height='140' rx='6' fill='%23c9964a' opacity='.6'/%3E%3C/svg%3E" alt=""></div><h3>从一次线上事故，聊聊幂等设计</h3><p>重复请求、消息重投、超时重试——分布式系统里，幂等永远是绕不开的一课。</p><div class="meta">林深 · 10 月 28 日</div></article>
+    <article><div class="cat">前端 · Vue</div><div class="pic"><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='300'%3E%3Crect width='480' height='300' fill='%23d8dfd3'/%3E%3Ccircle cx='340' cy='110' r='90' fill='%237c8a5c' opacity='.6'/%3E%3C/svg%3E" alt=""></div><h3>Vue 3 响应式的几个陷阱</h3><p>ref 与 reactive 的边界、解构丢失响应性、watch 的时机，都踩过。</p><div class="meta">林深 · 10 月 21 日</div></article>
+    <article><div class="cat">随笔 · 生活</div><div class="pic"><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='300'%3E%3Crect width='480' height='300' fill='%23e3d5d0'/%3E%3Ccircle cx='140' cy='200' r='110' fill='%238a1f2b' opacity='.35'/%3E%3C/svg%3E" alt=""></div><h3>慢下来，是另一种效率</h3><p>我们总在追赶，却忘了停下来读一本书、看一场雨，也是一种积累。</p><div class="meta">林深 · 10 月 14 日</div></article>
+  </section>
+
+  <section class="feature">
+    <div class="txt">
+      <div class="kicker">光影 · 摄影</div>
+      <h2>镜头里的城市，从不喧哗</h2>
+      <p>我习惯在深夜带着相机散步。长曝光把车流拉成光带，把匆忙的城市揉成一场缓慢的梦。这些照片，是我和城市之间最安静的对话。</p>
+      <a class="read">进入画廊 →</a>
+    </div>
+    <div class="pic"><div class="frame"></div></div>
+  </section>
+
+  <section class="figures">
+    <div class="f"><div class="n">128</div><div class="l">篇文章</div></div>
+    <div class="f"><div class="n">16</div><div class="l">件作品</div></div>
+    <div class="f"><div class="n">10</div><div class="l">篇日记</div></div>
+    <div class="f"><div class="n">2.4k</div><div class="l">次来访</div></div>
+  </section>
+
+  <footer><div class="fm">林深的小站</div>© 2026 · RSS · GitHub · 关于</footer>
+</div>
+</body>
+</html>

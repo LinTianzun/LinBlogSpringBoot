@@ -53,6 +53,7 @@ describe('LogView 系统日志', () => {
       records: [
         logRow(),
         logRow({ id: 2, module: 'mail', action: 'send_failed' }),
+        logRow({ id: 3, userId: undefined, userName: undefined, module: 'auth', action: 'login', detail: undefined }),
       ],
       total: 41,
     })
@@ -68,7 +69,8 @@ describe('LogView 系统日志', () => {
     expect(html).toContain('2026')
     expect(html).toContain('系统')
     expect(html).toContain('mail')
-    expect(wrapper.findAll('.el-table__row')).toHaveLength(2)
+    // 时间线行（非 el-table）；userName 缺失时回落为「系统」
+    expect(wrapper.findAll('.lb-log-row')).toHaveLength(3)
   })
 
   it('条件过滤：module 下拉与 action 输入随查询提交，page 重置为 1', async () => {
@@ -121,7 +123,7 @@ describe('LogView 系统日志', () => {
     const alert = wrapper.find('.el-alert')
     expect(alert.exists()).toBe(true)
     expect(alert.text()).toContain('无权访问')
-    expect(wrapper.find('.el-table__row').exists()).toBe(false)
+    expect(wrapper.find('.lb-log-row').exists()).toBe(false)
     expect(wrapper.text()).toContain('暂无日志')
   })
 })

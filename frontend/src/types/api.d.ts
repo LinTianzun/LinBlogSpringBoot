@@ -179,6 +179,12 @@ export interface ContentView {
   /** admin 详情返回的纯文本摘要 */
   plainText?: string
   coverMediaId?: number | null
+  /**
+   * 封面对应的媒体 storageKey（backend ContentView 新增；brief/列表与详情均回传）。
+   * 图片地址规则：`/api/v1/media/${coverStorageKey}?width=320|640|1280`（MediaController 参数名是 width）。
+   * 为空时可渲染主色渐变占位块。
+   */
+  coverStorageKey?: string
   state: ContentState
   publishedAt?: string
   views?: number
@@ -309,6 +315,8 @@ export interface DiaryDTO {
   praises?: number
   createdAt?: string
   updatedAt?: string
+  /** 日记封面 media storageKey（可选；后端可选回传），图片地址 `/api/v1/media/${coverStorageKey}?width=W` */
+  coverStorageKey?: string
 }
 
 export interface DiaryPayload {

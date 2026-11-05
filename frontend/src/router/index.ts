@@ -68,6 +68,7 @@ const router = createRouter({
         { path: 'permissions', name: 'admin-permissions', component: () => import('@/views/admin/PermissionManage.vue'), meta: { title: '权限管理', permission: ['permission.view'], noindex: true } },
         { path: 'logs', name: 'admin-logs', component: () => import('@/views/admin/LogView.vue'), meta: { title: '系统日志', permission: ['systemLog.view'], noindex: true } },
         { path: 'settings', name: 'admin-settings', component: () => import('@/views/admin/SettingManage.vue'), meta: { title: '系统设置', permission: ['system.setting'], noindex: true } },
+        { path: 'profile', name: 'admin-profile', component: () => import('@/views/admin/Profile.vue'), meta: { title: '个人中心', noindex: true } },
       ],
     },
     {

@@ -1,0 +1,391 @@
+/* ============================================================================
+ * editorial.less — 门户「亮卡片 Bright Cards」设计层（方案 A，用户选定）
+ * ---------------------------------------------------------------------------
+ * 视觉语言：浅暖米底 + 纯白圆角卡片 + 柔和分层阴影 + 图片唱主角 + 主题色点缀。
+ * 轻快、亲和、现代内容杂志感；与后台 accent-ladder（app-tokens.less）并列。
+ *
+ * 关键原则（改自 design-taste-frontend page 规则，但这是「暖亮卡片」而非极简）：
+ *   · 卡片 = 白面 + 22px 圆角 + 柔和阴影（允许静态阴影，因为这是卡片语言）；
+ *   · 只用一种按钮形状：全圆 pill；一种圆角体系：--lb-radius-*；
+ *   · 主题色只做点缀（tag/pill/数字/强调字），大面积保持中性暖白；
+ *   · 标题 Newsreader 衬线 + 正文 DM Sans/系统无衬线；正文 ≥16px；
+ *   · 动效：hover 抬升、按下微缩、滚动渐显（尊重 reduced-motion）。
+ * 颜色全部走 CSS 变量（--main-color / --lb-accent-*），随 4 主题 + 暗色自适应。
+ * ========================================================================== */
+
+/* ------------------------------------------------------------------ tokens */
+:root {
+  /* 字体角色 */
+  --ed-font-display: 'Newsreader', 'Songti SC', 'STSong', Georgia, serif;
+  --ed-font-text: 'DM Sans', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --ed-font-ui: 'DM Sans', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+
+  /* 暖亮纸面 / 墨色 */
+  --ed-paper: #f6f4ef;          /* 页面底色：暖米 */
+  --ed-card: #ffffff;           /* 卡片面 */
+  --ed-ink: #1d1e22;            /* 主墨 */
+  --ed-ink-soft: #6b6d76;       /* 次级文字 */
+  --ed-ink-faint: #9a9ca4;      /* 更弱 */
+  --ed-rule-soft: #e7e3da;      /* 极淡分隔 */
+
+  /* 主题色点缀（从 --main-color 派生，未定义时回退暖橙） */
+  --ed-accent: var(--main-color, #e0553d);
+  --ed-accent-soft: color-mix(in srgb, var(--ed-accent) 12%, var(--ed-card));
+  --ed-accent-ink: color-mix(in srgb, var(--ed-accent) 78%, #000000);
+
+  /* 圆角体系 */
+  --ed-radius-sm: 12px;
+  --ed-radius-md: 18px;
+  --ed-radius-lg: 22px;         /* 卡片默认 */
+  --ed-radius-xl: 30px;         /* 大区块（如数字带） */
+  --ed-radius-pill: 999px;
+
+  /* 阴影体系（暖调、柔和、多层） */
+  --ed-shadow-sm: 0 8px 22px -16px rgba(30, 28, 24, 0.45);
+  --ed-shadow-md: 0 16px 38px -22px rgba(30, 28, 24, 0.42);
+  --ed-shadow-lg: 0 26px 60px -30px rgba(30, 28, 24, 0.42);
+
+  /* 字号阶梯（响应式 clamp） */
+  --ed-step-caption: 0.8125rem;                                  /* 13 */
+  --ed-step-small: 0.9375rem;                                    /* 15 */
+  --ed-step-body: clamp(1rem, 0.96rem + 0.2vw, 1.0625rem);       /* 16–17 正文 */
+  --ed-step-lead: clamp(1.0625rem, 1rem + 0.3vw, 1.1875rem);     /* 17–19 导语 */
+  --ed-step-h3: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);          /* 20–24 卡片标题 */
+  --ed-step-h2: clamp(1.75rem, 1.3rem + 2vw, 2.75rem);           /* 28–44 section */
+  --ed-step-h1: clamp(2.5rem, 1.6rem + 4.4vw, 4.5rem);           /* 40–72 首屏 */
+  --ed-step-display: clamp(3rem, 1.6rem + 6.6vw, 5.5rem);        /* 首屏巨型（更克制） */
+
+  /* 行高 / 字距 */
+  --ed-leading-tight: 1.06;
+  --ed-leading-body: 1.6;
+  --ed-tracking-display: -0.02em;
+
+  /* 版心与节奏 */
+  --ed-margin: clamp(20px, 4vw, 56px);
+  --ed-wrap: 1200px;
+  --ed-measure: 60ch;
+  --ed-section-gap: clamp(56px, 7vw, 100px);
+}
+
+html.dark {
+  --ed-paper: #121215;
+  --ed-card: #1b1b20;
+  --ed-ink: #f2f0ea;
+  --ed-ink-soft: #a8a5ad;
+  --ed-ink-faint: #74727a;
+  --ed-rule-soft: #2a2a30;
+  --ed-accent-soft: color-mix(in srgb, var(--ed-accent) 20%, var(--ed-card));
+  --ed-shadow-sm: 0 8px 22px -16px rgba(0, 0, 0, 0.7);
+  --ed-shadow-md: 0 16px 38px -22px rgba(0, 0, 0, 0.75);
+  --ed-shadow-lg: 0 26px 60px -30px rgba(0, 0, 0, 0.8);
+}
+
+/* ------------------------------------------------------------------ 根容器 */
+.lb-ed {
+  font-family: var(--ed-font-text);
+  color: var(--ed-ink);
+  background: var(--ed-paper);
+  font-size: var(--ed-step-body);
+  line-height: var(--ed-leading-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.lb-ed-wrap {
+  width: 100%;
+  max-width: var(--ed-wrap);
+  margin: 0 auto;
+  padding-left: var(--ed-margin);
+  padding-right: var(--ed-margin);
+}
+
+/* ------------------------------------------------------------------ 排版 */
+.lb-ed-display {
+  font-family: var(--ed-font-display);
+  font-size: var(--ed-step-display);
+  font-weight: 400;
+  line-height: var(--ed-leading-tight);
+  letter-spacing: var(--ed-tracking-display);
+  margin: 0;
+  font-optical-sizing: auto;
+}
+
+.lb-ed-h1 {
+  font-family: var(--ed-font-display);
+  font-size: var(--ed-step-h1);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: var(--ed-tracking-display);
+  margin: 0;
+  font-optical-sizing: auto;
+}
+
+.lb-ed-head {
+  font-family: var(--ed-font-display);
+  font-size: var(--ed-step-h2);
+  font-weight: 400;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  margin: 0;
+  font-optical-sizing: auto;
+}
+
+.lb-ed-h3 {
+  font-family: var(--ed-font-display);
+  font-size: var(--ed-step-h3);
+  font-weight: 500;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.lb-ed-lead {
+  font-size: var(--ed-step-lead);
+  line-height: 1.55;
+  color: var(--ed-ink-soft);
+}
+
+.lb-ed-small { font-size: var(--ed-step-small); }
+.lb-ed-caption { font-size: var(--ed-step-caption); color: var(--ed-ink-soft); }
+.lb-ed-muted { color: var(--ed-ink-soft); }
+
+/* 强调字（主题色斜体衬线，用于标题点睛） */
+.lb-ed-em {
+  font-style: italic;
+  color: var(--ed-accent);
+}
+
+/* 小节垂直节奏 */
+.lb-ed-section {
+  padding-top: var(--ed-section-gap);
+  padding-bottom: var(--ed-section-gap);
+}
+
+/* 小节抬头：左标题 + 右「更多」链 */
+.lb-ed-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: clamp(24px, 3vw, 36px);
+}
+
+.lb-ed-more {
+  font-family: var(--ed-font-ui);
+  font-size: var(--ed-step-small);
+  font-weight: 500;
+  color: var(--ed-accent);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: gap 160ms ease, opacity 160ms ease;
+}
+.lb-ed-more:hover { opacity: 0.7; }
+
+/* ------------------------------------------------------------------ 卡片 */
+.lb-ed-card {
+  background: var(--ed-card);
+  border-radius: var(--ed-radius-lg);
+  box-shadow: var(--ed-shadow-sm);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lb-ed-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--ed-shadow-lg);
+}
+
+/* 卡片媒体区（图片/占位） */
+.lb-ed-thumb {
+  position: relative;
+  overflow: hidden;
+  background: var(--ed-accent-soft);
+}
+.lb-ed-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lb-ed-card:hover .lb-ed-thumb img { transform: scale(1.04); }
+
+.lb-ed-card-body {
+  padding: clamp(16px, 2vw, 22px);
+}
+
+/* 分类药丸（叠在图上或内联）*/
+.lb-ed-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--ed-font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 5px 11px;
+  border-radius: var(--ed-radius-pill);
+  color: #fff;
+  background: var(--ed-accent);
+  line-height: 1;
+}
+.lb-ed-pill--onmedia {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  backdrop-filter: blur(4px);
+}
+.lb-ed-pill--soft {
+  background: var(--ed-accent-soft);
+  color: var(--ed-accent-ink);
+}
+
+/* 作者行 */
+.lb-ed-byline {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: var(--ed-step-caption);
+  color: var(--ed-ink-soft);
+}
+.lb-ed-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--ed-radius-pill);
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--ed-accent);
+  flex: 0 0 auto;
+}
+
+/* ------------------------------------------------------------------ 按钮 */
+/* 唯一按钮形状：全圆 pill */
+.lb-ed-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 24px;
+  font-family: var(--ed-font-ui);
+  font-size: var(--ed-step-small);
+  font-weight: 500;
+  border-radius: var(--ed-radius-pill);
+  cursor: pointer;
+  text-decoration: none;
+  border: 1.5px solid transparent;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 160ms ease, box-shadow 220ms ease, color 160ms ease;
+}
+.lb-ed-btn:hover { transform: translateY(-2px); }
+.lb-ed-btn:active { transform: translateY(0) scale(0.98); }
+
+.lb-ed-btn--primary {
+  background: var(--ed-accent);
+  color: #fff;
+  box-shadow: 0 14px 26px -14px var(--ed-accent);
+}
+.lb-ed-btn--primary:hover { box-shadow: 0 18px 34px -14px var(--ed-accent); }
+
+.lb-ed-btn--ghost {
+  background: transparent;
+  color: var(--ed-ink);
+  border-color: var(--ed-rule-soft);
+}
+.lb-ed-btn--ghost:hover { border-color: var(--ed-ink); }
+
+.lb-ed-btn--ink {
+  background: var(--ed-ink);
+  color: var(--ed-paper);
+}
+
+/* 文本链接（下划线，次要行动）*/
+.lb-ed-link {
+  font-family: var(--ed-font-ui);
+  font-size: var(--ed-step-small);
+  color: var(--ed-accent);
+  font-weight: 500;
+  text-decoration: none;
+  transition: opacity 160ms ease;
+}
+.lb-ed-link:hover { opacity: 0.65; }
+
+/* ------------------------------------------------------------------ 其它块 */
+/* 主题色小圆点 */
+.lb-ed-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ed-accent);
+  display: inline-block;
+}
+
+/* 数字大字（统计带用） */
+.lb-ed-figure {
+  font-family: var(--ed-font-display);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 空态/加载 */
+.lb-ed-empty {
+  padding: 64px 24px;
+  text-align: center;
+  color: var(--ed-ink-soft);
+  font-size: var(--ed-step-body);
+}
+
+/* 骨架 */
+.lb-ed-skel {
+  background: linear-gradient(
+    100deg,
+    var(--ed-rule-soft) 30%,
+    color-mix(in srgb, var(--ed-rule-soft) 55%, var(--ed-card)) 50%,
+    var(--ed-rule-soft) 70%
+  );
+  background-size: 220% 100%;
+  animation: lb-ed-shimmer 1.3s ease-in-out infinite;
+  border-radius: var(--ed-radius-sm);
+}
+@keyframes lb-ed-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -80% 0; }
+}
+
+/* ------------------------------------------------------------------ 渐显 */
+.lb-ed-reveal {
+  opacity: 1;
+  transform: none;
+  transition: opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lb-ed-reveal.is-armed { opacity: 0; transform: translateY(24px); }
+.lb-ed-reveal.is-in { opacity: 1; transform: none; }
+.lb-ed-reveal[data-delay='1'] { transition-delay: 60ms; }
+.lb-ed-reveal[data-delay='2'] { transition-delay: 120ms; }
+.lb-ed-reveal[data-delay='3'] { transition-delay: 190ms; }
+.lb-ed-reveal[data-delay='4'] { transition-delay: 260ms; }
+.lb-ed-reveal[data-delay='5'] { transition-delay: 340ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-ed-card,
+  .lb-ed-thumb img,
+  .lb-ed-btn,
+  .lb-ed-more,
+  .lb-ed-link { transition: none !important; }
+  .lb-ed-card:hover { transform: none; }
+  .lb-ed-card:hover .lb-ed-thumb img { transform: none; }
+  .lb-ed-reveal,
+  .lb-ed-reveal.is-armed { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .lb-ed-skel { animation: none !important; }
+}

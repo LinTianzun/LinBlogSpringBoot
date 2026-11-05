@@ -125,47 +125,61 @@ onMounted(load)
 
 <template>
   <div>
-    <el-page-header :content="contentId === null ? '新建图片' : '编辑图片'" @back="router.back()" />
+    <div class="lb-edit-head">
+      <el-page-header :content="contentId === null ? '新建图片' : '编辑图片'" @back="router.back()" />
+      <div class="lb-edit-actions">
+        <el-button @click="router.push('/admin/gallery')">返回列表</el-button>
+        <el-button type="primary" :loading="saving" data-testid="gallery-save" @click="save">保存</el-button>
+      </div>
+    </div>
 
     <el-card v-loading="loading" shadow="never" class="lb-edit-card">
       <el-form label-position="top">
-        <el-form-item label="标题" :error="fieldErrors.title">
-          <el-input v-model="title" placeholder="图片标题" maxlength="150" show-word-limit data-testid="gallery-title" />
-        </el-form-item>
-        <el-form-item label="图片" :error="fieldErrors.coverMediaId">
-          <div class="lb-cover-field">
-            <el-upload
-              accept="image/*"
-              :limit="1"
-              :auto-upload="true"
-              :http-request="uploadCover"
-              :show-file-list="false"
-              data-testid="gallery-upload"
-              :before-upload="beforeUpload"
-            >
-              <el-button size="small" type="primary" :loading="uploading">上传图片</el-button>
-            </el-upload>
-            <el-input-number v-model="coverMediaId" :min="1" placeholder="或手填媒体 ID" style="width: 220px" size="small" />
-            <span v-if="coverHint" class="lb-cover-hint">{{ coverHint }}</span>
-          </div>
-        </el-form-item>
-        <el-form-item label="说明" :error="fieldErrors.introduce">
-          <el-input
-            v-model="introduce"
-            type="textarea"
-            placeholder="图片说明（可空）"
-            :autosize="{ minRows: 2, maxRows: 4 }"
-            maxlength="512"
-          />
-        </el-form-item>
-        <el-form-item v-if="contentId !== null" label="置顶">
-          <el-switch v-model="isPinned" />
-        </el-form-item>
-        <el-form-item label="详情描述（可空，显示在详情页）">
-          <el-input v-model="bodyText" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" />
-        </el-form-item>
-        <div class="lb-edit-actions">
-          <el-button type="primary" :loading="saving" data-testid="gallery-save" @click="save">保存</el-button>
+        <div class="lb-edit-section">
+          <span class="lb-edit-section-title">图片信息</span>
+          <el-form-item label="标题" :error="fieldErrors.title">
+            <el-input v-model="title" placeholder="图片标题" maxlength="150" show-word-limit data-testid="gallery-title" />
+          </el-form-item>
+          <el-form-item label="图片" :error="fieldErrors.coverMediaId">
+            <div class="lb-cover-field">
+              <el-upload
+                accept="image/*"
+                :limit="1"
+                :auto-upload="true"
+                :http-request="uploadCover"
+                :show-file-list="false"
+                data-testid="gallery-upload"
+                :before-upload="beforeUpload"
+              >
+                <el-button type="primary" :loading="uploading">上传图片</el-button>
+              </el-upload>
+              <el-input-number v-model="coverMediaId" :min="1" placeholder="或手填媒体 ID" style="width: 220px" />
+              <span v-if="coverHint" class="lb-cover-hint">{{ coverHint }}</span>
+            </div>
+          </el-form-item>
+          <el-form-item v-if="contentId !== null" label="置顶">
+            <el-switch v-model="isPinned" />
+          </el-form-item>
+        </div>
+
+        <div class="lb-edit-section">
+          <span class="lb-edit-section-title">描述</span>
+          <el-form-item label="说明" :error="fieldErrors.introduce">
+            <el-input
+              v-model="introduce"
+              type="textarea"
+              placeholder="图片说明（可空）"
+              :autosize="{ minRows: 2, maxRows: 4 }"
+              maxlength="512"
+            />
+          </el-form-item>
+          <el-form-item label="详情描述（可空，显示在详情页）">
+            <el-input v-model="bodyText" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" />
+          </el-form-item>
+        </div>
+
+        <div class="lb-edit-actions lb-edit-actions--bottom">
+          <el-button type="primary" :loading="saving" data-testid="gallery-save-bottom" @click="save">保存</el-button>
           <el-button @click="router.push('/admin/gallery')">返回列表</el-button>
         </div>
       </el-form>
@@ -174,8 +188,36 @@ onMounted(load)
 </template>
 
 <style scoped>
+/* 页头由 el-page-header 自带；此处保留分节卡片与封面上传字段样式。 */
+.lb-edit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-gap);
+  flex-wrap: wrap;
+  margin-bottom: var(--app-gap);
+}
+
 .lb-edit-card {
-  margin-top: 16px;
+  margin-top: 0;
+}
+
+.lb-edit-section {
+  padding-bottom: var(--app-gap);
+  margin-bottom: var(--app-gap);
+  border-bottom: 1px solid var(--ed-rule-soft);
+}
+
+.lb-edit-section:last-of-type {
+  border-bottom: none;
+}
+
+.lb-edit-section-title {
+  display: inline-block;
+  font-size: var(--ed-step-h3);
+  font-weight: 700;
+  color: var(--ed-ink);
+  margin-bottom: 16px;
 }
 
 .lb-cover-field {
@@ -187,12 +229,16 @@ onMounted(load)
 }
 
 .lb-cover-hint {
-  font-size: 12px;
-  color: var(--lb-muted);
+  font-size: var(--ed-step-small);
+  color: var(--ed-ink-soft);
 }
 
 .lb-edit-actions {
   display: flex;
   gap: 10px;
+}
+
+.lb-edit-actions--bottom {
+  padding-top: 4px;
 }
 </style>

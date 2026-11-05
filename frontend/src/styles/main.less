@@ -1,4 +1,6 @@
 /* 全局基础样式与布局变量 */
+@import './wave2.less';
+
 
 :root {
   --lb-primary: #18a058;
@@ -18,7 +20,8 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--lb-bg);
+  /* 与后台 .lb-ed / --ed-paper 一致的暖米底：内容不足一屏时不再露出冷灰白边 */
+  background: var(--ed-paper, var(--lb-bg));
   color: var(--lb-text);
   font-family:
     'PingFang SC',

@@ -1,0 +1,189 @@
+/* ============================================================================
+ * wave2.less — 第二轮「视觉冲击升级」全局工具类
+ * 配合 art-tokens.less 里新增的 wave2 token 使用：
+ *   阴影   --lb-shadow-sm / -md / -lg / -xl / --lb-shadow-glow
+ *   圆角   --lb-radius-sm / -md / -lg / -pill
+ *   间距   --lb-space-1 … --lb-space-9
+ *   字号   --lb-text-display / -h1 / -h2 / -h3 / -body / -sm / -caption
+ *   点缀色 --lb-accent-1..5  +  --lb-accent-1-soft..5-soft
+ *   动效   --lb-ease-out / -in-out, --lb-dur-fast / -base / -slow
+ *
+ * 用法速查：
+ *   <div class="lb-surface lb-hover-lift">         卡片表面 + hover 抬升
+ *   <h2 class="lb-display">大标题</h2>              展示级大标题
+ *   <span class="lb-chip lb-accent-2">标签</span>   主题色 chip
+ *   <div class="lb-reveal" data-reveal>             进入渐显（需 v-reveal 指令或 IO）
+ *   <button class="lb-press">                       按下微缩反馈
+ * ========================================================================== */
+
+/* ---------- 卡片表面：白底 + 细边 + 圆角 + 柔和分层阴影 ---------- */
+.lb-surface {
+  background: var(--default-box-color);
+  border: 1px solid var(--art-card-border);
+  border-radius: var(--lb-radius-md);
+  box-shadow: var(--lb-shadow-sm);
+  transition:
+    transform var(--lb-dur-base) var(--lb-ease-out),
+    box-shadow var(--lb-dur-base) var(--lb-ease-out),
+    border-color var(--lb-dur-base) var(--lb-ease-out);
+}
+
+/* hover 抬升（配合 .lb-surface 使用；单独也可用） */
+.lb-hover-lift {
+  transition:
+    transform var(--lb-dur-base) var(--lb-ease-out),
+    box-shadow var(--lb-dur-base) var(--lb-ease-out);
+}
+
+.lb-hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--lb-shadow-lg);
+}
+
+/* 强调型表面：hover 带主色光晕 + 边框主色化 */
+.lb-surface.lb-surface--accent:hover,
+.lb-hover-lift.lb-surface--accent:hover {
+  border-color: color-mix(in srgb, var(--main-color) 40%, var(--art-card-border));
+  box-shadow: var(--lb-shadow-glow);
+}
+
+/* ---------- 按下微缩 ---------- */
+.lb-press {
+  transition: transform var(--lb-dur-fast) var(--lb-ease-out);
+  will-change: transform;
+}
+
+.lb-press:active {
+  transform: scale(0.97);
+}
+
+/* ---------- 展示级大标题 ---------- */
+.lb-display {
+  font-size: var(--lb-text-display);
+  line-height: var(--lb-leading-tight);
+  letter-spacing: var(--lb-tracking-display);
+  font-weight: 800;
+  margin: 0;
+}
+
+.lb-title-h1 {
+  font-size: var(--lb-text-h1);
+  line-height: var(--lb-leading-snug);
+  font-weight: 700;
+  margin: 0;
+}
+
+.lb-title-h2 {
+  font-size: var(--lb-text-h2);
+  line-height: var(--lb-leading-snug);
+  font-weight: 700;
+  margin: 0;
+}
+
+/* 栏目小标题：左侧 accent 竖条点缀（section 命名用，不做装饰冗余） */
+.lb-section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--lb-space-3);
+  font-size: var(--lb-text-h3);
+  font-weight: 700;
+  color: var(--lb-text);
+}
+
+.lb-section-head::before {
+  content: '';
+  width: 4px;
+  align-self: stretch;
+  border-radius: var(--lb-radius-pill);
+  background: var(--main-color);
+  min-height: 1.1em;
+}
+
+/* ---------- 主题色 chip / 点缀工具 ---------- */
+.lb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: var(--lb-radius-pill);
+  font-size: var(--lb-text-caption);
+  line-height: 1.6;
+  background: var(--art-gray-200);
+  color: var(--lb-text-secondary);
+}
+
+/* accent 前景色 */
+.lb-accent-1 { color: var(--lb-accent-1); }
+.lb-accent-2 { color: var(--lb-accent-2); }
+.lb-accent-3 { color: var(--lb-accent-3); }
+.lb-accent-4 { color: var(--lb-accent-4); }
+.lb-accent-5 { color: var(--lb-accent-5); }
+
+/* accent 极淡底（用于 chip / 统计卡） */
+.lb-chip.lb-accent-1 { background: var(--lb-accent-1-soft); color: var(--lb-accent-1); }
+.lb-chip.lb-accent-2 { background: var(--lb-accent-2-soft); color: var(--lb-accent-2); }
+.lb-chip.lb-accent-3 { background: var(--lb-accent-3-soft); color: var(--lb-accent-3); }
+.lb-chip.lb-accent-4 { background: var(--lb-accent-4-soft); color: var(--lb-accent-4); }
+.lb-chip.lb-accent-5 { background: var(--lb-accent-5-soft); color: var(--lb-accent-5); }
+
+/* accent 描边（强调区块，如画廊图卡） */
+.lb-edge-1 { border-color: color-mix(in srgb, var(--lb-accent-1) 35%, var(--art-card-border)); }
+.lb-edge-2 { border-color: color-mix(in srgb, var(--lb-accent-2) 35%, var(--art-card-border)); }
+.lb-edge-3 { border-color: color-mix(in srgb, var(--lb-accent-3) 35%, var(--art-card-border)); }
+.lb-edge-4 { border-color: color-mix(in srgb, var(--lb-accent-4) 35%, var(--art-card-border)); }
+.lb-edge-5 { border-color: color-mix(in srgb, var(--lb-accent-5) 35%, var(--art-card-border)); }
+
+/* ---------- 进入渐显（编排式，不做逐元素无脑 fade） ----------
+ * 用法：元素加 .lb-reveal，可选 data-reveal 由 v-reveal 指令或页面 IO 触发
+ * 默认（无 JS）直接可见，避免 JS 未挂载时内容消失；仅当带 .is-reveal-in 或
+ * 页面用 IO 加 .lb-reveal--armed 时才做动画。 */
+.lb-reveal {
+  /* 缺省可见，保证无 JS 时内容不丢 */
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--lb-dur-slow) var(--lb-ease-out),
+    transform var(--lb-dur-slow) var(--lb-ease-out);
+}
+
+/* 页面显式武装后：先隐藏，进入视口再显示 */
+.lb-reveal.lb-reveal--armed {
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+.lb-reveal.lb-reveal--in {
+  opacity: 1;
+  transform: none;
+}
+
+/* 错峰延迟（配合一屏多元素时的编排；0..8） */
+.lb-reveal[data-delay='1'] { transition-delay: 40ms; }
+.lb-reveal[data-delay='2'] { transition-delay: 80ms; }
+.lb-reveal[data-delay='3'] { transition-delay: 130ms; }
+.lb-reveal[data-delay='4'] { transition-delay: 180ms; }
+.lb-reveal[data-delay='5'] { transition-delay: 240ms; }
+.lb-reveal[data-delay='6'] { transition-delay: 300ms; }
+
+/* ---------- 减少动效偏好：全部降级为静态 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .lb-hover-lift,
+  .lb-hover-lift:hover,
+  .lb-press,
+  .lb-press:active {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .lb-reveal,
+  .lb-reveal.lb-reveal--armed,
+  .lb-reveal.lb-reveal--in {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .lb-surface {
+    transition: none !important;
+  }
+}

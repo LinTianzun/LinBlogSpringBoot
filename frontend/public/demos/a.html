@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方案 A · 亮卡片 — 林深的小站</title>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<style>
+  :root{
+    --bg:#f6f4ef; --card:#ffffff; --ink:#1d1e22; --muted:#6b6d76; --line:#e7e3da;
+    --accent:#e0553d; --accent-2:#1f8a70; --accent-3:#2f5dd0; --accent-4:#c8961e;
+    --r:22px; --shadow:0 18px 40px -22px rgba(30,28,24,.35);
+    --f-sans:'DM Sans',system-ui,sans-serif; --f-serif:'Newsreader',Georgia,serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:var(--f-sans);-webkit-font-smoothing:antialiased;line-height:1.5}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 28px}
+  a{color:inherit;text-decoration:none}
+  img{display:block;width:100%;height:100%;object-fit:cover}
+
+  /* nav */
+  header{position:sticky;top:0;z-index:20;background:rgba(246,244,239,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:68px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:600;font-size:17px;letter-spacing:-.02em}
+  .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(140deg,var(--accent),#f0a03c);display:grid;place-items:center;color:#fff;font-family:var(--f-serif);font-size:18px;font-style:italic}
+  .nav-links{display:flex;gap:30px;font-size:14.5px;color:var(--muted)}
+  .nav-links a:hover{color:var(--ink)}
+  .nav-cta{background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;font-weight:500}
+
+  /* hero */
+  .hero{padding:64px 0 26px}
+  .hero .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--accent);font-weight:600;letter-spacing:.02em;margin-bottom:18px}
+  .hero .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  .hero h1{font-family:var(--f-serif);font-weight:400;font-size:clamp(38px,5.4vw,66px);line-height:1.05;letter-spacing:-.02em;max-width:16ch}
+  .hero h1 em{font-style:italic;color:var(--accent)}
+  .hero p{margin-top:20px;font-size:17px;color:var(--muted);max-width:56ch}
+  .hero-actions{margin-top:28px;display:flex;gap:14px;flex-wrap:wrap}
+  .btn{padding:13px 24px;border-radius:999px;font-size:15px;font-weight:500;transition:transform .25s cubic-bezier(.22,1,.36,1)}
+  .btn:hover{transform:translateY(-2px)}
+  .btn-primary{background:var(--accent);color:#fff;box-shadow:0 14px 26px -14px var(--accent)}
+  .btn-ghost{border:1.5px solid var(--line);color:var(--ink)}
+
+  /* feature collage */
+  .features{margin-top:52px;display:grid;grid-template-columns:1.4fr 1fr 1fr;grid-auto-rows:196px;gap:16px}
+  .fcard{border-radius:var(--r);overflow:hidden;position:relative;box-shadow:var(--shadow);background:var(--card)}
+  .fcard.big{grid-row:span 2}
+  .fcard .meta{position:absolute;left:0;right:0;bottom:0;padding:20px;background:linear-gradient(transparent,rgba(0,0,0,.55));color:#fff}
+  .fcard .tag{display:inline-block;font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;background:rgba(255,255,255,.92);color:var(--ink);padding:4px 9px;border-radius:6px;margin-bottom:9px}
+  .fcard h3{font-size:18px;font-weight:600;line-height:1.3}
+  .fcard.big h3{font-family:var(--f-serif);font-size:26px;font-weight:400;letter-spacing:-.01em}
+  .fcard .views{font-size:12.5px;opacity:.85;margin-top:6px}
+
+  /* section */
+  .section{padding:72px 0 8px}
+  .sec-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:30px}
+  .sec-head h2{font-family:var(--f-serif);font-weight:400;font-size:clamp(26px,3.4vw,40px);letter-spacing:-.01em}
+  .sec-head .more{font-size:14px;color:var(--accent);font-weight:500}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .card{background:var(--card);border-radius:var(--r);overflow:hidden;box-shadow:0 10px 30px -20px rgba(30,28,24,.5);transition:transform .3s cubic-bezier(.22,1,.36,1),box-shadow .3s;border:1px solid rgba(0,0,0,.02)}
+  .card:hover{transform:translateY(-6px);box-shadow:var(--shadow)}
+  .card .thumb{aspect-ratio:16/11;position:relative;overflow:hidden}
+  .card .thumb .pill{position:absolute;top:12px;left:12px;font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:999px;color:#fff}
+  .card .body{padding:20px 22px 24px}
+  .card h3{font-size:19px;font-weight:600;line-height:1.35;letter-spacing:-.01em}
+  .card p{font-size:14px;color:var(--muted);margin-top:9px;line-height:1.6}
+  .card .foot{margin-top:16px;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted)}
+  .card .av{width:26px;height:26px;border-radius:50%;background:linear-gradient(140deg,var(--accent-3),var(--accent-2));color:#fff;display:grid;place-items:center;font-size:12px;font-weight:600}
+
+  /* gallery strip */
+  .strip{margin-top:14px;display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+  .tile{border-radius:16px;overflow:hidden;aspect-ratio:3/4;position:relative;box-shadow:0 8px 24px -18px rgba(0,0,0,.6)}
+  .tile .cap{position:absolute;inset:auto 0 0 0;padding:14px;font-size:12.5px;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.6))}
+
+  /* stats band */
+  .stats{margin:80px 0;background:var(--ink);border-radius:32px;padding:52px 40px;color:#f4f2ec;display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+  .stat .n{font-family:var(--f-serif);font-size:clamp(34px,4vw,52px);line-height:1}
+  .stat .l{font-size:13px;color:#a9abb3;margin-top:10px;letter-spacing:.02em}
+  .stat:nth-child(1) .n{color:#f0a03c}.stat:nth-child(2) .n{color:#66c9a8}.stat:nth-child(3) .n{color:#8fa8f0}.stat:nth-child(4) .n{color:#e0a5e0}
+
+  footer{padding:40px 0 60px;color:var(--muted);font-size:13.5px;display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:20px}
+  @media(max-width:900px){.features{grid-template-columns:1fr 1fr}.features .big{grid-column:span 2;grid-row:auto}.cards{grid-template-columns:1fr}.strip{grid-template-columns:repeat(2,1fr)}.stats{grid-template-columns:1fr 1fr}.nav-links{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap nav">
+  <div class="brand"><span class="logo">L</span> 林深的小站</div>
+  <nav class="nav-links"><a>文章</a><a>画廊</a><a>日记</a><a>留言墙</a></nav>
+  <a class="nav-cta">订阅</a>
+</div></header>
+
+<div class="wrap">
+  <section class="hero">
+    <span class="eyebrow"><span class="dot"></span> 一个记录技术与生活的地方</span>
+    <h1>把日子过成<em>值得重读</em>的样子。</h1>
+    <p>写代码，也写生活。这里收藏我对工程的思考、镜头下的光影，和那些被渐渐忘记的小事。</p>
+    <div class="hero-actions"><a class="btn btn-primary">开始阅读 →</a><a class="btn btn-ghost">浏览画廊</a></div>
+  </section>
+
+  <section class="features">
+    <a class="fcard big">
+      <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23e0553d'/%3E%3Cstop offset='1' stop-color='%23f0a03c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='600' height='800' fill='url(%23g)'/%3E%3Ccircle cx='450' cy='220' r='160' fill='%23ffffff' opacity='.14'/%3E%3Ccircle cx='150' cy='560' r='220' fill='%23ffffff' opacity='.10'/%3E%3C/svg%3E" alt="">
+      <div class="meta"><span class="tag">置顶阅读</span><h3>把 P99 延迟压到 90ms：一次缓存层重构</h3><div class="views">1.2k 次浏览 · 8 分钟</div></div>
+    </a>
+    <a class="fcard"><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect width='400' height='400' fill='%231f8a70'/%3E%3Ccircle cx='320' cy='90' r='120' fill='%2366c9a8' opacity='.5'/%3E%3C/svg%3E" alt=""><div class="meta"><span class="tag">后端</span><h3>关于一致性哈希的一切</h3></div></a>
+    <a class="fcard"><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect width='400' height='400' fill='%232f5dd0'/%3E%3Crect x='60' y='200' width='280' height='140' rx='30' fill='%238fa8f0' opacity='.6'/%3E%3C/svg%3E" alt=""><div class="meta"><span class="tag">前端</span><h3>重新认识 CSS 容器查询</h3></div></a>
+    <a class="fcard"><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect width='400' height='400' fill='%23c8961e'/%3E%3Ccircle cx='120' cy='300' r='150' fill='%23f0d07a' opacity='.6'/%3E%3C/svg%3E" alt=""><div class="meta"><span class="tag">摄影</span><h3>雨后的街角</h3></div></a>
+    <a class="fcard"><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect width='400' height='400' fill='%23794a9e'/%3E%3Ccircle cx='300' cy='150' r='130' fill='%23c9a7e8' opacity='.5'/%3E%3C/svg%3E" alt=""><div class="meta"><span class="tag">随笔</span><h3>关于专注的一点练习</h3></div></a>
+  </section>
+
+  <section class="section">
+    <div class="sec-head"><h2>最新文章</h2><a class="more">全部文章 →</a></div>
+    <div class="cards">
+      <a class="card"><div class="thumb"><span class="pill" style="background:var(--accent)">后端</span><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='330'%3E%3Crect width='480' height='330' fill='%23eccbb5'/%3E%3Ccircle cx='380' cy='80' r='90' fill='%23e0553d' opacity='.7'/%3E%3C/svg%3E" alt=""></div><div class="body"><h3>从一次线上事故，聊聊幂等设计</h3><p>重复请求、消息重投、超时重试——分布式系统里，幂等永远是绕不开的一课。</p><div class="foot"><span class="av">林</span> 林深 · 10 月 28 日</div></div></a>
+      <a class="card"><div class="thumb"><span class="pill" style="background:var(--accent-2)">前端</span><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='330'%3E%3Crect width='480' height='330' fill='%23bfe3d6'/%3E%3Crect x='40' y='140' width='400' height='150' rx='40' fill='%231f8a70' opacity='.6'/%3E%3C/svg%3E" alt=""></div><div class="body"><h3>Vue 3 响应式的几个陷阱</h3><p>ref 与 reactive 的边界、解构丢失响应性、watch 的时机，都踩过。</p><div class="foot"><span class="av" style="background:linear-gradient(140deg,var(--accent-2),var(--accent-4))">林</span> 林深 · 10 月 21 日</div></div></a>
+      <a class="card"><div class="thumb"><span class="pill" style="background:var(--accent-3)">随笔</span><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='330'%3E%3Crect width='480' height='330' fill='%23c9d5f2'/%3E%3Ccircle cx='240' cy='170' r='110' fill='%232f5dd0' opacity='.5'/%3E%3C/svg%3E" alt=""></div><div class="body"><h3>慢下来，是另一种效率</h3><p>我们总在追赶，却忘了停下来读一本书、看一场雨，也是一种积累。</p><div class="foot"><span class="av" style="background:linear-gradient(140deg,var(--accent-3),var(--accent))">林</span> 林深 · 10 月 14 日</div></div></a>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="sec-head"><h2>光影画廊</h2><a class="more">进入画廊 →</a></div>
+    <div class="strip">
+      <a class="tile"><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect width='300' height='400' fill='%23222b3a'/%3E%3Ccircle cx='150' cy='120' r='90' fill='%23f0c25c' opacity='.7'/%3E%3C/svg%3E" alt=""><div class="cap">城市夜景 · 长曝光</div></a>
+      <a class="tile"><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect width='300' height='400' fill='%232f4a3a'/%3E%3Crect y='220' width='300' height='180' fill='%23547a5c'/%3E%3C/svg%3E" alt=""><div class="cap">山间的清晨</div></a>
+      <a class="tile"><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect width='300' height='400' fill='%23e8582f'/%3E%3Ccircle cx='150' cy='300' r='110' fill='%23f7b733' opacity='.7'/%3E%3C/svg%3E" alt=""><div class="cap">海边落日</div></a>
+      <a class="tile"><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect width='300' height='400' fill='%23384a5c'/%3E%3Cpath d='M0 300 L300 200 L300 400 L0 400Z' fill='%236a8299'/%3E%3C/svg%3E" alt=""><div class="cap">雨后的街角</div></a>
+      <a class="tile"><img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect width='300' height='400' fill='%23c9b896'/%3E%3Ccircle cx='90' cy='90' r='70' fill='%23e8dcc0'/%3E%3C/svg%3E" alt=""><div class="cap">老街的猫</div></a>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><div class="n">128</div><div class="l">篇文章</div></div>
+    <div class="stat"><div class="n">16</div><div class="l">件作品</div></div>
+    <div class="stat"><div class="n">10</div><div class="l">篇日记</div></div>
+    <div class="stat"><div class="n">2.4k</div><div class="l">次来访</div></div>
+  </section>
+
+  <footer><span>© 2026 林深的小站 · 用热爱搭建</span><span>RSS · GitHub · 关于</span></footer>
+</div>
+</body>
+</html>

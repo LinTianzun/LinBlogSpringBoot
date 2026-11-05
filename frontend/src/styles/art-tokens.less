@@ -50,6 +50,68 @@
   --lb-card-bg: var(--default-box-color);
   --lb-border: var(--default-border);
   --lb-danger: var(--el-color-danger);
+
+  /* ===== wave2：设计语言 token（杂志编辑风 / 层级 / 动效 / 色彩点缀） ===== */
+
+  /* 圆角层级 */
+  --lb-radius-sm: 8px;
+  --lb-radius-md: 14px;
+  --lb-radius-lg: 22px;
+  --lb-radius-pill: 999px;
+
+  /* 间距节奏（4 的倍数，页面垂直节奏统一走这些） */
+  --lb-space-1: 4px;
+  --lb-space-2: 8px;
+  --lb-space-3: 12px;
+  --lb-space-4: 16px;
+  --lb-space-5: 24px;
+  --lb-space-6: 32px;
+  --lb-space-7: 48px;
+  --lb-space-8: 64px;
+  --lb-space-9: 96px;
+
+  /* 字号层级（display 用 clamp 响应式；正文偏杂志阅读节奏） */
+  --lb-text-display: clamp(2.2rem, 1.4rem + 3.2vw, 4rem);
+  --lb-text-h1: clamp(1.7rem, 1.3rem + 1.6vw, 2.5rem);
+  --lb-text-h2: clamp(1.3rem, 1.1rem + 0.8vw, 1.7rem);
+  --lb-text-h3: clamp(1.1rem, 1rem + 0.4vw, 1.3rem);
+  --lb-text-body: 1rem;
+  --lb-text-sm: 0.875rem;
+  --lb-text-caption: 0.78rem;
+
+  /* 字重与行高（标题克制、正文舒展） */
+  --lb-leading-tight: 1.18;
+  --lb-leading-snug: 1.4;
+  --lb-leading-body: 1.85;
+  --lb-tracking-display: -0.02em;
+
+  /* 分级阴影：多层柔和、有方向的层级感（亮色） */
+  --lb-shadow-sm: 0 1px 2px rgba(23, 26, 31, 0.04), 0 2px 6px rgba(23, 26, 31, 0.05);
+  --lb-shadow-md: 0 2px 6px rgba(23, 26, 31, 0.05), 0 8px 20px rgba(23, 26, 31, 0.08);
+  --lb-shadow-lg: 0 8px 24px rgba(23, 26, 31, 0.09), 0 20px 48px rgba(23, 26, 31, 0.10);
+  --lb-shadow-xl: 0 14px 40px rgba(23, 26, 31, 0.12), 0 32px 72px rgba(23, 26, 31, 0.14);
+  /* 主色光晕（用于强调区块 hover / hero） */
+  --lb-shadow-glow: 0 12px 40px color-mix(in srgb, var(--main-color) 26%, transparent);
+
+  /* 区块点缀色（从主色派生，随主题/暗色自适应；克制使用做栏目标识） */
+  --lb-accent-1: color-mix(in srgb, var(--main-color) 88%, #000000);
+  --lb-accent-2: color-mix(in srgb, var(--main-color) 55%, #22b8cf); /* 青 */
+  --lb-accent-3: color-mix(in srgb, var(--main-color) 45%, #d98324); /* 暖橙 */
+  --lb-accent-4: color-mix(in srgb, var(--main-color) 45%, #7c5cff); /* 紫 */
+  --lb-accent-5: color-mix(in srgb, var(--main-color) 50%, #d6455f); /* 玫红 */
+  /* 点缀色的极淡底色（用于 chip / 统计卡背景） */
+  --lb-accent-1-soft: color-mix(in srgb, var(--lb-accent-1) 12%, var(--default-box-color));
+  --lb-accent-2-soft: color-mix(in srgb, var(--lb-accent-2) 12%, var(--default-box-color));
+  --lb-accent-3-soft: color-mix(in srgb, var(--lb-accent-3) 12%, var(--default-box-color));
+  --lb-accent-4-soft: color-mix(in srgb, var(--lb-accent-4) 12%, var(--default-box-color));
+  --lb-accent-5-soft: color-mix(in srgb, var(--lb-accent-5) 12%, var(--default-box-color));
+
+  /* 动效曲线与时长（克制：一份进退场周期，不散点） */
+  --lb-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --lb-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --lb-dur-fast: 160ms;
+  --lb-dur-base: 280ms;
+  --lb-dur-slow: 520ms;
 }
 
 /* 暗色：element-plus 的 .dark 基础变量已由 css-vars.css 提供，这里覆盖 art 层 */

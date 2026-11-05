@@ -3,7 +3,13 @@ import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { useSessionStore } from '@/stores/session'
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
 
+/**
+ * 门户骨架（editorial）：无边框导航条 —— 字标 + 少量纯文字链接 + 一个行动。
+ * 首屏 / 内容 / 页脚共享同一左右等宽边距（--ed-margin）。页脚是设计出来的落款。
+ * 4 套主题 + 暗色由 --main-color / html.dark 推导；导航不使用任何渐变/阴影/玻璃。
+ */
 const session = useSessionStore()
 const route = useRoute()
 const router = useRouter()
@@ -47,31 +53,38 @@ function onCommand(command: string): void {
   if (command === 'admin') void router.push('/admin')
   else if (command === 'logout') void handleLogout()
 }
+
+function isActive(to: string): boolean {
+  return to === '/' ? route.path === '/' : route.path === to || route.path.startsWith(to + '/')
+}
 </script>
 
 <template>
-  <div class="lb-portal-layout">
-    <header class="lb-portal-header">
-      <div class="lb-container lb-header-inner">
-        <RouterLink to="/" class="lb-logo">LinBlog</RouterLink>
-        <nav class="lb-nav">
+  <div class="lb-ed lb-portal-shell">
+    <header class="lb-shell-bar">
+      <div class="lb-ed-wrap lb-bar-inner">
+        <RouterLink to="/" class="lb-bar-mark">LinBlog</RouterLink>
+
+        <nav class="lb-bar-nav" aria-label="主导航">
           <RouterLink
             v-for="item in navItems"
             :key="item.to"
             :to="item.to"
-            class="lb-nav-link"
-            :class="{ active: route.path === item.to || (item.to !== '/' && route.path.startsWith(item.to)) }"
+            class="lb-bar-link"
+            :class="{ 'is-active': isActive(item.to) }"
           >
             {{ item.label }}
           </RouterLink>
         </nav>
-        <div class="lb-user-entry">
+
+        <div class="lb-bar-user">
+          <ThemeSwitcher class="lb-shell-theme" />
           <template v-if="session.isLoggedIn">
-            <el-dropdown v-if="session.user" @command="onCommand">
-              <el-button link>
+            <el-dropdown v-if="session.user" trigger="click" @command="onCommand">
+              <button type="button" class="lb-bar-account">
                 {{ session.user.nickname || session.user.username }}
-                <el-icon class="lb-user-caret"><ArrowDown /></el-icon>
-              </el-button>
+                <el-icon class="lb-bar-caret"><ArrowDown /></el-icon>
+              </button>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item disabled>
@@ -83,86 +96,145 @@ function onCommand(command: string): void {
               </template>
             </el-dropdown>
           </template>
-          <RouterLink v-else to="/login-register">
-            <el-button size="small" type="primary" plain>登录 / 注册</el-button>
-          </RouterLink>
+          <RouterLink v-else to="/login-register" class="lb-ed-btn lb-bar-login">登录 / 注册</RouterLink>
         </div>
       </div>
     </header>
 
-    <main class="lb-portal-content">
-      <div class="lb-container">
-        <router-view />
-      </div>
+    <main class="lb-shell-main">
+      <router-view />
     </main>
 
-    <footer class="lb-portal-footer">
-      <div class="lb-container lb-muted">
-        © {{ new Date().getFullYear() }} LinBlog · Powered by Vue3 + SpringBoot
+    <footer class="lb-shell-footer">
+      <div class="lb-ed-wrap lb-footer-inner">
+        <p class="lb-footer-mark">LinBlog</p>
+        <p class="lb-ed-caption lb-footer-note">
+          写作即产品 · 由 Vue3 + SpringBoot 驱动 · © {{ new Date().getFullYear() }}
+        </p>
       </div>
     </footer>
   </div>
 </template>
 
 <style scoped>
-.lb-portal-layout {
+.lb-portal-shell {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--lb-bg);
 }
 
-.lb-portal-header {
-  background: var(--lb-card-bg);
-  border-bottom: 1px solid var(--lb-border);
+/* ---------- 导航条：无边框、无阴影、无玻璃 ---------- */
+.lb-shell-bar {
+  padding: 22px 0;
 }
 
-.lb-header-inner {
+.lb-bar-inner {
   display: flex;
   align-items: center;
-  gap: 24px;
-  height: 56px;
+  gap: clamp(20px, 4vw, 56px);
 }
 
-.lb-logo {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--lb-primary);
+.lb-bar-mark {
+  font-family: var(--ed-font-display);
+  font-size: 1.35rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--ed-ink);
+  text-decoration: none;
+  flex-shrink: 0;
 }
 
-.lb-nav {
+.lb-bar-nav {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: clamp(14px, 2.4vw, 34px);
   flex: 1;
+  flex-wrap: wrap;
 }
 
-.lb-nav-link {
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 14px;
-  color: var(--lb-text-secondary);
+.lb-bar-link {
+  font-family: var(--ed-font-ui);
+  font-size: var(--ed-step-small);
+  color: var(--ed-ink-soft);
+  text-decoration: none;
+  transition: color 160ms ease;
 }
 
-.lb-nav-link.active {
-  color: var(--lb-primary);
-  background: color-mix(in srgb, var(--lb-primary) 10%, transparent);
+.lb-bar-link:hover {
+  color: var(--ed-ink);
+}
+
+.lb-bar-link.is-active {
+  color: var(--ed-ink);
   font-weight: 600;
 }
 
-.lb-user-caret {
-  margin-left: 4px;
+.lb-bar-user {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
 }
 
-.lb-portal-content {
-  flex: 1;
-  padding: 24px 0 40px;
+.lb-bar-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
   background: transparent;
+  padding: 0;
+  font-family: var(--ed-font-ui);
+  font-size: var(--ed-step-small);
+  color: var(--ed-ink);
+  cursor: pointer;
 }
 
-.lb-portal-footer {
-  padding: 16px 0;
-  text-align: center;
-  background: var(--lb-card-bg);
-  border-top: 1px solid var(--lb-border);
+.lb-bar-caret {
+  font-size: 12px;
+  color: var(--ed-ink-soft);
+}
+
+.lb-bar-login {
+  min-height: 38px;
+  padding: 0 18px;
+}
+
+/* ---------- 主区 ---------- */
+.lb-shell-main {
+  flex: 1;
+  padding-bottom: clamp(80px, 10vw, 160px);
+}
+
+/* ---------- 页脚：全幅落款 ---------- */
+.lb-shell-footer {
+  padding: clamp(56px, 8vw, 110px) 0 clamp(28px, 4vw, 48px);
+}
+
+.lb-footer-inner {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.lb-footer-mark {
+  margin: 0;
+  font-family: var(--ed-font-display);
+  font-size: clamp(2.4rem, 6vw, 4.5rem);
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+  color: var(--ed-ink);
+}
+
+.lb-footer-note {
+  margin: 0;
+  padding-bottom: 0.4em;
+}
+
+@media (max-width: 720px) {
+  .lb-bar-inner { flex-wrap: wrap; row-gap: 14px; }
+  .lb-bar-nav { order: 3; width: 100%; flex: 1 1 100%; }
 }
 </style>

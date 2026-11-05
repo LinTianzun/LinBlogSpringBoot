@@ -203,39 +203,57 @@ onMounted(load)
         <el-button size="small" link @click="load">重试</el-button>
       </el-alert>
 
-      <el-table v-loading="loading" :data="records" row-key="id">
-        <el-table-column label="日期" prop="diaryDate" width="110" />
-        <el-table-column label="天气" width="90">
-          <template #default="{ row }">
-            <WeatherBadge :weather="row.weather ?? null" />
-          </template>
-        </el-table-column>
-        <el-table-column label="心情" width="120">
-          <template #default="{ row }">{{ row.mood ?? '—' }}</template>
-        </el-table-column>
-        <el-table-column label="正文摘要" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.body.slice(0, 60) }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="90">
-          <template #default="{ row }">
-            <el-tag size="small" effect="plain" :type="STATE_TAG_TYPE[row.state as ContentState]">
-              {{ STATE_LABEL[row.state as ContentState] }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="赞" width="70">
-          <template #default="{ row }">{{ row.praises ?? 0 }}</template>
-        </el-table-column>
-        <el-table-column label="更新时间" width="160">
-          <template #default="{ row }">{{ row.updatedAt ? formatDateTime(row.updatedAt) : '—' }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="130">
-          <template #default="{ row }">
-            <el-button v-if="canManage" link size="small" @click="openEdit(row as DiaryDTO)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="confirmRemove(row as DiaryDTO)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <!-- 加载骨架 -->
+      <div v-if="loading" class="lb-diary-timeline">
+        <div v-for="n in 3" :key="`skel-${n}`" class="lb-diary-item">
+          <div class="lb-diary-rail">
+            <span class="lb-diary-dot lb-ed-skel" />
+          </div>
+          <div class="lb-diary-card">
+            <div class="lb-ed-skel" style="height: 18px; width: 40%" />
+            <div class="lb-ed-skel" style="height: 13px; width: 90%; margin-top: 12px" />
+            <div class="lb-ed-skel" style="height: 13px; width: 65%; margin-top: 8px" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 空态 -->
+      <div v-else-if="records.length === 0 && !errorMessage" class="lb-ed-empty">
+        暂无日记{{ canCreate ? '，点击右上角「写日记」记录今天。' : '。' }}
+      </div>
+
+      <!-- 日记时间轴卡片 -->
+      <div v-else class="lb-diary-timeline">
+        <div v-for="row in records" :key="row.id" class="lb-diary-item">
+          <div class="lb-diary-rail">
+            <span class="lb-diary-dot" />
+          </div>
+
+          <div class="lb-diary-card">
+            <div class="lb-diary-head">
+              <span class="lb-diary-date">{{ row.diaryDate }}</span>
+              <WeatherBadge :weather="row.weather ?? null" />
+              <span v-if="row.mood" class="lb-diary-mood">{{ row.mood }}</span>
+              <el-tag size="small" effect="plain" :type="STATE_TAG_TYPE[row.state as ContentState]">
+                {{ STATE_LABEL[row.state as ContentState] }}
+              </el-tag>
+            </div>
+
+            <p class="lb-diary-body">{{ row.body.slice(0, 120) }}{{ row.body.length > 120 ? '…' : '' }}</p>
+
+            <div class="lb-diary-foot">
+              <span class="lb-diary-meta">
+                <span>{{ row.praises ?? 0 }} 赞</span>
+                <span v-if="row.updatedAt">{{ formatDateTime(row.updatedAt) }}</span>
+              </span>
+              <span class="lb-diary-actions">
+                <button v-if="canManage" type="button" class="lb-diary-action" @click="openEdit(row)">编辑</button>
+                <button type="button" class="lb-diary-action is-danger" @click="confirmRemove(row)">删除</button>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="lb-manage-pagination">
         <PaginationBar v-model:page="page" :total="total" :page-size="pageSize" @update:page="load" />
@@ -289,33 +307,146 @@ onMounted(load)
 </template>
 
 <style scoped>
-.lb-page-header {
+/* 页头/工具栏/分页由 AdminLayout 设计层统一；此处保留日记时间轴样式与弹窗内表单行样式。 */
+.lb-diary-timeline {
   display: flex;
+  flex-direction: column;
+}
+
+.lb-diary-item {
+  display: flex;
+  gap: 16px;
+}
+
+.lb-diary-rail {
+  flex: 0 0 16px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+  padding-top: 20px;
 }
 
-.lb-page-header h2 {
-  margin: 0;
-  font-size: 18px;
+.lb-diary-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--ed-accent);
+  box-shadow: 0 0 0 4px var(--ed-accent-soft);
+  flex: 0 0 auto;
 }
 
-.lb-manage-filters {
+/* 竖线（除最后一项） */
+.lb-diary-item:not(:last-child) .lb-diary-rail::after {
+  content: '';
+  flex: 1;
+  width: 2px;
+  margin-top: 8px;
+  background: var(--ed-rule-soft);
+}
+
+.lb-diary-card {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  background: var(--ed-card);
+  border: 1px solid var(--ed-rule-soft);
+  border-radius: var(--ed-radius-md);
+  transition: box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.lb-diary-card:hover {
+  box-shadow: var(--ed-shadow-md);
+  border-color: color-mix(in srgb, var(--ed-accent) 22%, var(--ed-rule-soft));
+}
+
+.lb-diary-head {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
 }
 
-.lb-load-alert {
+.lb-diary-date {
+  font-family: var(--ed-font-display);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--ed-ink);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-diary-mood {
+  font-size: 0.8125rem;
+  color: var(--ed-accent-ink);
+  background: var(--ed-accent-soft);
+  padding: 3px 10px;
+  border-radius: var(--ed-radius-pill);
+  font-weight: 500;
+}
+
+.lb-diary-body {
   margin: 0 0 12px;
+  font-size: var(--ed-step-small);
+  line-height: 1.65;
+  color: var(--ed-ink);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.lb-manage-pagination {
+.lb-diary-foot {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lb-diary-meta {
+  display: inline-flex;
+  gap: 14px;
+  font-size: 0.78rem;
+  color: var(--ed-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-diary-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.lb-diary-action {
+  appearance: none;
+  border: none;
+  background: none;
+  font-family: var(--ed-font-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ed-ink-soft);
+  cursor: pointer;
+  padding: 3px 9px;
+  border-radius: var(--ed-radius-sm);
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.lb-diary-action:hover {
+  color: var(--ed-accent-ink);
+  background: var(--ed-accent-soft);
+}
+
+.lb-diary-action.is-danger {
+  color: var(--app-negative, #d64545);
+}
+
+.lb-diary-action.is-danger:hover {
+  background: color-mix(in srgb, var(--app-negative, #d64545) 12%, transparent);
+}
+
+@media (max-width: 560px) {
+  .lb-diary-rail {
+    flex-basis: 12px;
+  }
 }
 
 .lb-form-row {
@@ -327,12 +458,12 @@ onMounted(load)
 
 .lb-form-label {
   font-size: 13px;
-  color: var(--lb-muted);
+  color: var(--ed-ink-soft);
   white-space: nowrap;
 }
 
 .lb-field-error {
-  color: var(--lb-danger);
+  color: var(--app-negative);
   font-size: 12px;
   margin-bottom: 10px;
 }

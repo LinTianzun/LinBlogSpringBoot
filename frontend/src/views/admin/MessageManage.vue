@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { ChatDotRound } from '@element-plus/icons-vue'
 import {
   createConversation,
   getUnreadCount,
@@ -56,6 +57,10 @@ async function loadConversations(): Promise<void> {
   try {
     const result = await listConversations({ page: 1, pageSize: CONVERSATION_PAGE_SIZE })
     conversations.value = result.records
+    // 默认展开最近一条会话，避免右侧大片空场
+    if (activeId.value === null && result.records.length > 0) {
+      void openConversation(result.records[0])
+    }
   } catch (error) {
     listError.value = error instanceof ApiError ? error.message : '加载失败'
     conversations.value = []
@@ -93,7 +98,9 @@ async function openConversation(conversation: ConversationDTO): Promise<void> {
   activeId.value = conversation.id
   await loadMessages()
   if (conversation.unread > 0) {
-    conversation.unread = 0
+    // 走响应式数组里的同一项，徽标才会即时消失
+    const current = conversations.value.find((item) => item.id === conversation.id)
+    if (current) current.unread = 0
     try {
       await markConversationRead(conversation.id)
       void refreshUnread()
@@ -177,7 +184,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
+  <div class="lb-msg-page">
     <div class="lb-page-header">
       <h2>私信</h2>
       <span v-if="unreadCount > 0" class="lb-message-unread">未读 {{ unreadCount }} 条</span>
@@ -191,45 +198,69 @@ onMounted(() => {
     </el-alert>
 
     <div class="lb-message-layout">
-      <!-- 会话列表 -->
-      <el-card shadow="never" class="lb-message-conversations" v-loading="listLoading">
-        <el-empty v-if="conversations.length === 0 && !listError" description="暂无会话" :image-size="60" />
-        <ul v-else class="lb-conversation-list">
-          <li
-            v-for="conversation in conversations"
-            :key="conversation.id"
-            :class="['lb-conversation', { 'is-active': conversation.id === activeId }]"
-            :data-testid="conversation.id === activeId ? 'message-conversation-active' : 'message-conversation'"
-            @click="openConversation(conversation)"
-          >
-            <div class="lb-conversation-top">
-              <strong>{{ conversation.peer.nickname || conversation.peer.username }}</strong>
-              <span class="lb-muted">{{ conversation.lastMessageAt ? formatRelative(conversation.lastMessageAt) : '—' }}</span>
-            </div>
-            <div class="lb-conversation-bottom">
-              <span class="lb-conversation-preview">{{ conversation.lastMessagePreview ?? '（无消息）' }}</span>
-              <span v-if="conversation.unread > 0" class="lb-conversation-badge">{{ conversation.unread }}</span>
-            </div>
-          </li>
-        </ul>
-      </el-card>
+      <!-- 左栏：会话列表 -->
+      <section class="lb-msg-pane lb-msg-col" aria-label="会话列表">
+        <header class="lb-msg-col-head">
+          <span class="lb-msg-col-title">会话</span>
+          <span class="lb-msg-col-count lb-muted">{{ conversations.length }}</span>
+        </header>
 
-      <!-- 消息流 -->
-      <el-card shadow="never" class="lb-message-thread" v-loading="msgLoading">
+        <div v-loading="listLoading" class="lb-msg-col-body">
+          <p v-if="conversations.length === 0 && !listError" class="lb-msg-empty">
+            还没有会话，点右上角「发起会话」开始。
+          </p>
+          <ul v-else class="lb-conversation-list">
+            <li
+              v-for="conversation in conversations"
+              :key="conversation.id"
+              :class="['lb-conversation', { 'is-active': conversation.id === activeId }]"
+              :data-testid="conversation.id === activeId ? 'message-conversation-active' : 'message-conversation'"
+              @click="openConversation(conversation)"
+            >
+              <span class="lb-conv-avatar">{{ (conversation.peer.nickname || conversation.peer.username).slice(0, 1).toUpperCase() }}</span>
+              <div class="lb-conv-main">
+                <div class="lb-conv-top">
+                  <span class="lb-conv-name">{{ conversation.peer.nickname || conversation.peer.username }}</span>
+                  <span class="lb-conv-time lb-muted">{{ conversation.lastMessageAt ? formatRelative(conversation.lastMessageAt) : '—' }}</span>
+                </div>
+                <div class="lb-conv-bottom">
+                  <span class="lb-conv-preview">{{ conversation.lastMessagePreview ?? '（无消息）' }}</span>
+                  <span v-if="conversation.unread > 0" class="lb-conv-badge">{{ conversation.unread > 99 ? '99+' : conversation.unread }}</span>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 右栏：对话窗 -->
+      <section class="lb-msg-pane lb-msg-thread" aria-label="对话">
         <template v-if="activeId === null">
-          <el-empty description="在左侧选择一个会话" :image-size="80" />
+          <div class="lb-thread-placeholder">
+            <span class="lb-thread-ph-mark" aria-hidden="true">
+              <el-icon :size="20"><ChatDotRound /></el-icon>
+            </span>
+            <p class="lb-thread-ph-title">选择一位聊聊</p>
+            <p class="lb-thread-ph-desc">从左侧列表挑一个会话，继续你们的对话。</p>
+          </div>
         </template>
         <template v-else>
-          <div class="lb-thread-head">
-            <strong>{{ activeTitle }}</strong>
-          </div>
+          <!-- 顶部对方信息条 -->
+          <header class="lb-thread-head">
+            <span class="lb-thread-head-avatar">{{ activeTitle.slice(0, 1).toUpperCase() }}</span>
+            <div class="lb-thread-head-meta">
+              <strong class="lb-thread-head-name">{{ activeTitle }}</strong>
+              <span class="lb-thread-head-sub lb-muted">私信对话</span>
+            </div>
+          </header>
 
-          <el-alert v-if="msgError" type="warning" :closable="false" class="lb-thread-alert">
-            {{ msgError }}
-            <el-button link size="small" @click="loadMessages">重试</el-button>
-          </el-alert>
+          <!-- 消息气泡流（独立滚动） -->
+          <div v-loading="msgLoading" class="lb-thread-body">
+            <el-alert v-if="msgError" type="warning" :closable="false" class="lb-thread-alert">
+              {{ msgError }}
+              <el-button link size="small" @click="loadMessages">重试</el-button>
+            </el-alert>
 
-          <div class="lb-thread-body">
             <div v-if="hasMore" class="lb-thread-earlier">
               <el-button link size="small" data-testid="message-earlier" @click="loadEarlier">加载更早的消息</el-button>
             </div>
@@ -244,11 +275,13 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- 底部输入框 -->
           <div class="lb-thread-composer">
             <el-input
               v-model="draft"
               type="textarea"
               :rows="2"
+              resize="none"
               maxlength="2000"
               show-word-limit
               placeholder="输入消息（≤2000 字），Enter 发送"
@@ -258,7 +291,7 @@ onMounted(() => {
             <el-button type="primary" :loading="sending" data-testid="message-send" @click="send">发送</el-button>
           </div>
         </template>
-      </el-card>
+      </section>
     </div>
 
     <!-- 发起会话 -->
@@ -294,21 +327,15 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.lb-page-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.lb-page-header h2 {
-  margin: 0;
-  font-size: 18px;
-}
+/* ============================================================================
+ * 私信：左会话列表 + 右对话窗（双栏 · 撑满高度 · 各自独立滚动）。
+ * 颜色全部走 --ed-* / --app-*，随 4 主题 + 暗色自适应。
+ * ========================================================================== */
 
 .lb-message-unread {
   font-size: 13px;
-  color: var(--el-color-danger);
+  font-weight: 600;
+  color: var(--app-negative, #c4242a);
 }
 
 .lb-header-spacer {
@@ -319,96 +346,275 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.lb-message-layout {
-  display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
+/* 页根：撑满内容区高度，双栏才能等齐撑满；min-height 兜底小屏 */
+.lb-msg-page {
+  display: flex;
+  flex-direction: column;
+  /* 内容区可视高度减去上下 padding（clamp 20–36px）×2，留出呼吸 */
+  min-height: calc(100vh - 2 * clamp(20px, 2.6vw, 36px));
 }
 
-@media (max-width: 900px) {
-  .lb-message-layout {
-    grid-template-columns: 1fr;
-  }
+
+/* 页头与双栏之间的间距由 header 自带 margin 控制，双栏占满剩余高度 */
+.lb-message-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: var(--app-gap);
+  align-items: stretch;
+}
+
+/* 两栏共用面板：白卡 + 圆角 + 柔和阴影，自身纵向 flex 撑满 */
+.lb-msg-pane {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--ed-card);
+  border: 1px solid color-mix(in srgb, var(--ed-ink) 5%, transparent);
+  border-radius: var(--ed-radius-lg);
+  box-shadow: var(--ed-shadow-sm);
+  overflow: hidden;
+}
+
+/* ------------------------- 左栏：会话列表 ------------------------- */
+.lb-msg-col-head {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--ed-rule-soft);
+}
+
+.lb-msg-col-title {
+  font-family: var(--ed-font-text);
+  font-size: var(--ed-step-body);
+  font-weight: 700;
+  color: var(--ed-ink);
+}
+
+.lb-msg-col-count {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 会话列表滚动区：独立滚动，超出才滚 */
+.lb-msg-col-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
 }
 
 .lb-conversation-list {
   list-style: none;
   margin: 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .lb-conversation {
-  padding: 10px 8px;
-  border-radius: 6px;
-  cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 10px;
+  border-radius: var(--ed-radius-sm);
+  cursor: pointer;
+  transition: background 150ms ease;
 }
 
 .lb-conversation:hover {
-  background: var(--el-fill-color-light);
+  background: color-mix(in srgb, var(--ed-accent) 6%, var(--ed-card));
 }
 
 .lb-conversation.is-active {
-  background: color-mix(in srgb, var(--el-color-primary) 10%, transparent);
+  background: var(--ed-accent-soft);
 }
 
-.lb-conversation-top {
+.lb-conv-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(140deg, var(--ed-accent), color-mix(in srgb, var(--ed-accent) 55%, #f0a03c));
+}
+
+.lb-conv-main {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lb-conv-top {
+  display: flex;
   align-items: baseline;
-  gap: 8px;
-}
-
-.lb-conversation-bottom {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
   gap: 8px;
 }
 
-.lb-conversation-preview {
+.lb-conv-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ed-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-conv-time {
+  flex: none;
+  font-size: 11px;
+  color: var(--ed-ink-faint);
+}
+
+.lb-conv-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lb-conv-preview {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
-  color: var(--lb-muted, var(--el-text-color-secondary));
+  font-size: 12.5px;
+  color: var(--ed-ink-soft);
 }
 
-.lb-conversation-badge {
+.lb-conv-badge {
   flex: none;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: var(--el-color-danger);
+  background: var(--app-negative, #c4242a);
   color: #fff;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------- 右栏：对话窗 ------------------------- */
+.lb-msg-thread {
+  position: relative;
+}
+
+.lb-thread-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
   text-align: center;
 }
 
+.lb-thread-ph-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  color: var(--ed-accent-ink);
+  background: var(--ed-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--ed-accent) 18%, transparent);
+}
+
+.lb-thread-ph-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ed-ink);
+}
+
+.lb-thread-ph-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ed-ink-soft);
+}
+
+.lb-msg-empty {
+  margin: 0;
+  padding: 28px 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+  color: var(--ed-ink-soft);
+}
+
+/* 顶部对方信息条：贴顶固定，不随消息滚动 */
 .lb-thread-head {
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  margin-bottom: 12px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--ed-rule-soft);
 }
 
-.lb-thread-alert {
-  margin-bottom: 12px;
+.lb-thread-head-avatar {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(140deg, var(--ed-accent), color-mix(in srgb, var(--ed-accent) 55%, #f0a03c));
 }
 
+.lb-thread-head-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.lb-thread-head-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ed-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-thread-head-sub {
+  font-size: 12px;
+}
+
+/* 消息气泡流：填满中间剩余高度，独立滚动，底部对齐最新消息 */
 .lb-thread-body {
-  max-height: 52vh;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 4px;
+  gap: 12px;
+  padding: 20px;
+}
+
+.lb-thread-alert {
+  border-radius: var(--ed-radius-md);
 }
 
 .lb-thread-earlier {
@@ -418,7 +624,7 @@ onMounted(() => {
 .lb-msg {
   display: flex;
   flex-direction: column;
-  max-width: 78%;
+  max-width: min(78%, 560px);
 }
 
 .lb-msg-self {
@@ -432,36 +638,64 @@ onMounted(() => {
 }
 
 .lb-msg-bubble {
-  padding: 8px 12px;
-  border-radius: 10px;
+  padding: 9px 14px;
+  border-radius: 14px;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .lb-msg-self .lb-msg-bubble {
-  background: var(--el-color-primary);
+  background: var(--ed-accent);
   color: #fff;
-  border-top-right-radius: 2px;
+  border-bottom-right-radius: 4px;
 }
 
 .lb-msg-other .lb-msg-bubble {
-  background: var(--el-fill-color);
-  border-top-left-radius: 2px;
+  background: color-mix(in srgb, var(--ed-ink) 6%, var(--ed-paper));
+  color: var(--ed-ink);
+  border-bottom-left-radius: 4px;
 }
 
 .lb-msg-time {
-  font-size: 12px;
-  margin-top: 2px;
+  font-size: 11px;
+  margin-top: 4px;
 }
 
+/* 底部输入框：贴底固定，不随消息滚动 */
 .lb-thread-composer {
+  flex: none;
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: flex-end;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--el-border-color-lighter);
+  padding: 14px 20px;
+  border-top: 1px solid var(--ed-rule-soft);
+  background: var(--ed-card);
+}
+
+.lb-thread-composer :deep(.el-textarea) {
+  flex: 1;
+}
+
+/* ------------------------- 窄屏：单栏堆叠 ------------------------- */
+@media (max-width: 900px) {
+  .lb-msg-page {
+    min-height: 0;
+  }
+
+  .lb-message-layout {
+    grid-template-columns: 1fr;
+    grid-auto-rows: minmax(0, auto);
+  }
+
+  /* 窄屏两栏各自给固定可滚高度，避免整页被撑长 */
+  .lb-msg-col {
+    max-height: 40vh;
+  }
+
+  .lb-msg-thread {
+    min-height: 60vh;
+  }
 }
 </style>

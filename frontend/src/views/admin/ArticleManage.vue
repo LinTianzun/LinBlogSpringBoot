@@ -175,7 +175,10 @@ onMounted(load)
 <template>
   <div>
     <div class="lb-page-header">
-      <h2>文章管理</h2>
+      <div>
+        <h2>文章管理</h2>
+        <span class="lb-muted">共 {{ total }} 篇</span>
+      </div>
       <RouterLink to="/admin/articles/edit/">
         <el-button type="primary">新建文章</el-button>
       </RouterLink>
@@ -190,13 +193,13 @@ onMounted(load)
           style="width: 240px"
           @keyup.enter="search"
         />
-        <el-button size="small" @click="search">搜索</el-button>
+        <el-button @click="search">搜索</el-button>
       </div>
 
       <el-tabs
         :model-value="state ?? 'all'"
         class="lb-state-tabs"
-        @update:model-value="(value) => pickState(value as ContentState | 'all')"
+        @update:model-value="(value: string | number) => pickState(value as ContentState | 'all')"
       >
         <el-tab-pane v-for="tab in STATE_TABS" :key="tab.label" :label="tab.label" :name="tab.value" />
       </el-tabs>
@@ -205,45 +208,84 @@ onMounted(load)
         <el-button size="small" link @click="load">重试</el-button>
       </el-alert>
 
-      <el-table v-loading="loading" :data="records" row-key="id">
-        <el-table-column label="标题" min-width="200">
-          <template #default="{ row }">
-            <RouterLink :to="`/admin/articles/edit/${row.id}`">{{ row.title || '（无标题）' }}</RouterLink>
-          </template>
-        </el-table-column>
-        <el-table-column label="作者" width="110">
-          <template #default="{ row }">{{ row.authorName ?? '—' }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="90">
-          <template #default="{ row }">
-            <el-tag size="small" effect="plain" :type="STATE_TAG_TYPE[row.state as ContentState]">
-              {{ STATE_LABEL[row.state as ContentState] }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="浏览" prop="views" width="70" />
-        <el-table-column label="赞" prop="praises" width="70" />
-        <el-table-column label="发布时间" width="150">
-          <template #default="{ row }">{{ row.publishedAt ? formatDate(row.publishedAt) : '—' }}</template>
-        </el-table-column>
-        <el-table-column label="更新时间" width="150">
-          <template #default="{ row }">{{ row.updatedAt ? formatDateTime(row.updatedAt) : '—' }}</template>
-        </el-table-column>
-        <el-table-column label="操作" min-width="180">
-          <template #default="{ row }">
-            <el-button
-              v-for="action in rowActions(row as ContentView)"
+      <!-- 加载骨架 -->
+      <div v-if="loading" class="lb-art-list">
+        <div v-for="n in 3" :key="`skel-${n}`" class="lb-art-card lb-art-card--skel">
+          <div class="lb-art-thumb lb-ed-skel" />
+          <div class="lb-art-main">
+            <div class="lb-ed-skel" style="height: 20px; width: 55%" />
+            <div class="lb-ed-skel" style="height: 14px; width: 90%; margin-top: 12px" />
+            <div class="lb-ed-skel" style="height: 14px; width: 70%; margin-top: 8px" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 空态 -->
+      <div v-else-if="records.length === 0 && !errorMessage" class="lb-ed-empty">
+        暂无文章，点击右上角「新建文章」开始创作。
+      </div>
+
+      <!-- 文章卡片列表 -->
+      <div v-else class="lb-art-list">
+        <article v-for="row in records" :key="row.id" class="lb-art-card">
+          <RouterLink :to="`/admin/articles/edit/${row.id}`" class="lb-art-thumb">
+            <img
+              v-if="row.coverStorageKey"
+              :src="`/api/v1/media/${row.coverStorageKey}?width=320`"
+              :alt="row.title || '封面'"
+              loading="lazy"
+            />
+            <div v-else class="lb-art-thumb-ph" aria-hidden="true">
+              <span>{{ (row.title || 'A').slice(0, 1).toUpperCase() }}</span>
+            </div>
+          </RouterLink>
+
+          <div class="lb-art-main">
+            <div class="lb-art-head">
+              <RouterLink :to="`/admin/articles/edit/${row.id}`" class="lb-art-title">
+                {{ row.title || '（无标题）' }}
+              </RouterLink>
+              <el-tag size="small" effect="plain" :type="STATE_TAG_TYPE[row.state as ContentState]">
+                {{ STATE_LABEL[row.state as ContentState] }}
+              </el-tag>
+            </div>
+
+            <p v-if="row.introduce || row.plainText" class="lb-art-summary">
+              {{ row.introduce || row.plainText }}
+            </p>
+
+            <div class="lb-art-meta">
+              <span v-if="row.authorName" class="lb-art-meta-item">
+                <span class="lb-ed-avatar">{{ row.authorName.slice(0, 1).toUpperCase() }}</span>
+                {{ row.authorName }}
+              </span>
+              <span class="lb-art-meta-item">{{ row.publishedAt ? formatDate(row.publishedAt) : (row.updatedAt ? formatDateTime(row.updatedAt) : '未发布') }}</span>
+              <span class="lb-art-stats">
+                <span>{{ row.views ?? 0 }} 浏览</span>
+                <span>{{ row.praises ?? 0 }} 赞</span>
+                <span>{{ row.commentsCount ?? 0 }} 评论</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="lb-art-actions">
+            <RouterLink :to="`/admin/articles/edit/${row.id}`" class="lb-art-action">编辑</RouterLink>
+            <button
+              v-for="action in rowActions(row)"
               :key="action.label"
-              link
-              size="small"
-              :type="action.type || undefined"
+              type="button"
+              class="lb-art-action"
+              :class="{
+                'is-danger': action.type === 'danger',
+                'is-primary': action.type === 'primary',
+              }"
               @click="action.onClick"
             >
               {{ action.label }}
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+            </button>
+          </div>
+        </article>
+      </div>
 
       <div class="lb-manage-pagination">
         <PaginationBar v-model:page="page" :total="total" :page-size="pageSize" @update:page="load" />
@@ -253,36 +295,221 @@ onMounted(load)
 </template>
 
 <style scoped>
-.lb-page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.lb-page-header h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.lb-manage-filters {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 4px;
-}
-
+/* 页面头 / 工具栏 / 分页 的通用样式由 AdminLayout 的非 scoped admin 设计层统一提供。
+   此处仅保留文章管理页特有的卡片列表 + tabs 微调。 */
 .lb-state-tabs {
   margin-bottom: 8px;
+}
+
+.lb-state-tabs :deep(.el-tabs__header) {
+  margin-bottom: 12px;
+}
+
+.lb-state-tabs :deep(.el-tabs__item) {
+  font-weight: 500;
+  font-size: var(--ed-step-small);
 }
 
 .lb-load-alert {
   margin: 0 0 12px;
 }
 
-.lb-manage-pagination {
+/* 文章卡片列表：纵向堆叠横向卡 */
+.lb-art-list {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lb-art-card {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  padding: 14px;
+  background: var(--ed-card);
+  border: 1px solid var(--ed-rule-soft);
+  border-radius: var(--ed-radius-md);
+  transition: box-shadow 220ms ease, border-color 220ms ease, transform 220ms ease;
+}
+
+.lb-art-card:hover {
+  box-shadow: var(--ed-shadow-md);
+  border-color: color-mix(in srgb, var(--ed-accent) 24%, var(--ed-rule-soft));
+  transform: translateY(-2px);
+}
+
+.lb-art-card--skel {
+  pointer-events: none;
+}
+
+/* 封面缩略图 */
+.lb-art-thumb {
+  flex: 0 0 148px;
+  width: 148px;
+  height: 100px;
+  border-radius: var(--ed-radius-sm);
+  overflow: hidden;
+  background: var(--ed-accent-soft);
+  display: block;
+  align-self: flex-start;
+}
+
+.lb-art-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lb-art-card:hover .lb-art-thumb img {
+  transform: scale(1.05);
+}
+
+.lb-art-thumb-ph {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-family: var(--ed-font-display);
+  font-size: 2rem;
+  font-weight: 500;
+  color: var(--ed-accent-ink);
+  background: linear-gradient(135deg, var(--ed-accent-soft), color-mix(in srgb, var(--ed-accent) 6%, var(--ed-card)));
+}
+
+/* 主体 */
+.lb-art-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lb-art-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lb-art-title {
+  font-family: var(--ed-font-text);
+  font-size: 1.06rem;
+  font-weight: 700;
+  color: var(--ed-ink);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.lb-art-title:hover {
+  color: var(--ed-accent-ink);
+}
+
+.lb-art-summary {
+  margin: 0;
+  font-size: var(--ed-step-small);
+  color: var(--ed-ink-soft);
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lb-art-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 0.8125rem;
+  color: var(--ed-ink-soft);
+  margin-top: auto;
+}
+
+.lb-art-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.lb-art-stats {
+  display: inline-flex;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+/* 操作区 */
+.lb-art-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  padding-left: 4px;
+}
+
+.lb-art-action {
+  appearance: none;
+  border: none;
+  background: none;
+  font-family: var(--ed-font-text);
+  font-size: var(--ed-step-small);
+  font-weight: 500;
+  color: var(--ed-ink-soft);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--ed-radius-sm);
+  text-decoration: none;
+  transition: color 160ms ease, background 160ms ease;
+  white-space: nowrap;
+}
+
+.lb-art-action:hover {
+  color: var(--ed-accent-ink);
+  background: var(--ed-accent-soft);
+}
+
+.lb-art-action.is-danger {
+  color: var(--app-negative, #d64545);
+}
+
+.lb-art-action.is-danger:hover {
+  background: color-mix(in srgb, var(--app-negative, #d64545) 12%, transparent);
+}
+
+.lb-art-action.is-primary {
+  color: var(--ed-accent-ink);
+  font-weight: 600;
+}
+
+/* 窄屏：卡片纵向堆叠 */
+@media (max-width: 720px) {
+  .lb-art-card {
+    flex-direction: column;
+  }
+
+  .lb-art-thumb {
+    flex: none;
+    width: 100%;
+    height: 168px;
+  }
+
+  .lb-art-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    border-top: 1px solid var(--ed-rule-soft);
+    padding-top: 10px;
+  }
+
+  .lb-art-stats {
+    margin-left: 0;
+  }
 }
 </style>

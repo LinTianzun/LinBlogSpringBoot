@@ -154,7 +154,10 @@ onMounted(load)
 <template>
   <div>
     <div class="lb-page-header">
-      <h2>画廊管理</h2>
+      <div>
+        <h2>画廊管理</h2>
+        <span class="lb-muted">共 {{ total }} 张图片</span>
+      </div>
       <RouterLink to="/admin/gallery/edit/">
         <el-button type="primary">新建图片</el-button>
       </RouterLink>
@@ -178,50 +181,77 @@ onMounted(load)
         >
           <el-option v-for="option in STATE_OPTIONS" :key="option.value" :label="option.label" :value="option.value" />
         </el-select>
-        <el-button size="small" @click="search">搜索</el-button>
+        <el-button @click="search">搜索</el-button>
       </div>
 
       <el-alert v-if="errorMessage" type="warning" :title="errorMessage" class="lb-load-alert" :closable="false">
         <el-button size="small" link @click="load">重试</el-button>
       </el-alert>
 
-      <el-table v-loading="loading" :data="records" row-key="id">
-        <el-table-column label="预览" width="96">
-          <template #default>
-            <div class="lb-cover-placeholder">🖼</div>
-          </template>
-        </el-table-column>
-        <el-table-column label="标题" min-width="200">
-          <template #default="{ row }">
-            <RouterLink :to="`/admin/gallery/edit/${row.id}`">{{ row.title || '（无标题）' }}</RouterLink>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="90">
-          <template #default="{ row }">
-            <el-tag size="small" effect="plain" :type="STATE_TAG_TYPE[row.state as ContentState]">
+      <!-- 加载骨架 -->
+      <div v-if="loading" class="lb-gallery-grid">
+        <div v-for="n in 8" :key="`skel-${n}`" class="lb-gallery-card">
+          <div class="lb-gallery-cover lb-ed-skel" />
+          <div class="lb-gallery-body">
+            <div class="lb-ed-skel" style="height: 16px; width: 70%" />
+            <div class="lb-ed-skel" style="height: 12px; width: 40%; margin-top: 10px" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 空态 -->
+      <div v-else-if="records.length === 0 && !errorMessage" class="lb-ed-empty">
+        暂无图片，点击右上角「新建图片」上传。
+      </div>
+
+      <!-- 图片卡片墙 -->
+      <div v-else class="lb-gallery-grid">
+        <div v-for="row in records" :key="row.id" class="lb-gallery-card">
+          <RouterLink :to="`/admin/gallery/edit/${row.id}`" class="lb-gallery-cover">
+            <img
+              v-if="row.coverStorageKey"
+              :src="`/api/v1/media/${row.coverStorageKey}?width=320`"
+              :alt="row.title || '图片'"
+              loading="lazy"
+            />
+            <div v-else class="lb-gallery-ph" aria-hidden="true" />
+            <el-tag
+              class="lb-gallery-pill"
+              size="small"
+              effect="dark"
+              :type="STATE_TAG_TYPE[row.state as ContentState]"
+            >
               {{ STATE_OPTIONS.find((item) => item.value === row.state)?.label ?? row.state }}
             </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="赞" prop="praises" width="80" />
-        <el-table-column label="发布时间" width="150">
-          <template #default="{ row }">{{ row.publishedAt ? formatDate(row.publishedAt) : '—' }}</template>
-        </el-table-column>
-        <el-table-column label="操作" min-width="200">
-          <template #default="{ row }">
-            <el-button
-              v-for="action in rowActions(row as ContentView)"
-              :key="action.label"
-              link
-              size="small"
-              :type="action.type || undefined"
-              @click="action.onClick"
-            >
-              {{ action.label }}
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+          </RouterLink>
+
+          <div class="lb-gallery-body">
+            <RouterLink :to="`/admin/gallery/edit/${row.id}`" class="lb-gallery-title">
+              {{ row.title || '（无标题）' }}
+            </RouterLink>
+            <div class="lb-gallery-meta">
+              <span>{{ row.publishedAt ? formatDate(row.publishedAt) : '未发布' }}</span>
+              <span>{{ row.praises ?? 0 }} 赞</span>
+            </div>
+            <div class="lb-gallery-actions">
+              <RouterLink :to="`/admin/gallery/edit/${row.id}`" class="lb-gallery-action">编辑</RouterLink>
+              <button
+                v-for="action in rowActions(row)"
+                :key="action.label"
+                type="button"
+                class="lb-gallery-action"
+                :class="{
+                  'is-danger': action.type === 'danger',
+                  'is-primary': action.type === 'primary',
+                }"
+                @click="action.onClick"
+              >
+                {{ action.label }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="lb-manage-pagination">
         <PaginationBar v-model:page="page" :total="total" :page-size="pageSize" @update:page="load" />
@@ -231,43 +261,152 @@ onMounted(load)
 </template>
 
 <style scoped>
-.lb-page-header {
+/* 页头 / 工具栏 / 分页 由 AdminLayout 设计层统一；此处保留画廊卡片墙样式。 */
+.lb-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.lb-gallery-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--ed-card);
+  border: 1px solid var(--ed-rule-soft);
+  border-radius: var(--ed-radius-md);
+  overflow: hidden;
+  transition: box-shadow 220ms ease, border-color 220ms ease, transform 220ms ease;
+}
+
+.lb-gallery-card:hover {
+  box-shadow: var(--ed-shadow-md);
+  border-color: color-mix(in srgb, var(--ed-accent) 24%, var(--ed-rule-soft));
+  transform: translateY(-3px);
+}
+
+/* 封面 */
+.lb-gallery-cover {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  background: var(--ed-accent-soft);
+  overflow: hidden;
+}
+
+.lb-gallery-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lb-gallery-card:hover .lb-gallery-cover img {
+  transform: scale(1.05);
+}
+
+.lb-gallery-ph {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--ed-accent-soft), color-mix(in srgb, var(--ed-accent) 6%, var(--ed-card)));
+}
+
+/* 状态药丸叠在图左上 */
+.lb-gallery-pill {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 4px 10px;
+  backdrop-filter: blur(4px);
+}
+
+/* 主体 */
+.lb-gallery-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lb-gallery-title {
+  font-family: var(--ed-font-text);
+  font-size: var(--ed-step-small);
+  font-weight: 700;
+  color: var(--ed-ink);
+  text-decoration: none;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lb-gallery-title:hover {
+  color: var(--ed-accent-ink);
+}
+
+.lb-gallery-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: var(--ed-ink-soft);
+  font-variant-numeric: tabular-nums;
 }
 
-.lb-page-header h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.lb-manage-filters {
+.lb-gallery-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--ed-rule-soft);
+  padding-top: 8px;
+  margin-top: 2px;
 }
 
-.lb-load-alert {
-  margin: 0 0 12px;
+.lb-gallery-action {
+  appearance: none;
+  border: none;
+  background: none;
+  font-family: var(--ed-font-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ed-ink-soft);
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: var(--ed-radius-sm);
+  text-decoration: none;
+  transition: color 160ms ease, background 160ms ease;
+  white-space: nowrap;
 }
 
-.lb-cover-placeholder {
-  width: 80px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  border-radius: 4px;
-  background: linear-gradient(135deg, rgba(24, 160, 88, 0.12), rgba(24, 160, 88, 0.04));
+.lb-gallery-action:hover {
+  color: var(--ed-accent-ink);
+  background: var(--ed-accent-soft);
 }
 
-.lb-manage-pagination {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
+.lb-gallery-action.is-danger {
+  color: var(--app-negative, #d64545);
+}
+
+.lb-gallery-action.is-danger:hover {
+  background: color-mix(in srgb, var(--app-negative, #d64545) 12%, transparent);
+}
+
+.lb-gallery-action.is-primary {
+  color: var(--ed-accent-ink);
+  font-weight: 600;
+}
+
+/* 窄屏：单列 */
+@media (max-width: 560px) {
+  .lb-gallery-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

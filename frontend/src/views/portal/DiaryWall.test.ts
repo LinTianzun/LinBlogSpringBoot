@@ -56,7 +56,7 @@ describe('DiaryWall 日记墙', () => {
     const html = wrapper.html()
     expect(html).toContain('2026-01-02')
     expect(html).toContain(WEATHER_EMOJI['晴天'])
-    expect(html).toContain('心情：平静')
+    expect(html).toContain('心情 · 平静')
     expect(html).toContain('今天补了一条日记')
     expect(html).toContain('34')
   })

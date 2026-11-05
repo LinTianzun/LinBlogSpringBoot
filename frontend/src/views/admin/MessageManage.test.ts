@@ -107,8 +107,14 @@ describe('MessageManage 私信管理', () => {
     expect(html).toContain('未读 2 条')
   })
 
-  it('打开会话：拉取消息（正序渲染）、标记已读并清零未读', async () => {
-    mockedListConversations.mockResolvedValue({ records: [conversation()], total: 1 })
+  it('打开会话：首屏自动展开首个会话（拉取消息正序渲染、标记已读并清零未读），点击可切换', async () => {
+    mockedListConversations.mockResolvedValue({
+      records: [
+        conversation(),
+        conversation({ id: 5, peer: { id: 3, username: 'bob', nickname: '鲍勃' }, unread: 0 }),
+      ],
+      total: 2,
+    })
     mockedUnread.mockResolvedValueOnce(2).mockResolvedValue(0)
     mockedListMessages.mockResolvedValue({
       records: [
@@ -119,9 +125,8 @@ describe('MessageManage 私信管理', () => {
     })
 
     const wrapper = await mountPage()
-    await wrapper.find('[data-testid="message-conversation"]').trigger('click')
-    await flushPromises()
 
+    // 加载会话列表后自动展开最近一条
     expect(mockedListMessages).toHaveBeenCalledWith(1)
     expect(mockedMarkRead).toHaveBeenCalledWith(1)
     await flushPromises()
@@ -132,6 +137,13 @@ describe('MessageManage 私信管理', () => {
     expect(selfBubbles).toHaveLength(1)
     expect(selfBubbles[0].text()).toBe('在的，什么事？')
     expect(otherBubbles[0].text()).toBe('在吗？')
+
+    // 点击另一个会话切换
+    await wrapper.find('[data-testid="message-conversation"]').trigger('click')
+    await flushPromises()
+
+    expect(mockedListMessages).toHaveBeenLastCalledWith(5)
+    expect(wrapper.find('[data-testid="message-conversation-active"]').exists()).toBe(true)
   })
 
   it('游标加载更早消息：以当前首条消息 id 作为 before 前插', async () => {
@@ -147,8 +159,6 @@ describe('MessageManage 私信管理', () => {
       })
 
     const wrapper = await mountPage()
-    await wrapper.find('[data-testid="message-conversation"]').trigger('click')
-    await flushPromises()
 
     await wrapper.find('[data-testid="message-earlier"]').trigger('click')
     await flushPromises()
@@ -166,8 +176,6 @@ describe('MessageManage 私信管理', () => {
     mockedSend.mockResolvedValue(message({ id: 12, senderId: 9, body: '在的' }))
 
     const wrapper = await mountPage()
-    await wrapper.find('[data-testid="message-conversation"]').trigger('click')
-    await flushPromises()
 
     await wrapper.find('[data-testid="message-draft"]').setValue('在的')
     await wrapper.find('[data-testid="message-send"]').trigger('click')

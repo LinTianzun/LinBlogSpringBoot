@@ -6,6 +6,8 @@ coverage/
 
 # local toolchain downloaded by lead
 .tools/
+# design-taste skill local state (design direction snapshots)
+.taste-skill/
 
 # runtime data
 data/
