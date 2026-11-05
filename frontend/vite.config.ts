@@ -22,6 +22,11 @@ export default defineConfig({
     },
   },
   server: {
+    // 固定 dev 端口：51xx 段（5173/5174/5180…）已被本机其他项目长期占用，
+    // vite 默认会静默漂移端口，导致「打开旧端口连的是别的应用」。选冷门口 +
+    // strictPort：被占即报错，绝不静默漂移。
+    port: 5730,
+    strictPort: true,
     proxy: {
       // 后端 Spring Boot 默认 8080；SSE 一并透传（本地 dev 无 Caddy）。
       // 端口被占用时可用 VITE_API_TARGET 覆盖（如 VITE_API_TARGET=http://localhost:8081）。

@@ -14,7 +14,9 @@ app:
   refresh-ttl-days: 7
   cookie-domain:
   cookie-secure: false
-  allowed-origins: http://localhost:5173,http://127.0.0.1:5173
+  # CORS：vite 代理不重写 Origin 头，浏览器请求到达后端仍带 dev 来源，
+  # 故必须把 vite dev 实际端口（vite.config.ts server.port，当前 5730）列入。
+  allowed-origins: http://localhost:5173,http://127.0.0.1:5173,http://localhost:5730,http://127.0.0.1:5730
   public-url: http://localhost:5173
   storage-driver: local
   storage-local-dir: ./data/storage
