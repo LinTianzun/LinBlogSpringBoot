@@ -34,11 +34,12 @@ import java.util.UUID;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
-    /** 密码长度 8–72：文档未规定，bcrypt 输入上限 72 字节（汇报偏差）。 */
+    /** 密码长度 8–72：文档未规定，bcrypt 输入上限 72 字节（汇报偏差）。nickname 选填 ≤30 字，缺省回退用户名。 */
     public record RegisterRequest(
             @NotBlank @Pattern(regexp = "^[a-zA-Z0-9_]{3,20}$", message = "用户名须为 3-20 位字母、数字或下划线") String username,
             @NotBlank @Email String email,
-            @NotBlank @Size(min = 8, max = 72) String password) {
+            @NotBlank @Size(min = 8, max = 72) String password,
+            @Size(max = 30, message = "昵称不能超过 30 字") String nickname) {
     }
 
     public record LoginRequest(@NotBlank String account, @NotBlank String password) {
@@ -68,7 +69,7 @@ public class AuthController {
                                                     HttpServletRequest request) {
         String ip = IpUtil.clientIp(request);
         requireLoginRate(ip);
-        return ApiResult.ok(authService.register(body.username(), body.email(), body.password(), ip));
+        return ApiResult.ok(authService.register(body.username(), body.email(), body.password(), body.nickname(), ip));
     }
 
     @PostMapping("/login")

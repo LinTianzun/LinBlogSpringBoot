@@ -74,9 +74,9 @@ public class AuthService {
     public record MeResult(UserView user, java.util.Set<String> permissions, boolean isSuperAdmin) {
     }
 
-    /** 注册：并发重名/重邮箱统一 40900（预检给出更具体文案）。 */
+    /** 注册：并发重名/重邮箱统一 40900（预检给出更具体文案）。nickname 选填，空白回退用户名（全站展示名）。 */
     @Transactional
-    public UserView register(String username, String email, String password, String ip) {
+    public UserView register(String username, String email, String password, String nickname, String ip) {
         if (userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getUsername, username)) > 0) {
             throw new BizException(ErrorCode.CONFLICT, "用户名已存在");
         }
@@ -87,7 +87,7 @@ public class AuthService {
         user.setUsername(username);
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(password));
-        user.setNickname(username);
+        user.setNickname(nickname == null || nickname.isBlank() ? username : nickname.strip());
         user.setRoleCode("viewer");
         user.setStatus(1);
         user.setTokenVersion(0);

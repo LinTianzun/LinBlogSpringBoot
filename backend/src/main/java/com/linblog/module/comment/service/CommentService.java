@@ -283,7 +283,7 @@ public class CommentService {
             return names;
         }
         for (User user : userMapper.selectBatchIds(userIds)) {
-            names.put(user.getId(), user.getUsername());
+            names.put(user.getId(), user.getDisplayName());
         }
         return names;
     }

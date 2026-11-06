@@ -45,7 +45,7 @@ class SeoServiceTest {
     private static AppProperties props(String publicUrl, String allowedOrigins) {
         return new AppProperties(publicUrl, allowedOrigins, "secret", Duration.ofMinutes(30), 7, null, false,
                 "local", "data/storage", null, null, null, null, "320,480",
-                DataSize.ofMegabytes(10), 30, 90, 7, false, 5, 5, null);
+                DataSize.ofMegabytes(10), 30, 7, 90, 7, false, 5, 5, null);
     }
 
     private static Content content(long id, String contentType, LocalDateTime updatedAt) {

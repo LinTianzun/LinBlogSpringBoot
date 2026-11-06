@@ -462,7 +462,7 @@ public class ContentService {
         Set<Long> authorIds = records.stream().map(Content::getAuthorId).collect(Collectors.toSet());
         Map<Long, String> authorNames = userMapper.selectList(new LambdaQueryWrapper<User>()
                         .in(User::getId, authorIds)).stream()
-                .collect(Collectors.toMap(User::getId, User::getUsername, (a, b) -> a));
+                .collect(Collectors.toMap(User::getId, User::getDisplayName, (a, b) -> a));
         Map<Long, Content> byId = records.stream()
                 .collect(Collectors.toMap(Content::getId, Function.identity(), (a, b) -> a));
         // 批量取封面 media：收集所有非空 coverMediaId，一次 selectBatchIds 得 id→storageKey

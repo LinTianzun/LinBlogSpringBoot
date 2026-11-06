@@ -36,6 +36,7 @@ public final class TestAppProperties {
                 "320,640,1280",                     // thumbWidths
                 DataSize.ofMegabytes(20),           // uploadMaxBytes
                 30,                                 // viewDedupMinutes
+                7,                                  // viewRetentionDays
                 90,                                 // auditRetentionDays
                 30,                                 // trashRetentionDays
                 false,                              // geoipEnabled
@@ -55,7 +56,7 @@ public final class TestAppProperties {
         return new AppProperties((String) v[0], (String) v[1], (String) v[2], (Duration) v[3],
                 (Integer) v[4], (String) v[5], (Boolean) v[6], (String) v[7], (String) v[8],
                 (String) v[9], (String) v[10], (String) v[11], (String) v[12], (String) v[13],
-                (DataSize) v[14], (Integer) v[15], (Integer) v[16], (Integer) v[17], (Boolean) v[18],
-                (Integer) v[19], (Integer) v[20], (AppProperties.Smtp) v[21]);
+                (DataSize) v[14], (Integer) v[15], (Integer) v[16], (Integer) v[17], (Integer) v[18],
+                (Boolean) v[19], (Integer) v[20], (Integer) v[21], (AppProperties.Smtp) v[22]);
     }
 }

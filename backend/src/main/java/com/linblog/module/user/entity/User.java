@@ -66,6 +66,11 @@ public class User {
         this.nickname = nickname;
     }
 
+    /** 展示名：昵称优先，空昵称回退用户名（评论/留言/举报等展示位统一用它）。 */
+    public String getDisplayName() {
+        return nickname == null || nickname.isBlank() ? username : nickname;
+    }
+
     public Long getAvatarMediaId() {
         return avatarMediaId;
     }

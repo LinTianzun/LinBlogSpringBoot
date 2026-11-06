@@ -87,23 +87,41 @@ class AuthServiceTest {
             return 1;
         }).when(userMapper).insert(any(User.class));
 
-        AuthService.UserView view = service.register("neo", "neo@linlog.com", "Password8", "1.1.1.1");
+        AuthService.UserView view = service.register("neo", "neo@linlog.com", "Password8", null, "1.1.1.1");
 
         assertEquals("neo", view.username());
         assertEquals("neo@linlog.com", view.email());
         assertEquals("viewer", view.role());
         assertEquals(1, view.status());
-        verify(userMapper).insert(any(User.class));
+        // nickname 空白回退用户名
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userMapper).insert(captor.capture());
+        assertEquals("neo", captor.getValue().getNickname());
         verify(systemLogService).record(eq(100L), eq("auth"), eq("register"), eq("user"), eq(100L),
                 eq(null), eq("1.1.1.1"));
         verify(refreshTokenService, never()).create(anyLong(), any(), any());
     }
 
     @Test
+    void registerKeepsProvidedNickname() {
+        when(userMapper.selectCount(any())).thenReturn(0L);
+        doAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(101L);
+            return 1;
+        }).when(userMapper).insert(any(User.class));
+
+        AuthService.UserView view = service.register("momo", "momo@linlog.com", "Password8", "莫莫", "ip");
+
+        assertEquals("莫莫", view.nickname());
+        assertEquals("momo", view.username());
+    }
+
+    @Test
     void registerDuplicateUsername409() {
         when(userMapper.selectCount(any())).thenReturn(1L);
         BizException ex = assertThrows(BizException.class,
-                () -> service.register("taken", "a@b.c", "Password8", "ip"));
+                () -> service.register("taken", "a@b.c", "Password8", null, "ip"));
         assertEquals(ErrorCode.CONFLICT, ex.getErrorCode());
         assertTrue(ex.getMessage().contains("用户名"));
     }
@@ -113,7 +131,7 @@ class AuthServiceTest {
         when(userMapper.selectCount(any())).thenReturn(0L);
         doThrow(new DuplicateKeyException("dup")).when(userMapper).insert(any(User.class));
         BizException ex = assertThrows(BizException.class,
-                () -> service.register("racer", "r@b.c", "Password8", "ip"));
+                () -> service.register("racer", "r@b.c", "Password8", null, "ip"));
         assertEquals(ErrorCode.CONFLICT, ex.getErrorCode());
     }
 
@@ -268,7 +286,7 @@ class AuthServiceTest {
         User u = user(9L, "alice", "alice@linlog.com", "h", "viewer", 1, 0);
         when(userMapper.selectOne(any())).thenReturn(u);
         AppProperties configured = TestAppProperties.of(new Object[]{
-                21, new AppProperties.Smtp("smtp.test.local", 587, false, "u", "p", "no-reply@linlog.com")});
+                22, new AppProperties.Smtp("smtp.test.local", 587, false, "u", "p", "no-reply@linlog.com")});
         MailService sending = mock(MailService.class);
         when(sending.isConfigured()).thenReturn(true);
         service = new AuthService(userMapper, refreshTokenService, resetTokenMapper, encoder,

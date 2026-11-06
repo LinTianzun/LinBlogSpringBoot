@@ -196,7 +196,7 @@ public class ReportService {
         Map<Long, String> names = new HashMap<>();
         if (!userIds.isEmpty()) {
             for (User user : userMapper.selectBatchIds(userIds)) {
-                names.put(user.getId(), user.getUsername());
+                names.put(user.getId(), user.getDisplayName());
             }
         }
         return reports.stream().map(report -> {

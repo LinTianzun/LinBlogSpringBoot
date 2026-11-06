@@ -47,7 +47,7 @@ class AuthControllerTest {
     @Test
     void registerValidationFailureReturns40001WithFieldErrors() throws Exception {
         String body = objectMapper.writeValueAsString(
-                new AuthController.RegisterRequest("x", "not-an-email", "short"));
+                new AuthController.RegisterRequest("x", "not-an-email", "short", null));
         mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(40001))
@@ -59,11 +59,11 @@ class AuthControllerTest {
     @Test
     void registerSuccessReturnsShellWithCode0() throws Exception {
         when(rateLimiter.tryLogin(anyString())).thenReturn(true);
-        when(authService.register(eq("neo"), eq("neo@linlog.com"), anyString(), anyString()))
+        when(authService.register(eq("neo"), eq("neo@linlog.com"), anyString(), any(), anyString()))
                 .thenReturn(new AuthService.UserView(1L, "neo", "neo", "neo@linlog.com", "viewer", 1, 0, null));
 
         String body = objectMapper.writeValueAsString(
-                new AuthController.RegisterRequest("neo", "neo@linlog.com", "Password8"));
+                new AuthController.RegisterRequest("neo", "neo@linlog.com", "Password8", null));
         mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
