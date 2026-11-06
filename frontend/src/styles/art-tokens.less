@@ -2,7 +2,9 @@
  * 亮/暗变量 + element-plus 主色覆盖（9 档色阶用 color-mix 纯 CSS 生成，免 JS 计算）。
  * --lb-* 为门户旧变量，桥接到 art token 以便亮暗自适应。 */
 
-:root {
+/* html:root（0,1,1）> :root（0,1,0）：压过 element-plus 组件样式里后加载的
+ * 基础 css-vars（其 :root --el-color-primary 会覆盖这里的派生，导致开关/禁用态变默认蓝） */
+html:root {
   /* 主色（art 默认 #5D87FF）；element-plus 组件读 --el-color-* */
   --main-color: #5d87ff;
   --el-color-primary: var(--main-color);
