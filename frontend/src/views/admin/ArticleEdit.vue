@@ -6,6 +6,7 @@ import type { UploadProps, UploadRequestOptions } from 'element-plus'
 import { createContent, getAdminContent, listLabels, updateContent, uploadMedia } from '@/api/admin'
 import { ApiError } from '@/api/request'
 import RichEditor from '@/components/RichEditor.vue'
+import CoverImage from '@/components/CoverImage.vue'
 import type { CreateContentPayload, FieldError } from '@/types/api'
 
 /**
@@ -26,6 +27,7 @@ const contentId = computed<number | null>(() => {
 const title = ref('')
 const introduce = ref('')
 const coverMediaId = ref<number | null>(null)
+const coverKey = ref('')
 const coverHint = ref('')
 const isPinned = ref(false)
 const labelIds = ref<number[]>([])
@@ -51,6 +53,7 @@ async function load(): Promise<void> {
       title.value = detail.title
       introduce.value = detail.introduce ?? ''
       coverMediaId.value = detail.coverMediaId ?? null
+      coverKey.value = detail.coverStorageKey ?? ''
       isPinned.value = detail.isPinned ?? false
       labelIds.value = detail.labelIds ?? []
       bodyText.value = detail.body ?? JSON.stringify({ type: 'doc', content: [] })
@@ -64,13 +67,14 @@ async function load(): Promise<void> {
   }
 }
 
-/** el-upload 自定义上传：POST /files/upload → 回填 coverMediaId */
+/** el-upload 自定义上传：POST /files/upload → 回填 coverMediaId + 预览 storageKey */
 async function uploadCover(options: UploadRequestOptions): Promise<unknown> {
   const raw = options.file
   uploading.value = true
   try {
     const result = await uploadMedia(raw)
     coverMediaId.value = result.id
+    coverKey.value = result.storageKey
     coverHint.value = `已上传：${result.storageKey}（${Math.round(result.sizeBytes / 1024)} KB）`
     ElMessage.success('封面上传成功')
   } catch (error) {
@@ -79,6 +83,13 @@ async function uploadCover(options: UploadRequestOptions): Promise<unknown> {
     uploading.value = false
   }
   return Promise.resolve()
+}
+
+/** 移除封面：只清引用（媒体文件本体走文件管理回收） */
+function removeCover(): void {
+  coverMediaId.value = null
+  coverKey.value = ''
+  coverHint.value = ''
 }
 
 const beforeUpload: UploadProps['beforeUpload'] = (rawFile) => {
@@ -141,7 +152,7 @@ onMounted(load)
 
     <el-card v-loading="loading" shadow="never" class="lb-edit-card">
       <el-form label-position="top">
-        <div class="lb-edit-section">
+        <div class="lb-edit-section lb-edit-section--meta">
           <span class="lb-edit-section-title">基本信息</span>
           <el-form-item label="标题" :error="fieldErrors.title">
             <el-input
@@ -178,18 +189,34 @@ onMounted(load)
           </el-form-item>
           <el-form-item label="封面" :error="fieldErrors.coverMediaId">
             <div class="lb-cover-field">
-              <el-upload
-                accept="image/*"
-                :limit="1"
-                :auto-upload="true"
-                :http-request="uploadCover"
-                :show-file-list="false"
-                data-testid="article-cover-upload"
-                :before-upload="beforeUpload"
-              >
-                <el-button :loading="uploading">上传封面图片</el-button>
-              </el-upload>
-              <el-input-number v-model="coverMediaId" :min="1" placeholder="或手填媒体 ID" style="width: 220px" />
+              <CoverImage
+                v-if="coverMediaId !== null && coverKey"
+                :storage-key="coverKey"
+                ratio="16:6"
+                class="lb-cover-preview"
+                alt="封面预览"
+              />
+              <div class="lb-cover-actions">
+                <el-upload
+                  accept="image/*"
+                  :limit="1"
+                  :auto-upload="true"
+                  :http-request="uploadCover"
+                  :show-file-list="false"
+                  data-testid="article-cover-upload"
+                  :before-upload="beforeUpload"
+                >
+                  <el-button :loading="uploading">{{ coverMediaId !== null ? '更换封面' : '上传封面图片' }}</el-button>
+                </el-upload>
+                <el-button v-if="coverMediaId !== null" link type="danger" @click="removeCover">移除封面</el-button>
+                <el-input-number
+                  v-model="coverMediaId"
+                  :min="1"
+                  placeholder="媒体 ID"
+                  style="width: 150px"
+                  title="高级：直接填写媒体 ID（正常情况用上传）"
+                />
+              </div>
               <span v-if="coverHint" class="lb-cover-hint">{{ coverHint }}</span>
             </div>
           </el-form-item>
@@ -235,6 +262,11 @@ onMounted(load)
   border-bottom: 1px solid var(--ed-rule-soft);
 }
 
+/* 基本信息表单收窄到舒适阅读宽度（正文编辑器保持全宽） */
+.lb-edit-section--meta :deep(.el-form-item) {
+  max-width: 720px;
+}
+
 .lb-edit-section:last-of-type {
   border-bottom: none;
 }
@@ -253,6 +285,20 @@ onMounted(load)
   align-items: flex-start;
   gap: 8px;
   width: 100%;
+}
+
+.lb-cover-preview {
+  width: min(360px, 100%);
+  border-radius: var(--ed-radius-md);
+  overflow: hidden;
+  box-shadow: var(--ed-shadow-sm);
+}
+
+.lb-cover-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .lb-cover-hint {
