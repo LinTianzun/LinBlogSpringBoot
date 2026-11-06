@@ -159,6 +159,14 @@ public class ContentService {
             content.setPublishedAt(LocalDateTime.now());
         }
         contentMapper.insert(content);
+        // 封面归位：media.content_id 指向作品，图集列表才会包含封面
+        if (content.getCoverMediaId() != null) {
+            Media cover = mediaMapper.selectById(content.getCoverMediaId());
+            if (cover != null && cover.getContentId() == null) {
+                cover.setContentId(content.getId());
+                mediaMapper.updateById(cover);
+            }
+        }
         saveLabels(content.getId(), request.labelIds());
         systemLogService.record(principal.uid(), "content", "create", type, content.getId(), title, null);
         return toView(content, true);
@@ -236,6 +244,12 @@ public class ContentService {
         }
         if (request.coverMediaId() != null) {
             content.setCoverMediaId(request.coverMediaId());
+            // 新封面归位到本作品图集（media.content_id）
+            Media cover = mediaMapper.selectById(request.coverMediaId());
+            if (cover != null && cover.getContentId() == null) {
+                cover.setContentId(id);
+                mediaMapper.updateById(cover);
+            }
         }
         if (request.isPinned() != null) {
             content.setIsPinned(request.isPinned());
@@ -422,6 +436,119 @@ public class ContentService {
         }
         // 操作类：归属不符 → 40400（§7.3 防探测）
         throw new BizException(ErrorCode.NOT_FOUND, "内容不存在");
+    }
+
+    /* ==================== 图集媒体（gallery 多图；media.content_id 承载归属） ==================== */
+
+    /** 图集媒体项（admin 侧含 cover 标记）。 */
+    public record ContentMediaItem(Long mediaId, String storageKey, String thumbKey,
+                                   Integer width, Integer height, String mimeType, boolean cover) {
+    }
+
+    /** 门户侧图集媒体项（只暴露展示所需字段）。 */
+    public record PortalMediaItem(Long mediaId, String storageKey, Integer width, Integer height) {
+    }
+
+    /** 某内容的图集媒体（admin，含 cover 标记）。 */
+    public List<ContentMediaItem> listMedia(long contentId) {
+        requireManage(contentId);
+        return albumItems(contentId);
+    }
+
+    /** 门户图集媒体：目标必须是已发布作品（40400 防探测）。 */
+    public List<PortalMediaItem> listPublicMedia(long contentId) {
+        Content content = contentMapper.selectById(contentId);
+        if (content == null || !STATE_PUBLISHED.equals(content.getState())) {
+            throw new BizException(ErrorCode.NOT_FOUND, "内容不存在");
+        }
+        return mediaMapper.selectList(new LambdaQueryWrapper<Media>()
+                        .eq(Media::getContentId, contentId)
+                        .eq(Media::getState, "active")
+                        .orderByAsc(Media::getId)).stream()
+                .map(m -> new PortalMediaItem(m.getId(), m.getStorageKey(), m.getWidth(), m.getHeight()))
+                .toList();
+    }
+
+    /** 挂载媒体到图集；已归属其他作品则 40900。 */
+    public ContentMediaItem attachMedia(long contentId, long mediaId) {
+        AuthPrincipal principal = requireManage(contentId);
+        Media media = requireActiveMedia(mediaId);
+        if (media.getContentId() != null && media.getContentId() != contentId) {
+            throw new BizException(ErrorCode.CONFLICT, "该图片已归属其他作品，请先在原作品移除");
+        }
+        media.setContentId(contentId);
+        mediaMapper.updateById(media);
+        systemLogService.record(principal.uid(), "content", "attach_media", "content", contentId,
+                "mediaId=" + mediaId, null);
+        return toItem(media, contentId);
+    }
+
+    /** 从图集移除媒体；展示封面不可直接移除（先换封面）。 */
+    public void detachMedia(long contentId, long mediaId) {
+        AuthPrincipal principal = requireManage(contentId);
+        Media media = requireActiveMedia(mediaId);
+        if (!Long.valueOf(contentId).equals(media.getContentId())) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "该图片不属于此作品");
+        }
+        Content content = contentMapper.selectById(contentId);
+        if (content != null && mediaId == content.getCoverMediaId()) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "展示封面不能移除，请先把其他图片设为封面");
+        }
+        media.setContentId(null);
+        mediaMapper.updateById(media);
+        systemLogService.record(principal.uid(), "content", "detach_media", "content", contentId,
+                "mediaId=" + mediaId, null);
+    }
+
+    /** 把图集内（或任一活跃）媒体设为展示封面；未挂载则顺带挂载。 */
+    public ContentMediaItem setCoverFromMedia(long contentId, long mediaId) {
+        AuthPrincipal principal = requireManage(contentId);
+        Media media = requireActiveMedia(mediaId);
+        if (media.getContentId() == null) {
+            media.setContentId(contentId);
+            mediaMapper.updateById(media);
+        } else if (media.getContentId() != contentId) {
+            throw new BizException(ErrorCode.CONFLICT, "该图片已归属其他作品，请先在原作品移除");
+        }
+        Content content = contentMapper.selectById(contentId);
+        if (content == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "内容不存在");
+        }
+        content.setCoverMediaId(mediaId);
+        contentMapper.updateById(content);
+        systemLogService.record(principal.uid(), "content", "set_cover", "content", contentId,
+                "mediaId=" + mediaId, null);
+        return toItem(media, contentId);
+    }
+
+    private Media requireActiveMedia(long mediaId) {
+        Media media = mediaMapper.selectById(mediaId);
+        if (media == null || !"active".equals(media.getState())) {
+            throw new BizException(ErrorCode.NOT_FOUND, "媒体不存在");
+        }
+        return media;
+    }
+
+    private List<ContentMediaItem> albumItems(long contentId) {
+        Content content = contentMapper.selectById(contentId);
+        Long cover = content == null ? null : content.getCoverMediaId();
+        return mediaMapper.selectList(new LambdaQueryWrapper<Media>()
+                        .eq(Media::getContentId, contentId)
+                        .eq(Media::getState, "active")
+                        .orderByAsc(Media::getId)).stream()
+                .map(m -> toItem(m, cover))
+                .toList();
+    }
+
+    private ContentMediaItem toItem(Media m, long contentId) {
+        Content content = contentMapper.selectById(contentId);
+        return toItem(m, content == null ? null : content.getCoverMediaId());
+    }
+
+    private ContentMediaItem toItem(Media m, Long coverMediaId) {
+        return new ContentMediaItem(m.getId(), m.getStorageKey(), m.getThumbKey(),
+                m.getWidth(), m.getHeight(), m.getMimeType(),
+                coverMediaId != null && coverMediaId == m.getId());
     }
 
     private void saveLabels(Long contentId, List<Long> labelIds) {

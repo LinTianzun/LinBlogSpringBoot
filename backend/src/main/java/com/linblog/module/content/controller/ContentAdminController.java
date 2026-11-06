@@ -14,6 +14,8 @@ import com.linblog.security.AuthPrincipal;
 import com.linblog.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
+
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -86,6 +89,31 @@ public class ContentAdminController {
     public ApiResult<Void> purge(@PathVariable long id) {
         contentService.purge(id);
         return ApiResult.ok(null);
+    }
+
+    /* ==================== 图集媒体（gallery 多图） ==================== */
+
+    @GetMapping("/{id}/media")
+    public ApiResult<List<ContentService.ContentMediaItem>> listMedia(@PathVariable long id) {
+        return ApiResult.ok(contentService.listMedia(id));
+    }
+
+    @PostMapping("/{id}/media/{mediaId}")
+    public ApiResult<ContentService.ContentMediaItem> attachMedia(@PathVariable long id,
+                                                                  @PathVariable long mediaId) {
+        return ApiResult.ok(contentService.attachMedia(id, mediaId));
+    }
+
+    @DeleteMapping("/{id}/media/{mediaId}")
+    public ApiResult<Void> detachMedia(@PathVariable long id, @PathVariable long mediaId) {
+        contentService.detachMedia(id, mediaId);
+        return ApiResult.ok(null);
+    }
+
+    @PutMapping("/{id}/media/{mediaId}/cover")
+    public ApiResult<ContentService.ContentMediaItem> setCover(@PathVariable long id,
+                                                               @PathVariable long mediaId) {
+        return ApiResult.ok(contentService.setCoverFromMedia(id, mediaId));
     }
 
     private AuthPrincipal requirePrincipal() {

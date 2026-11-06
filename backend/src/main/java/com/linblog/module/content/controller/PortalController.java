@@ -76,6 +76,12 @@ public class PortalController {
         return ApiResult.ok(view);
     }
 
+    /** 图集媒体（gallery 多图浏览）：目标必须可见。 */
+    @GetMapping("/contents/{id}/media")
+    public ApiResult<List<ContentService.PortalMediaItem>> contentMedia(@PathVariable long id) {
+        return ApiResult.ok(contentService.listPublicMedia(id));
+    }
+
     @GetMapping("/diaries")
     public ApiResult<PageResult<DiaryView>> diaries(@Valid PageQuery query) {
         return ApiResult.ok(diaryService.page(query, "published", true, null));

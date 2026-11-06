@@ -9,6 +9,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -48,6 +49,18 @@ public class MediaController {
         return ResponseEntity.ok()
                 .contentType(payload.mediaType())
                 .cacheControl(CacheControl.maxAge(java.time.Duration.ofDays(365)).cachePublic().immutable())
+                .body(payload.resource());
+    }
+
+    /** 按媒体 ID 取图（头像等只存 ID 的引用位）：/api/v1/media/id/{id}?width=320。 */
+    @GetMapping(SERVE_PREFIX + "id/{id:\\d+}")
+    public ResponseEntity<Resource> serveById(@PathVariable long id,
+                                              @RequestParam(required = false) Integer width) {
+        MediaReadService.MediaPayload payload = mediaReadService.load(
+                mediaService.getActiveMedia(id).getStorageKey(), width);
+        return ResponseEntity.ok()
+                .contentType(payload.mediaType())
+                .cacheControl(CacheControl.maxAge(java.time.Duration.ofHours(1)).cachePublic())
                 .body(payload.resource());
     }
 

@@ -74,6 +74,44 @@ public class MediaService {
         if (!principal.has(com.linblog.module.permission.PermissionKeys.FILE_UPLOAD)) {
             throw new BizException(ErrorCode.FORBIDDEN, "无权限执行该操作");
         }
+        return doUpload(file, principal);
+    }
+
+    /** 按 ID 取活跃媒体（头像等按 ID 引用的展示位）；不存在或已回收 → 40400。 */
+    public Media getActiveMedia(long id) {
+        Media media = mediaMapper.selectById(id);
+        if (media == null || !"active".equals(media.getState())) {
+            throw new BizException(ErrorCode.NOT_FOUND, "媒体不存在");
+        }
+        return media;
+    }
+
+    /** 头像自助上传（任何登录用户；仅图片，≤5MB），不走 file.upload 权限。 */
+    public UploadResult uploadAvatar(MultipartFile file) {
+        AuthPrincipal principal = CurrentUser.get();
+        if (principal == null) {
+            throw new BizException(ErrorCode.UNAUTHENTICATED, "未登录");
+        }
+        if (file == null || file.isEmpty()) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "文件不能为空");
+        }
+        if (file.getSize() > 5L * 1024 * 1024) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "头像不能超过 5MB");
+        }
+        byte[] data;
+        try {
+            data = file.getBytes();
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "读取上传内容失败");
+        }
+        String detected = detectMime(data, file.getOriginalFilename());
+        if (!detected.startsWith("image/")) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "头像仅支持图片文件");
+        }
+        return saveImage(principal, data, detected, sha256Hex(data), file.getOriginalFilename());
+    }
+
+    private UploadResult doUpload(MultipartFile file, AuthPrincipal principal) {
         if (file == null || file.isEmpty()) {
             throw new BizException(ErrorCode.BAD_REQUEST, "文件不能为空");
         }
