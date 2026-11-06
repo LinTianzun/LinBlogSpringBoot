@@ -82,6 +82,12 @@ function isActive(to: string): boolean {
           <template v-if="session.isLoggedIn">
             <el-dropdown v-if="session.user" trigger="click" @command="onCommand">
               <button type="button" class="lb-bar-account">
+                <img
+                  v-if="session.user.avatarMediaId"
+                  class="lb-bar-avatar"
+                  :src="`/api/v1/media/id/${session.user.avatarMediaId}?width=320`"
+                  alt=""
+                />
                 {{ session.user.nickname || session.user.username }}
                 <el-icon class="lb-bar-caret"><ArrowDown /></el-icon>
               </button>
@@ -179,7 +185,7 @@ function isActive(to: string): boolean {
 .lb-bar-account {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   border: none;
   background: transparent;
   padding: 0;
@@ -187,6 +193,13 @@ function isActive(to: string): boolean {
   font-size: var(--ed-step-small);
   color: var(--ed-ink);
   cursor: pointer;
+}
+
+.lb-bar-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .lb-bar-caret {

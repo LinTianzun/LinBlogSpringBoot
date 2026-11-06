@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Message, Calendar, Key, Lock, EditPen, RefreshRight } from '@element-plus/icons-vue'
 import { useSessionStore } from '@/stores/session'
-import { changePassword } from '@/api/auth'
+import { changePassword, uploadAvatar } from '@/api/auth'
 import { ApiError } from '@/api/request'
 import { formatDateTime } from '@/utils/format'
 import type { FieldError, RoleCode } from '@/types/api'
@@ -34,6 +34,32 @@ const roleLabel = computed(() => (user.value ? ROLE_LABELS[user.value.roleCode] 
 const isSuperAdmin = computed(() => user.value?.isSuperAdmin === true || user.value?.roleCode === 'super_admin')
 const createdAt = computed(() => (user.value?.createdAt ? formatDateTime(user.value.createdAt) : '—'))
 const initial = computed(() => (displayName.value ? displayName.value.slice(0, 1).toUpperCase() : '?'))
+
+/* ---- 头像自助上传（POST /auth/avatar，任何登录用户）---- */
+const uploadingAvatar = ref(false)
+
+async function onAvatarUpload(options: { file: File }): Promise<unknown> {
+  const raw = options.file
+  if (!raw.type.startsWith('image/')) {
+    ElMessage.error('头像仅支持图片文件')
+    return Promise.resolve()
+  }
+  if (raw.size > 5 * 1024 * 1024) {
+    ElMessage.error('头像不能超过 5MB')
+    return Promise.resolve()
+  }
+  uploadingAvatar.value = true
+  try {
+    await uploadAvatar(raw)
+    await session.reload()
+    ElMessage.success('头像已更新')
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : '头像上传失败')
+  } finally {
+    uploadingAvatar.value = false
+  }
+  return Promise.resolve()
+}
 
 /* ---- 修改密码表单 ---- */
 const pwdOpen = ref(false)
@@ -109,9 +135,22 @@ async function submitPassword(): Promise<void> {
       <!-- 资料卡 -->
       <section class="lb-ed-card lb-profile-card">
         <div class="lb-profile-hero">
-          <div class="lb-profile-avatar" aria-hidden="true">
-            <img v-if="user?.avatarMediaId" :src="`/api/v1/media/${user.avatarMediaId}`" alt="" />
+          <div class="lb-profile-avatar">
+            <img
+              v-if="user?.avatarMediaId"
+              :src="`/api/v1/media/id/${user.avatarMediaId}?width=320`"
+              alt="头像"
+            />
             <span v-else>{{ initial }}</span>
+            <el-upload
+              class="lb-profile-avatar-upload"
+              accept="image/*"
+              :auto-upload="true"
+              :show-file-list="false"
+              :http-request="onAvatarUpload"
+            >
+              <span class="lb-profile-avatar-mask" aria-hidden="true">更换头像</span>
+            </el-upload>
           </div>
           <div class="lb-profile-identity">
             <p class="lb-ed-card-title">{{ displayName }}</p>
@@ -234,12 +273,48 @@ async function submitPassword(): Promise<void> {
   overflow: hidden;
   display: grid;
   place-items: center;
+  position: relative;
+  cursor: pointer;
   font-family: var(--ed-font-display);
   font-size: 30px;
   font-weight: 600;
   color: #fff;
   background: linear-gradient(140deg, var(--ed-accent), color-mix(in srgb, var(--ed-accent) 55%, #f0a03c));
   box-shadow: 0 14px 28px -16px var(--ed-accent);
+}
+
+.lb-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 头像悬停遮罩（点击即上传，el-upload 内层 span 承接点击） */
+.lb-profile-avatar-upload {
+  position: absolute;
+  inset: 0;
+}
+
+.lb-profile-avatar-upload :deep(.el-upload) {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.lb-profile-avatar-mask {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(20, 20, 20, 0.55);
+  color: #fff;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity var(--lb-dur-fast, 160ms) ease;
+}
+
+.lb-profile-avatar:hover .lb-profile-avatar-mask {
+  opacity: 1;
 }
 
 .lb-profile-avatar img {

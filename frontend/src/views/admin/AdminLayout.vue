@@ -137,7 +137,14 @@ function goProfile(): void {
         </div>
         <el-dropdown v-if="session.user" trigger="click" placement="top-start" class="lb-user-wrap">
           <button class="lb-user-row" type="button" data-testid="admin-user-menu">
-            <span class="lb-user-avatar">{{ userInitial }}</span>
+            <span class="lb-user-avatar">
+              <img
+                v-if="session.user?.avatarMediaId"
+                :src="`/api/v1/media/id/${session.user.avatarMediaId}?width=320`"
+                alt=""
+              />
+              <template v-else>{{ userInitial }}</template>
+            </span>
             <span class="lb-user-meta">
               <span class="lb-user-name">{{ userName }}</span>
               <span class="lb-user-role">{{ userRole }}</span>
@@ -347,12 +354,19 @@ function goProfile(): void {
   width: 30px;
   height: 30px;
   border-radius: 50%;
+  overflow: hidden;
   display: grid;
   place-items: center;
   font-size: 12px;
   font-weight: 600;
   color: #fff;
   background: linear-gradient(140deg, var(--ed-accent), color-mix(in srgb, var(--ed-accent) 55%, #f0a03c));
+}
+
+.lb-user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .lb-user-meta {
