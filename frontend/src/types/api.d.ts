@@ -667,3 +667,22 @@ export interface StorageStatusDTO {
   backupPercent: number
   alert: boolean
 }
+
+/** 图集媒体项（admin，media.content_id 归属；cover = 当前展示封面） */
+export interface ContentMediaItemDTO {
+  mediaId: number
+  storageKey: string
+  thumbKey: string | null
+  width: number | null
+  height: number | null
+  mimeType: string
+  cover: boolean
+}
+
+/** 门户图集媒体项（公开） */
+export interface PortalMediaDTO {
+  mediaId: number
+  storageKey: string
+  width: number | null
+  height: number | null
+}

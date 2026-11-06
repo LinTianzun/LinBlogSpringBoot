@@ -4,6 +4,7 @@ import type {
   LoginPayload,
   MeDTO,
   RegisterPayload,
+  UserDTO,
   ResetPasswordPayload,
   ResetPasswordRequestPayload,
 } from '@/types/api'
@@ -44,4 +45,11 @@ export function resetPassword(payload: ResetPasswordPayload): Promise<void> {
 /** POST /auth/password/change：修改密码后全端下线 */
 export function changePassword(payload: ChangePasswordPayload): Promise<void> {
   return post<void>('/auth/password/change', payload)
+}
+
+/** POST /auth/avatar：头像自助上传（任何登录用户；仅图片 ≤5MB），返回更新后的 UserView */
+export function uploadAvatar(file: File): Promise<UserDTO> {
+  const form = new FormData()
+  form.append('file', file)
+  return post<UserDTO>('/auth/avatar', form)
 }

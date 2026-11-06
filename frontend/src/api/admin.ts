@@ -23,6 +23,7 @@ import type {
   SendMessagePayload,
   SettingsDTO,
   StorageStatusDTO,
+  ContentMediaItemDTO,
   SubsetDTO,
   SubsetCreatePayload,
   SubsetItemDTO,
@@ -277,4 +278,26 @@ export function handleCommentReport(id: number, payload: ReportHandlePayload): P
 /** POST /admin/comment-reports/batch：{ids≤200, action} → {updated, skipped} */
 export function batchHandleCommentReports(payload: ReportBatchPayload): Promise<ReportBatchResultDTO> {
   return post<ReportBatchResultDTO>('/admin/comment-reports/batch', payload)
+}
+
+/* ==================== 图集媒体（gallery 多图，media.content_id 承载归属） ==================== */
+
+/** GET /admin/contents/{id}/media：图集媒体列表（viewAll/viewOwn+归属） */
+export function listContentMedia(id: number): Promise<ContentMediaItemDTO[]> {
+  return get<ContentMediaItemDTO[]>(`/admin/contents/${id}/media`)
+}
+
+/** POST /admin/contents/{id}/media/{mediaId}：挂载图片到图集 */
+export function attachContentMedia(id: number, mediaId: number): Promise<ContentMediaItemDTO> {
+  return post<ContentMediaItemDTO>(`/admin/contents/${id}/media/${mediaId}`)
+}
+
+/** DELETE /admin/contents/{id}/media/{mediaId}：从图集移除（封面需先换） */
+export function detachContentMedia(id: number, mediaId: number): Promise<void> {
+  return del<void>(`/admin/contents/${id}/media/${mediaId}`)
+}
+
+/** PUT /admin/contents/{id}/media/{mediaId}/cover：设为展示封面（未挂载则顺带挂载） */
+export function setContentMediaCover(id: number, mediaId: number): Promise<ContentMediaItemDTO> {
+  return put<ContentMediaItemDTO>(`/admin/contents/${id}/media/${mediaId}/cover`)
 }

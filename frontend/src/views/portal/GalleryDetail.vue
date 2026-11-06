@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { getPortalContent, praiseInteraction, reportView } from '@/api/portal'
+import { getPortalContent, listPortalContentMedia, praiseInteraction, reportView } from '@/api/portal'
 import { ApiError } from '@/api/request'
 import ContentRenderer from '@/components/ContentRenderer.vue'
 import CommentTree from '@/components/CommentTree.vue'
 import { parseTiptapDoc } from '@/components/renderContent'
 import { formatCount, formatDateTime } from '@/utils/format'
-import type { ContentView } from '@/types/api'
+import type { ContentView, PortalMediaDTO } from '@/types/api'
 
 /**
  * 作品详情（方案 A · 亮卡片）：GET /portal/contents/{id}。
@@ -24,17 +24,29 @@ const errorMessage = ref('')
 const imgBroken = ref(false)
 const lightboxOpen = ref(false)
 
+/* ---- 图集（多图）：main 图跟随选中缩略图；空列表回退封面 ---- */
+const mediaList = ref<PortalMediaDTO[]>([])
+const activeIndex = ref(0)
+
 const doc = computed(() => parseTiptapDoc(content.value?.body))
 
 function storageKey(): string {
   return content.value?.coverStorageKey ?? ''
 }
 
-const hasImage = computed(() => storageKey().length > 0 && !imgBroken.value)
-const imageUrl = computed(() => (hasImage.value ? `/api/v1/media/${storageKey()}?width=1280` : ''))
+/** 当前主图 key：图集非空取选中项，否则封面 */
+const currentKey = computed(() => {
+  if (mediaList.value.length > 0) {
+    return mediaList.value[activeIndex.value]?.storageKey ?? storageKey()
+  }
+  return storageKey()
+})
+
+const hasImage = computed(() => currentKey.value.length > 0 && !imgBroken.value)
+const imageUrl = computed(() => (hasImage.value ? `/api/v1/media/${currentKey.value}?width=1280` : ''))
 const imageSrcset = computed(() =>
   hasImage.value
-    ? [320, 640, 1280].map((w) => `/api/v1/media/${storageKey()}?width=${w} ${w}w`).join(', ')
+    ? [320, 640, 1280].map((w) => `/api/v1/media/${currentKey.value}?width=${w} ${w}w`).join(', ')
     : undefined,
 )
 
@@ -51,6 +63,10 @@ async function load(): Promise<void> {
   try {
     content.value = await getPortalContent(id)
     void reportView('content', id).catch(() => undefined)
+    // 图集（多图）失败静默：回退封面展示
+    mediaList.value = await listPortalContentMedia(id).catch(() => [])
+    activeIndex.value = 0
+    imgBroken.value = false
   } catch (error) {
     errorMessage.value = error instanceof ApiError ? error.message : '作品加载失败'
   } finally {
@@ -149,6 +165,21 @@ onBeforeUnmount(() => {
           </div>
         </figure>
 
+        <!-- 图集缩略图条（>1 张时出现） -->
+        <div v-if="mediaList.length > 1" class="lb-work-thumbs" role="tablist" aria-label="作品图集">
+          <button
+            v-for="(m, i) in mediaList"
+            :key="m.mediaId"
+            type="button"
+            class="lb-work-thumb"
+            :class="{ 'is-active': i === activeIndex }"
+            :aria-label="`查看第 ${i + 1} 张`"
+            @click="activeIndex = i; imgBroken = false"
+          >
+            <img :src="`/api/v1/media/${m.storageKey}?width=320`" :alt="`第 ${i + 1} 张`" loading="lazy" />
+          </button>
+        </div>
+
         <div v-if="doc" class="lb-ed-card lb-work-body">
           <ContentRenderer :doc="doc" />
         </div>
@@ -167,7 +198,7 @@ onBeforeUnmount(() => {
       <div v-if="lightboxOpen" class="lb-lightbox" @click="closeLightbox">
         <img
           class="lb-lightbox-img"
-          :src="`/api/v1/media/${storageKey()}?width=1280`"
+          :src="`/api/v1/media/${currentKey}?width=1280`"
           :alt="content?.title"
           @click.stop
         />
@@ -272,6 +303,41 @@ onBeforeUnmount(() => {
   margin: 0;
   padding: 0;
   width: 100%;
+}
+
+/* 图集缩略图条 */
+.lb-work-thumbs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 clamp(24px, 3vw, 36px);
+}
+
+.lb-work-thumb {
+  width: 96px;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  border: 2px solid var(--ed-rule-soft);
+  border-radius: var(--ed-radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--ed-card);
+  transition: border-color var(--lb-dur-fast, 160ms) ease;
+}
+
+.lb-work-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.lb-work-thumb.is-active {
+  border-color: var(--ed-accent);
+}
+
+.lb-work-thumb:hover {
+  border-color: var(--ed-accent-ink);
 }
 
 .lb-work-figure.is-clickable {

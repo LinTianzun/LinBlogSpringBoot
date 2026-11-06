@@ -8,6 +8,7 @@ import type {
   DiaryDTO,
   GuestbookCreateResultDTO,
   GuestbookEntryDTO,
+  PortalMediaDTO,
   InteractionTargetType,
   PageQuery,
   PageResult,
@@ -103,4 +104,9 @@ export function praiseInteraction(
   targetId: number,
 ): Promise<PraiseToggleResultDTO> {
   return post<PraiseToggleResultDTO>('/interactions', { targetType, targetId })
+}
+
+/** GET /portal/contents/{id}/media：图集媒体（公开，published） */
+export function listPortalContentMedia(id: number): Promise<PortalMediaDTO[]> {
+  return get<PortalMediaDTO[]>(`/portal/contents/${id}/media`)
 }
