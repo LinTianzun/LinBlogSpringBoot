@@ -137,4 +137,46 @@ class ContentAdminControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(9));
     }
+
+    /* ==================== 图集媒体 ==================== */
+
+    private ContentService.ContentMediaItem mediaItem(boolean cover) {
+        return new ContentService.ContentMediaItem(3L, "2026/11/k.svg", null,
+                800, 520, "image/svg+xml", cover);
+    }
+
+    @Test
+    void listAlbumMediaDelegates() throws Exception {
+        when(contentService.listMedia(9L)).thenReturn(new java.util.ArrayList<>(List.of(mediaItem(true))));
+        mockMvc.perform(get("/api/v1/admin/contents/9/media"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].mediaId").value(3))
+                .andExpect(jsonPath("$.data[0].cover").value(true));
+    }
+
+    @Test
+    void attachMediaDelegates() throws Exception {
+        when(contentService.attachMedia(9L, 3L)).thenReturn(mediaItem(false));
+        mockMvc.perform(post("/api/v1/admin/contents/9/media/3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.mediaId").value(3));
+        verify(contentService).attachMedia(9L, 3L);
+    }
+
+    @Test
+    void detachMediaDelegates() throws Exception {
+        mockMvc.perform(delete("/api/v1/admin/contents/9/media/3"))
+                .andExpect(status().isOk());
+        verify(contentService).detachMedia(9L, 3L);
+    }
+
+    @Test
+    void setCoverDelegates() throws Exception {
+        when(contentService.setCoverFromMedia(9L, 3L)).thenReturn(mediaItem(true));
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/v1/admin/contents/9/media/3/cover"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.cover").value(true));
+        verify(contentService).setCoverFromMedia(9L, 3L);
+    }
 }

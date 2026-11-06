@@ -30,6 +30,7 @@ class AuthControllerTest {
 
     private AuthService authService;
     private RateLimiter rateLimiter;
+    private com.linblog.module.media.service.MediaService mediaService;
     private MockMvc mockMvc;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -37,8 +38,9 @@ class AuthControllerTest {
     void setUp() {
         authService = Mockito.mock(AuthService.class);
         rateLimiter = Mockito.mock(RateLimiter.class);
+        mediaService = Mockito.mock(com.linblog.module.media.service.MediaService.class);
         CookieUtil cookieUtil = new CookieUtil(TestAppProperties.defaults());
-        AuthController controller = new AuthController(authService, rateLimiter, cookieUtil);
+        AuthController controller = new AuthController(authService, rateLimiter, cookieUtil, mediaService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -60,7 +62,7 @@ class AuthControllerTest {
     void registerSuccessReturnsShellWithCode0() throws Exception {
         when(rateLimiter.tryLogin(anyString())).thenReturn(true);
         when(authService.register(eq("neo"), eq("neo@linlog.com"), anyString(), any(), anyString()))
-                .thenReturn(new AuthService.UserView(1L, "neo", "neo", "neo@linlog.com", "viewer", 1, 0, null));
+                .thenReturn(new AuthService.UserView(1L, "neo", "neo", "neo@linlog.com", "viewer", 1, 0, null, null));
 
         String body = objectMapper.writeValueAsString(
                 new AuthController.RegisterRequest("neo", "neo@linlog.com", "Password8", null));
@@ -76,7 +78,7 @@ class AuthControllerTest {
         when(rateLimiter.tryLogin(anyString())).thenReturn(true);
         when(authService.login(eq("alice"), anyString(), anyString(), any()))
                 .thenReturn(new AuthService.LoginResult(9L, "jwt-token", "raw-refresh",
-                        new AuthService.UserView(9L, "alice", "alice", "a@b.c", "editor", 1, 0, null)));
+                        new AuthService.UserView(9L, "alice", "alice", "a@b.c", "editor", 1, 0, null, null)));
 
         String body = objectMapper.writeValueAsString(new AuthController.LoginRequest("alice", "Password8"));
         mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
@@ -136,6 +138,38 @@ class AuthControllerTest {
         // standalone MockMvc 无过滤器 → SecurityContext 为空 → CurrentUser.get() == null
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .get("/api/v1/auth/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(40100));
+    }
+
+    @Test
+    void avatarUploadSuccessUpdatesAndReturnsView() throws Exception {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        new com.linblog.security.AuthPrincipal(9L, "alice", "editor", false,
+                                java.util.Set.of()), null));
+        var uploaded = new com.linblog.module.media.dto.UploadResult(
+                5L, "2026/11/ab.png", "/api/v1/media/2026/11/ab.png", "image", "image/png", 1024L, false);
+        when(mediaService.uploadAvatar(org.mockito.ArgumentMatchers.any())).thenReturn(uploaded);
+        when(authService.updateAvatar(eq(9L), eq(5L)))
+                .thenReturn(new AuthService.UserView(9L, "alice", "alice", "a@b.c", "editor", 1, 0, 5L, null));
+
+        var file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "a.png", "image/png", new byte[]{1, 2, 3});
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/api/v1/auth/avatar").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.avatarMediaId").value(5));
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void avatarWithoutAuthenticationMapsTo40100() throws Exception {
+        var file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "a.png", "image/png", new byte[]{1});
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/api/v1/auth/avatar").file(file))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value(40100));
     }

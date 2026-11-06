@@ -160,6 +160,20 @@ class AuthServiceTest {
     }
 
     @Test
+    void updateAvatarWritesFieldWithoutTouchingTokens() {
+        User u = user(9L, "alice", "alice@linlog.com", "h", "editor", 1, 0);
+        when(userMapper.selectById(9L)).thenReturn(u);
+
+        AuthService.UserView view = service.updateAvatar(9L, 55L);
+
+        assertEquals(55L, u.getAvatarMediaId());
+        verify(userMapper).updateById(u);
+        // 换头像不动令牌：无吊销、无清缓存
+        verify(refreshTokenService, never()).revokeAllForUser(anyLong());
+        assertEquals(55L, view.avatarMediaId());
+    }
+
+    @Test
     void loginUnknownAccount401() {
         when(userMapper.selectOne(any())).thenReturn(null);
         assertThrows(BizException.class, () -> service.login("ghost", "Password8", "ip", "ua"));
