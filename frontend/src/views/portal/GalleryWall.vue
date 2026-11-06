@@ -134,7 +134,7 @@ onBeforeUnmount(() => io?.disconnect())
             <CoverImage
               :storage-key="item.coverStorageKey"
               ratio="auto"
-              sizes="(max-width: 720px) 50vw, (max-width: 1100px) 33vw, 25vw"
+              sizes="(max-width: 720px) 50vw, (max-width: 1100px) 40vw, 33vw"
               :alt="item.title || '作品'"
             />
             <div class="lb-wall-scrim">
@@ -204,8 +204,9 @@ onBeforeUnmount(() => io?.disconnect())
 
 /* 瀑布流：多列不等高，白色圆角卡 */
 .lb-wall-grid {
-  columns: 4 230px;
-  column-gap: clamp(16px, 2vw, 26px);
+  /* 桌面 3 列大图块：6/9/12 件作品恰好满排，右侧不留空洞 */
+  columns: 3 280px;
+  column-gap: clamp(18px, 2vw, 28px);
 }
 
 .lb-wall-item {

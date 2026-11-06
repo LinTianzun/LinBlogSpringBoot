@@ -120,7 +120,7 @@ onMounted(load)
         <span class="lb-gb-eyebrow"><span class="lb-ed-dot"></span>留言墙 · 来宾簿</span>
         <span class="lb-gb-count">{{ entries.length }} 条留言 · {{ totalReplies }} 条回复</span>
       </div>
-      <h1 class="lb-ed-h1">留下<span class="lb-ed-em">只言片语</span>，<br />让这座小站记得你来过。</h1>
+      <h1 class="lb-ed-h1">留下<span class="lb-ed-em">只言片语</span>，让这座小站记得你来过。</h1>
       <p class="lb-ed-lead">读完一篇有所得？路过留一句。这里没有算法，只有人和人之间慢慢积累的痕迹。</p>
     </header>
 
@@ -263,14 +263,18 @@ onMounted(load)
 .lb-gb-hero-top {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 6px 14px;
 }
 .lb-gb-count {
   font-size: var(--ed-step-small);
   color: var(--ed-ink-soft);
   font-variant-numeric: tabular-nums;
+}
+.lb-gb-count::before {
+  content: '·';
+  margin-right: 14px;
+  opacity: 0.45;
 }
 .lb-gb-eyebrow {
   display: inline-flex;
