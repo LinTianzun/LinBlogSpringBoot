@@ -4,6 +4,7 @@ import com.linblog.common.ApiResult;
 import com.linblog.common.BizException;
 import com.linblog.common.ErrorCode;
 import com.linblog.module.auth.service.AuthService;
+import com.linblog.module.media.service.MediaService;
 import com.linblog.security.AuthPrincipal;
 import com.linblog.security.CookieUtil;
 import com.linblog.security.CurrentUser;
@@ -20,7 +21,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 import java.util.UUID;
@@ -57,11 +60,14 @@ public class AuthController {
     private final AuthService authService;
     private final RateLimiter rateLimiter;
     private final CookieUtil cookieUtil;
+    private final MediaService mediaService;
 
-    public AuthController(AuthService authService, RateLimiter rateLimiter, CookieUtil cookieUtil) {
+    public AuthController(AuthService authService, RateLimiter rateLimiter, CookieUtil cookieUtil,
+                          MediaService mediaService) {
         this.authService = authService;
         this.rateLimiter = rateLimiter;
         this.cookieUtil = cookieUtil;
+        this.mediaService = mediaService;
     }
 
     @PostMapping("/register")
@@ -142,6 +148,17 @@ public class AuthController {
         response.addHeader("Set-Cookie", cookieUtil.clearAccess().toString());
         response.addHeader("Set-Cookie", cookieUtil.clearRefresh().toString());
         return ApiResult.ok(null);
+    }
+
+    /** 头像自助上传（任何登录用户，无需 file.upload 权限）：媒体入库 + 回写 avatar_media_id。 */
+    @PostMapping("/avatar")
+    public ApiResult<AuthService.UserView> avatar(@RequestParam("file") MultipartFile file) {
+        AuthPrincipal principal = CurrentUser.get();
+        if (principal == null) {
+            throw new BizException(ErrorCode.UNAUTHENTICATED);
+        }
+        var upload = mediaService.uploadAvatar(file);
+        return ApiResult.ok(authService.updateAvatar(principal.uid(), upload.id()));
     }
 
     private void requireLoginRate(String ip) {

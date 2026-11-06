@@ -61,10 +61,12 @@ public class AuthService {
     }
 
     public record UserView(Long id, String username, String nickname, String email, String role,
-                           Integer status, Integer mustChangePassword, LocalDateTime createdAt) {
+                           Integer status, Integer mustChangePassword, Long avatarMediaId,
+                           LocalDateTime createdAt) {
         static UserView of(User u) {
             return new UserView(u.getId(), u.getUsername(), u.getNickname(), u.getEmail(),
-                    u.getRoleCode(), u.getStatus(), u.getMustChangePassword(), u.getCreatedAt());
+                    u.getRoleCode(), u.getStatus(), u.getMustChangePassword(), u.getAvatarMediaId(),
+                    u.getCreatedAt());
         }
     }
 
@@ -218,6 +220,19 @@ public class AuthService {
         refreshTokenService.revokeAllForUser(user.getId());
         authStateService.evict(user.getId());
         systemLogService.record(user.getId(), "auth", "password_change", "user", user.getId(), null, ip);
+    }
+
+    /** 头像回写（换头像不吊销会话、不动 token_version）。 */
+    @Transactional
+    public UserView updateAvatar(long uid, Long avatarMediaId) {
+        User user = userMapper.selectById(uid);
+        if (user == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+        user.setAvatarMediaId(avatarMediaId);
+        userMapper.updateById(user);
+        systemLogService.record(uid, "auth", "avatar", "user", uid, "mediaId=" + avatarMediaId, null);
+        return UserView.of(user);
     }
 
     /** 供 admin 模块禁用/改密/改角色后同步：吊销令牌 + 失效认证缓存。 */
