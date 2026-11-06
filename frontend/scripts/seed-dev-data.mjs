@@ -76,10 +76,10 @@ class Client {
     await this.get('/api/v1/auth/me').catch(() => {}) // 种 XSRF
     return this.post('/api/v1/auth/login', { account, password })
   }
-  async upload(filename, mime, content) {
+  async upload(filename, mime, content, path = '/api/v1/files/upload') {
     const form = new FormData()
     form.append('file', new Blob([content], { type: mime }), filename)
-    return this.post('/api/v1/files/upload', form)
+    return this.post(path, form)
   }
 }
 
@@ -146,6 +146,19 @@ for (const [i, u] of USERS.entries()) {
   userClients[u.username] = c
 }
 ok('三位普通用户就绪（林小满 / 苏晚 / 陈默）')
+
+/* 1.5 头像自助上传（POST /auth/avatar，任何登录用户；SVG 字母图） */
+{
+  for (const [client, name] of [[admin, '管理员'], [userClients.xiaoman, '林小满'], [userClients.suwan, '苏晚'], [userClients.chenmo, '陈默']]) {
+    if (!client) continue
+    try {
+      await client.upload(`avatar-${name}.svg`, 'image/svg+xml', coverSvg(name.slice(0, 1), 'AVATAR'), '/api/v1/auth/avatar')
+    } catch (e) {
+      if (!/42900/.test(e.message)) throw e
+    }
+  }
+  ok('头像 × 4（个人中心悬停可自行更换）')
+}
 
 /* 2. 标签（按名幂等） */
 const LABELS = ['前端手记', '后端手记', '设计随笔', '摄影日记', '生活碎片', '性能优化']
@@ -305,6 +318,19 @@ const galleryIds = []
     galleryIds.push(created.id)
   }
   ok(`画廊作品 ${galleryIds.length} 件`)
+
+  // 图集示例：给「城市夜景 · 长曝光」再挂 2 张图（media.content_id 归属；封面仍是第一张）
+  if (galleryIds[0]) {
+    const album = await admin.get(`/api/v1/admin/contents/${galleryIds[0]}/media`).catch(() => ({ records: [] }))
+    const current = Array.isArray(album) ? album : album.records ?? []
+    if (current.length < 3) {
+      for (const [word, sub] of [['夜色', 'NIGHT VIEW'], ['车河', 'LIGHT RIVER']]) {
+        const up = await admin.upload(`album-${word}.svg`, 'image/svg+xml', coverSvg(word, sub))
+        await admin.post(`/api/v1/admin/contents/${galleryIds[0]}/media/${up.id}`)
+      }
+      ok('图集示例：城市夜景挂满 3 张（可去门户详情页切换浏览）')
+    }
+  }
 }
 
 /* 6. 日记（一天一篇，跨两个月；天气走 8 值白名单） */
