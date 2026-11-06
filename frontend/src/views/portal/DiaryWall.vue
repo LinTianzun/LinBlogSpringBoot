@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { listPortalDiaries } from '@/api/portal'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { listPortalDiaries, praiseInteraction } from '@/api/portal'
 import { ApiError } from '@/api/request'
 import ContentRenderer from '@/components/ContentRenderer.vue'
 import { parseTiptapDoc } from '@/components/renderContent'
@@ -118,6 +118,27 @@ async function load(): Promise<void> {
 watch(page, () => void load())
 onMounted(load)
 onBeforeUnmount(() => io?.disconnect())
+
+/* ---- 点赞（interactions toggle， targetType=diary）：乐观更新 + 失败回滚 ---- */
+const likedIds = reactive(new Set<number>())
+
+async function togglePraise(diary: DiaryDTO): Promise<void> {
+  const liked = likedIds.has(diary.id)
+  const prevCount = diary.praises
+  if (liked) likedIds.delete(diary.id)
+  else likedIds.add(diary.id)
+  diary.praises = prevCount + (liked ? -1 : 1)
+  try {
+    const result = await praiseInteraction('diary', diary.id)
+    diary.praises = result.count
+    if (result.active) likedIds.add(diary.id)
+    else likedIds.delete(diary.id)
+  } catch {
+    if (liked) likedIds.add(diary.id)
+    else likedIds.delete(diary.id)
+    diary.praises = prevCount
+  }
+}
 </script>
 
 <template>
@@ -174,7 +195,16 @@ onBeforeUnmount(() => io?.disconnect())
                   <span class="lb-diary-date">{{ diary.diaryDate }}</span>
                   <WeatherBadge :weather="diary.weather" />
                   <span v-if="diary.mood" class="lb-ed-pill lb-ed-pill--soft lb-diary-mood">心情 · {{ diary.mood }}</span>
-                  <span class="lb-diary-praise">♥ {{ formatCount(diary.praises) }}</span>
+                  <button
+                    type="button"
+                    class="lb-diary-praise"
+                    :class="{ 'is-liked': likedIds.has(diary.id) }"
+                    :aria-pressed="likedIds.has(diary.id)"
+                    :aria-label="`点赞这篇日记（当前 ${diary.praises} 次）`"
+                    @click="togglePraise(diary)"
+                  >
+                    ♥ {{ formatCount(diary.praises) }}
+                  </button>
                 </div>
                 <div class="lb-diary-content">
                   <ContentRenderer :doc="docs.get(diary.id)" />
@@ -365,9 +395,27 @@ onBeforeUnmount(() => io?.disconnect())
 
 .lb-diary-praise {
   margin-left: auto;
+  border: 0;
+  background: none;
+  padding: 2px 8px;
+  border-radius: var(--ed-radius-pill);
+  cursor: pointer;
   font-family: var(--ed-font-ui);
   font-size: var(--ed-step-caption);
   color: var(--ed-ink-soft);
+  transition:
+    color var(--lb-dur-fast, 160ms) var(--lb-ease-out, ease-out),
+    background var(--lb-dur-fast, 160ms) var(--lb-ease-out, ease-out);
+}
+
+.lb-diary-praise:hover {
+  color: var(--ed-ink);
+  background: var(--ed-accent-soft);
+}
+
+.lb-diary-praise.is-liked {
+  color: var(--ed-accent);
+  font-weight: 600;
 }
 
 .lb-diary-content {

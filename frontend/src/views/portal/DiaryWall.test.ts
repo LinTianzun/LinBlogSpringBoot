@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
-import { listPortalDiaries } from '@/api/portal'
+import { listPortalDiaries, praiseInteraction } from '@/api/portal'
 import { ApiError } from '@/api/request'
 import { WEATHER_EMOJI } from '@/utils/weather'
 import PaginationBar from '@/components/PaginationBar.vue'
@@ -10,9 +10,11 @@ import type { DiaryDTO } from '@/types/api'
 
 vi.mock('@/api/portal', () => ({
   listPortalDiaries: vi.fn(),
+  praiseInteraction: vi.fn(),
 }))
 
 const mockedList = vi.mocked(listPortalDiaries)
+const mockedPraise = vi.mocked(praiseInteraction)
 
 function diary(overrides: Partial<DiaryDTO> = {}): DiaryDTO {
   return {
@@ -39,6 +41,7 @@ const mountedWrappers: VueWrapper[] = []
 
 beforeEach(() => {
   mockedList.mockReset()
+  mockedPraise.mockReset()
 })
 
 afterEach(() => {
@@ -86,6 +89,31 @@ describe('DiaryWall 日记墙', () => {
 
     expect(wrapper.html()).toContain('还没有日记')
     expect(wrapper.find('.el-empty').exists()).toBe(true)
+  })
+
+  it('点赞：点击 ♥ 按钮以 targetType=diary toggle 并更新计数', async () => {
+    mockedList.mockResolvedValue({ records: [diary({ praises: 3 })], total: 1 })
+    mockedPraise.mockResolvedValue({ active: true, count: 4 })
+
+    const wrapper = await mountWall()
+    await wrapper.find('.lb-diary-praise').trigger('click')
+    await flushPromises()
+
+    expect(mockedPraise).toHaveBeenCalledWith('diary', 1)
+    expect(wrapper.find('.lb-diary-praise').text()).toContain('4')
+    expect(wrapper.find('.lb-diary-praise').classes()).toContain('is-liked')
+  })
+
+  it('点赞失败：回滚计数与高亮', async () => {
+    mockedList.mockResolvedValue({ records: [diary({ praises: 3 })], total: 1 })
+    mockedPraise.mockRejectedValue(new ApiError(50000, '点赞服务暂不可用'))
+
+    const wrapper = await mountWall()
+    await wrapper.find('.lb-diary-praise').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.lb-diary-praise').text()).toContain('3')
+    expect(wrapper.find('.lb-diary-praise').classes()).not.toContain('is-liked')
   })
 
   it('翻页：PaginationBar 触发 update:page 后以新页码重新请求', async () => {
