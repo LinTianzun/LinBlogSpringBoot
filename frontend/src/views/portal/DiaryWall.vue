@@ -124,7 +124,7 @@ const likedIds = reactive(new Set<number>())
 
 async function togglePraise(diary: DiaryDTO): Promise<void> {
   const liked = likedIds.has(diary.id)
-  const prevCount = diary.praises
+  const prevCount = diary.praises ?? 0
   if (liked) likedIds.delete(diary.id)
   else likedIds.add(diary.id)
   diary.praises = prevCount + (liked ? -1 : 1)
