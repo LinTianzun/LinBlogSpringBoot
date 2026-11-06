@@ -52,7 +52,7 @@ class MailServiceTest {
 
     private AppProperties smtpProps(String host, String from) {
         return TestAppProperties.of(new Object[]{
-                21, new AppProperties.Smtp(host, 587, false, "u", "p", from)});
+                22, new AppProperties.Smtp(host, 587, false, "u", "p", from)});
     }
 
     @Test

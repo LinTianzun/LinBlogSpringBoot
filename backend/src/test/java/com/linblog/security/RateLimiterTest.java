@@ -30,7 +30,7 @@ class RateLimiterTest {
 
     @Test
     void customSmallRatesHonored() {
-        RateLimiter limiter = new RateLimiter(TestAppProperties.of(new Object[]{19, 1, 1}));
+        RateLimiter limiter = new RateLimiter(TestAppProperties.of(new Object[]{20, 1, 21, 1}));
         assertTrue(limiter.tryLogin("9.9.9.9"));
         assertFalse(limiter.tryLogin("9.9.9.9"));
     }
