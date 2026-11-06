@@ -64,7 +64,7 @@ class CleanupSchedulerTest {
     void runsAllSixSegments() {
         scheduler.cleanup();
         verify(requestAuditMapper).deleteOlderThan(any(LocalDateTime.class));
-        verify(viewLogMapper).delete(any());
+        verify(viewLogMapper).deleteOlderThan(any(LocalDateTime.class));
         verify(refreshTokenMapper).deleteExpiredBefore(any(LocalDateTime.class));
         verify(contentService).purgeExpired(any(LocalDateTime.class));
         verify(mediaMapper).selectList(any());
@@ -121,8 +121,17 @@ class CleanupSchedulerTest {
     }
 
     @Test
-    void viewLogRetentionIsSevenDaysConstant() {
-        assertEquals(7, CleanupScheduler.VIEW_LOG_RETENTION_DAYS);
+    void viewLogCutoffUsesConfiguredRetention() {
+        // props 默认 viewRetentionDays=7 → cutoff = now-7d（容差 2 分钟）
+        LocalDateTime before = LocalDateTime.now().minusDays(7);
+        scheduler.cleanupViewLogs(LocalDateTime.now());
+        LocalDateTime after = LocalDateTime.now().minusDays(7);
+
+        ArgumentCaptor<LocalDateTime> captor = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(viewLogMapper).deleteOlderThan(captor.capture());
+        LocalDateTime cutoff = captor.getValue();
+        assertTrue(!cutoff.isBefore(before.minusMinutes(2)) && !cutoff.isAfter(after.plusMinutes(2)),
+                "cutoff 应为 now-7d，实际=" + cutoff);
     }
 
     @Test

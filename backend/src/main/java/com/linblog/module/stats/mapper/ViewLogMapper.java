@@ -2,6 +2,7 @@ package com.linblog.module.stats.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.linblog.module.stats.entity.ViewLog;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -17,4 +18,8 @@ public interface ViewLogMapper extends BaseMapper<ViewLog> {
     @Select("SELECT DATE(viewed_at) AS day, COUNT(*) AS total FROM view_logs "
             + "WHERE viewed_at >= #{from} GROUP BY DATE(viewed_at)")
     List<Map<String, Object>> selectDailyCounts(@Param("from") LocalDateTime from);
+
+    /** 保留期滚动清理（§7.9，CleanupScheduler 每日 04:00 调用）。 */
+    @Delete("DELETE FROM view_logs WHERE viewed_at < #{before}")
+    int deleteOlderThan(@Param("before") LocalDateTime before);
 }

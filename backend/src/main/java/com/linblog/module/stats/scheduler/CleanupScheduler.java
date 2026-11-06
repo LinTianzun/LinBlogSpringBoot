@@ -21,17 +21,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 定时清理（§7.9，每日 04:00）：request_audits(90d/AUDIT_RETENTION_DAYS)、view_logs(7d)，
- * 过期 refresh_tokens，回收站 content 30d 物理删除，trash 媒体/附件删对象+行。
+ * 定时清理（§7.9，每日 04:00）：request_audits(90d/AUDIT_RETENTION_DAYS)、
+ * view_logs(VIEW_RETENTION_DAYS，默认 7d)，过期 refresh_tokens，
+ * 回收站 content 30d 物理删除，trash 媒体/附件删对象+行。
  * 各段独立 try/catch，一段失败不影响其余。
  */
 @Component
 public class CleanupScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(CleanupScheduler.class);
-
-    /** view_logs 保留天数：文档 §7.9 固定 7 天（未开放配置，汇报偏差 W6）。 */
-    public static final int VIEW_LOG_RETENTION_DAYS = 7;
 
     private final RequestAuditMapper requestAuditMapper;
     private final com.linblog.module.stats.mapper.ViewLogMapper viewLogMapper;
@@ -86,9 +84,8 @@ public class CleanupScheduler {
 
     void cleanupViewLogs(LocalDateTime now) {
         try {
-            LocalDateTime cutoff = now.minusDays(VIEW_LOG_RETENTION_DAYS);
-            int n = viewLogMapper.delete(new LambdaQueryWrapper<com.linblog.module.stats.entity.ViewLog>()
-                    .lt(com.linblog.module.stats.entity.ViewLog::getViewedAt, cutoff));
+            LocalDateTime cutoff = now.minusDays(props.viewRetentionDays());
+            int n = viewLogMapper.deleteOlderThan(cutoff);
             if (n > 0) {
                 log.info("cleanup view_logs deleted={}", n);
             }

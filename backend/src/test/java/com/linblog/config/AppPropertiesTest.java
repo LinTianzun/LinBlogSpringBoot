@@ -13,7 +13,7 @@ class AppPropertiesTest {
     private AppProperties of(String allowedOrigins, String thumbWidths) {
         return new AppProperties(null, allowedOrigins, null, null, 0, null, false,
                 null, null, null, null, null, null, thumbWidths, null,
-                0, 0, 0, false, 0, 0, null);
+                0, 7, 0, 0, false, 0, 0, null);
     }
 
     @Test

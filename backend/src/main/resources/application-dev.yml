@@ -21,6 +21,7 @@ app:
   storage-driver: local
   storage-local-dir: ./data/storage
   view-dedup-minutes: 30
+  view-retention-days: 7
   audit-retention-days: 90
   trash-retention-days: 30
   geoip-enabled: false

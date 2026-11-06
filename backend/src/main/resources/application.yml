@@ -56,6 +56,7 @@ app:
   thumb-widths: ${THUMB_WIDTHS:320,640,1280}
   upload-max-bytes: ${UPLOAD_MAX_BYTES:20MB}
   view-dedup-minutes: ${VIEW_DEDUP_MINUTES:30}
+  view-retention-days: ${VIEW_RETENTION_DAYS:7}
   audit-retention-days: ${AUDIT_RETENTION_DAYS:90}
   trash-retention-days: ${TRASH_RETENTION_DAYS:30}
   geoip-enabled: ${GEOIP_ENABLED:false}

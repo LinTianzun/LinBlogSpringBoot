@@ -29,6 +29,7 @@ public record AppProperties(
         String thumbWidths,
         DataSize uploadMaxBytes,
         int viewDedupMinutes,
+        int viewRetentionDays,
         int auditRetentionDays,
         int trashRetentionDays,
         boolean geoipEnabled,

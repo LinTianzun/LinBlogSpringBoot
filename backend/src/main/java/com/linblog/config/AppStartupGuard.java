@@ -32,7 +32,7 @@ public class AppStartupGuard implements BeanFactoryPostProcessor {
         AppProperties props = Binder.get(environment)
                 .bind("app", Bindable.of(AppProperties.class))
                 .orElse(new AppProperties(null, null, null, null, 0, null, false, null, null,
-                        null, null, null, null, null, null, 0, 0, 0, false, 0, 0, null));
+                        null, null, null, null, null, null, 0, 7, 0, 0, false, 0, 0, null));
 
         List<String> errors = new ArrayList<>();
 
