@@ -6,6 +6,7 @@ import { ApiError } from '@/api/request'
 import { useSessionStore } from '@/stores/session'
 import PaginationBar from '@/components/PaginationBar.vue'
 import WeatherBadge from '@/components/WeatherBadge.vue'
+import { plainTextOf } from '@/components/renderContent'
 import { WEATHER_LIST } from '@/utils/weather'
 import { formatDateTime } from '@/utils/format'
 import type { ContentState, DiaryDTO, Weather } from '@/types/api'
@@ -239,7 +240,7 @@ onMounted(load)
               </el-tag>
             </div>
 
-            <p class="lb-diary-body">{{ row.body.slice(0, 120) }}{{ row.body.length > 120 ? '…' : '' }}</p>
+            <p class="lb-diary-body">{{ plainTextOf(row.body) }}</p>
 
             <div class="lb-diary-foot">
               <span class="lb-diary-meta">

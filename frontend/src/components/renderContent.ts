@@ -142,3 +142,24 @@ export function parseTiptapDoc(raw: string | null | undefined): ProseMirrorNode 
     return { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: raw }] }] }
   }
 }
+
+/** 提取纯文本（后台列表预览用）：doc JSON 走树遍历，纯文本原样返回，解析失败回退原文。 */
+export function plainTextOf(raw: string | null | undefined, limit = 120): string {
+  if (!raw || raw.trim().length === 0) return ''
+  let text = raw
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object' && (parsed as ProseMirrorNode).type === 'doc') {
+      const parts: string[] = []
+      const walk = (node: ProseMirrorNode): void => {
+        if (node.type === 'text' && node.text) parts.push(node.text)
+        for (const child of node.content ?? []) walk(child)
+      }
+      walk(parsed as ProseMirrorNode)
+      text = parts.join('')
+    }
+  } catch {
+    // 非 JSON：按纯文本处理
+  }
+  return text.length > limit ? `${text.slice(0, limit)}…` : text
+}

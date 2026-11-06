@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ApiError } from '@/api/request'
 import { logout as apiLogout, me } from '@/api/auth'
-import type { PermissionKey, UserDTO } from '@/types/api'
+import type { PermissionKey, RoleCode, UserDTO } from '@/types/api'
 
 /**
  * 会话 store（§4.3 / §5.1 / §7.2）：
@@ -35,6 +35,16 @@ function readSnapshot(): SessionSnapshot | null {
   } catch {
     return null
   }
+}
+
+/**
+ * 后端 UserView 的角色字段名是 `role`，前端 UserDTO 约定 `roleCode` —— 就地归一，
+ * 避免 Profile 等读 roleCode 的展示位拿到 undefined（个人中心「角色」空白的根因）。
+ */
+function normalizeUser(raw: UserDTO): UserDTO {
+  const legacy = raw as UserDTO & { role?: RoleCode }
+  if (legacy.roleCode) return raw
+  return { ...legacy, roleCode: (legacy.role ?? 'viewer') as RoleCode }
 }
 
 function writeSnapshot(snapshot: SessionSnapshot): void {
@@ -90,11 +100,11 @@ export const useSessionStore = defineStore('session', {
       initPromise = (async () => {
         try {
           const result = await me()
-          this.user = result.user
+          this.user = normalizeUser(result.user)
           this.permissions = result.permissions
           this.isSuperAdmin = result.isSuperAdmin
           this.loaded = true
-          writeSnapshot({ user: result.user, permissions: result.permissions, isSuperAdmin: result.isSuperAdmin })
+          writeSnapshot({ user: this.user, permissions: result.permissions, isSuperAdmin: result.isSuperAdmin })
         } catch (error) {
           if (error instanceof ApiError && (error.code === 40100 || error.code === 40102)) {
             this.clear()
