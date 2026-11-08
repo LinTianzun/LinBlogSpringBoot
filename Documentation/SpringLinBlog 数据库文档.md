@@ -1,7 +1,7 @@
 # SpringLinBlog 数据库文档
 
 > 本文档描述 **SpringLinBlog**（LinBlog · Vue3 + Spring Boot 重实现）的数据库设计。
-> 唯一事实来源为迁移脚本目录 `backend/src/main/resources/db/migration/`（`V1__init.sql` 一次建齐 22 张表、`V2__content_domain.sql` 补索引、`V3__site_settings.sql` 新增 `site_settings`，合计 **23 张表**），
+> 唯一事实来源为迁移脚本目录 `backend/src/main/resources/db/migration/`（`V1__init.sql` 一次建齐 22 张表、`V2__content_domain.sql` 补索引、`V3__site_settings.sql` 新增 `site_settings`、`V4__must_change_password.sql` 给 `users` 加列，合计 **23 张表**），
 > 并与 `backend/src/main/java/com/linblog/**` 下的实体 / Mapper 交叉核对。
 > 若本文档与迁移脚本冲突，**一律以迁移脚本为准**（差异见 [§6 已知差异与待确认](#六已知差异与待确认)）。
 
@@ -159,9 +159,9 @@ spring:
 
 行为要点：
 
-- 迁移脚本位于 `backend/src/main/resources/db/migration/`，当前共有 **3 个版本脚本**，合计建出 23 张表（清单见 §2.3.1）。
+- 迁移脚本位于 `backend/src/main/resources/db/migration/`，当前共有 **4 个版本脚本**，合计建出 23 张表（清单见 §2.3.1）。
 - `baseline-on-migrate: false` 表示**禁止**对非空 schema 做隐式基线：若目标库 `springlinblog` 已存在且 `flyway_schema_history` 中没有 V1 记录，Flyway 迁移会因「非空 schema」直接失败，需要人工介入（清库重建，或手工 `flyway baseline` 后补记历史）。
-- 因此**新增/修改表结构的标准流程**是：在 `db/migration/` 下新增 `V2__xxx.sql`、`V3__xxx.sql` 递增版本脚本，禁止修改已发布的 `V1__init.sql`。
+- 因此**新增/修改表结构的标准流程**是：在 `db/migration/` 下新增 `V5__xxx.sql` 等递增版本脚本，禁止修改已发布的 `V1`–`V4`。
 - 表结构文档以迁移脚本为准；新增迁移后需同步更新本文档。
 
 #### 2.3.1 迁移文件清单
@@ -171,6 +171,7 @@ spring:
 | V1 | `V1__init.sql` | 22 张表一次建齐（账号与权限、内容、互动、私信与留言墙、文件、系统与审计六域） | 建 22 张表 |
 | V2 | `V2__content_domain.sql` | 内容域（M2）索引补齐：**不新建表**，只对 5 张已有表执行 6 条 `ADD KEY` | 不建表 |
 | V3 | `V3__site_settings.sql` | 新增系统设置键值表 `site_settings`，并预置 6 个白名单键的空值行 | 建 1 张表 |
+| V4 | `V4__must_change_password.sql` | P3 合规：`users` 加 `must_change_password TINYINT(1) NOT NULL DEFAULT 0`（**只加列，不建表**） | 不建表 |
 
 **V2 逐条改动**（`V2__content_domain.sql:7-21`，解决 V1 遗留的 W3 / W4 / W5 与 M2 查询需求）：
 
@@ -184,6 +185,8 @@ spring:
 | 6 | `diaries` | `idx_state_date` | `(state, diary_date)` | 门户日记列表按 state 过滤 + 日期倒序（M2） |
 
 **V3 内容**（`V3__site_settings.sql:3-16`）：建 `site_settings` 表，并 `INSERT` 预置 `site_title`、`site_description`、`site_keywords`、`icp`、`footer_text`、`announcement` 六行空值，使前端一次 GET 即可渲染全部表单项。表结构见 [§4.7.1](#471-site_settings--系统设置)。
+
+**V4 内容**（`V4__must_change_password.sql:5-6`）：对 `users` 执行一条 `ALTER TABLE ... ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0`。语义：`1` = 必须先修改密码（初始密码场景）；由 `SuperAdminSeeder` 在首次启动创建超管时置 `1`，登录后前端路由守卫强制跳改密页，改密成功后由后端清位。字段详情见 [§4.1.1](#411-users--用户)。
 
 ### 2.4 MySQL 服务端参数
 
@@ -311,6 +314,7 @@ conversations ──< direct_messages.conversation_id
 | is_super_admin | TINYINT(1) | 否 | （生成列） | **STORED 生成列**：`CASE WHEN role_code = 'super_admin' THEN 1 ELSE 0 END`；Java 侧不读写 |
 | status | TINYINT(1) | 否 | `1` | 1 正常 / 0 禁用 |
 | token_version | INT | 否 | `0` | 改密/重置时 +1，使旧 access 令牌全部失效 |
+| must_change_password | TINYINT(1) | 否 | `0` | （V4 新增）`1` = 必须先修改密码；初始密码场景由种子超管置位，改密后清位 |
 | created_at | DATETIME(3) | 否 | `CURRENT_TIMESTAMP(3)` | 创建时间 |
 | updated_at | DATETIME(3) | 否 | `CURRENT_TIMESTAMP(3)` ON UPDATE | 更新时间，自动刷新 |
 
@@ -330,7 +334,7 @@ conversations ──< direct_messages.conversation_id
 
 **补充说明**
 
-- 超管种子数据不在 SQL 中，由 `backend/src/main/java/com/linblog/module/user/service/SuperAdminSeeder.java` 在首次启动时以 `ApplicationRunner` 写入（bcrypt 哈希不适合硬编码进 SQL）。
+- 超管种子数据不在 SQL 中，由 `backend/src/main/java/com/linblog/module/user/service/SuperAdminSeeder.java` 在首次启动时以 `ApplicationRunner` 写入（bcrypt 哈希不适合硬编码进 SQL）；创建时置 `must_change_password = 1`（V4），用户首次登录后必须改密。
 - `role_permissions` 表只存 admin / editor / viewer 三种可配置角色的覆盖值；`super_admin` 的键集在代码常量 `PermissionKeys` 中硬编码，不落表。
 
 #### 4.1.2 refresh_tokens — 刷新令牌
@@ -914,7 +918,7 @@ GRANT ALL PRIVILEGES ON springlinblog.* TO 'springlinblog'@'%';
 FLUSH PRIVILEGES;
 ```
 
-应用启动时 Flyway 依次执行 `V1__init.sql` → `V2__content_domain.sql` → `V3__site_settings.sql`，建出 23 张表，并在 `springlinblog` 库内创建 `flyway_schema_history` 历史表。
+应用启动时 Flyway 依次执行 `V1__init.sql` → `V2__content_domain.sql` → `V3__site_settings.sql` → `V4__must_change_password.sql`，建出 23 张表，并在 `springlinblog` 库内创建 `flyway_schema_history` 历史表。
 
 > `baseline-on-migrate: false`：**不要**手工执行 `flyway baseline` 绕过校验，除非明确知道要接管一个已存在的非空库。
 
@@ -979,7 +983,7 @@ SELECT installed_rank, version, description, success
 | W3 | `V1__init.sql:122-136` | ✅ **已解决**：`V2__content_domain.sql:7-12` 补 `subsets.idx_owner(owner_id)`、`subsets.idx_cover(cover_media_id)`、`subset_items.idx_content(content_id)`。 |
 | W4 | `V1__init.sql:203-212` | ✅ **已解决**：`V2__content_domain.sql:14-15` 补 `conversations.idx_user_b(user_b_id)`。 |
 | W5 | `V1__init.sql:224-230` | ✅ **已解决**：`V2__content_domain.sql:17-18` 补 `guestbook.idx_status(status, created_at)`。 |
-| W6 | `V1__init.sql:234-243` | 开发文档称 `view_logs` 按 7 天保留清理，但 `application.yml` 中只有 `audit-retention-days=90` / `trash-retention-days=30`，**未看到 view_logs 清理窗口配置项**；清理任务是否存在待确认。 |
+| W6 | `V1__init.sql:234-243` | ✅ **已解决**：新增配置项 `VIEW_RETENTION_DAYS`（commit `916a1c3`），`view_logs` 保留期已配置化，不再写死在文档与代码之间。 |
 | W7 | `application.yml:16-18` | HikariCP 仅配置了 `maximum-pool-size` 与 `minimum-idle`，`connection-timeout` / `max-lifetime` / `leak-detection-threshold` 等均为默认值。是否需要显式声明待确认。 |
 | W8 | `deploy/.env.example:18-19`、`deploy/docker-compose.yml:20` | `MYSQL_DATABASE` 与 `DB_URL` 中的库名必须一致（注释已强调）。当前配置均为 `springlinblog`，一致；但 `deploy/backup.sh` 的 dump 文件名也硬编码了 `springlinblog_` 前缀，若未来改库名需同步。 |
 | W9 | `V1__init.sql:15` | `password_hash VARCHAR(100)`，注释为 bcrypt cost 12。bcrypt 输出长度约 60 字符，100 足够；但若将来换算法（如 argon2，长度更长）需扩列。 |
@@ -994,3 +998,4 @@ SELECT installed_rank, version, description, success
 | --- | --- | --- | --- |
 | v1.0 | 2026-10-30 | 初始文档，基于 `V1__init.sql` 编写，覆盖 22 张表全量结构、索引、连接与迁移配置 | 开发者 |
 | v1.1 | 2026-11-01 | 同步至 `V2__content_domain.sql` 与 `V3__site_settings.sql`：表数 22 → **23**，新增 §2.3.1 迁移文件清单（含 V2 的 6 条索引逐条说明）、§4.7 系统设置域（`site_settings` 表），W3 / W4 / W5 标记为已由 V2 解决 | lead |
+| v1.2 | 2026-11-08 | 同步至 `V4__must_change_password.sql`：`users` 新增 `must_change_password` 列（列级说明 + V4 内容段 + §5.1 迁移链），表数不变（23）；W6（`view_logs` 保留期）标记为已由 `VIEW_RETENTION_DAYS` 解决 | lead |

@@ -6,7 +6,7 @@
 | 项 | 内容 |
 | --- | --- |
 | 后端 | Java 21 · Spring Boot 3.5.6 · MyBatis-Plus 3.5.12 · Flyway · Caffeine · jjwt · Bucket4j |
-| 前端 | Vue 3.5 · TypeScript 5.9 · Vite 6 · Pinia 3 · Vue Router 4 · Naive UI · pnpm |
+| 前端 | Vue 3.5 · TypeScript 5.9 · Vite 6 · Pinia 3 · Vue Router 4 · Element Plus 2.14 · Tiptap 3 · pnpm |
 | 数据库 | MySQL 8.4（`utf8mb4` / `utf8mb4_0900_ai_ci`） |
 | 部署 | Docker Compose（MySQL + 后端 + 前端 + Caddy 反代） |
 
@@ -36,15 +36,16 @@ backend/                 Spring Boot 单体（Maven 单模块）
     security/             JWT Cookie 过滤器、XSRF、限流、IP 工具
   src/main/resources/
     application.yml      默认配置（全部差异走环境变量）
-    db/migration/        Flyway 迁移脚本（V1 建 22 表 / V2 补索引 / V3 建 site_settings）
-  src/test/java/          413 个单元与集成测试用例
-frontend/                Vue 3 + Vite 前端
+    db/migration/        Flyway 迁移脚本（V1 建 22 表 / V2 补索引 / V3 建 site_settings / V4 加 must_change_password）
+  src/test/java/          497 个测试用例（68 个测试类）
+frontend/                Vue 3 + Vite 前端（Element Plus）
   src/api/               request 封装与各域接口
   src/components/        通用组件
-  src/views/portal/      门户页面（11 个）
-  src/views/admin/       后台页面（16 个）
+  src/views/portal/      门户页面（12 个）
+  src/views/admin/       后台页面（19 个）
   src/stores/            Pinia 状态
-  src/styles/            全局样式（Less）
+  src/styles/            全局样式（Less，含 4 主题色 token）
+  e2e/                   Playwright 冒烟（3 个 spec，14 条用例）
 deploy/                  Docker Compose 部署栈与 Caddy 配置
 Documentation/           蓝图、立案、开发进度、数据库与开发文档
 .github/workflows/       CI 门禁（backend / frontend / contract / e2e）
@@ -52,14 +53,12 @@ Documentation/           蓝图、立案、开发进度、数据库与开发文�
 
 ## 当前状态
 
-> 后端已注册 **75 个端点**，分属 **18 个控制器**（认证 / 权限 / 用户 / 内容 / 合集 / 标签 / 日记 / 媒体 /
-> 评论 / 举报 / 留言墙 / 私信 / 文件 / 概览统计 / 系统日志 / 系统设置 / 门户聚合 / 浏览统计）；
-> Flyway 三个版本脚本建出 **23 张表**（`V1` 22 表 + `V3` 的 `site_settings`，`V2` 只补索引）。
-> 后端测试 **413 个用例**，CI 实测 JaCoCo 行覆盖 **88.83%**（远超 70% 门禁；本地未跑 `mvn verify`，数据来自 CI 日志）。
-> 前端 **27 个页面组件**（门户 11 + 后台 16）与 **48 个 vitest 用例**全部就绪，`pnpm lint` / `test` / `build` / `size-limit` 已在 CI 转绿。
-> **当前 CI 唯一红灯**：backend job 的「启动后端并导出 openapi.json」步骤失败 ——
-> `AppStartupGuard` 被 Spring 当作 bean 实例化却没有无参构造（`NoSuchMethodException: <init>()`），
-> 连带 contract job 跳过。逐项进度见 [`Documentation/开发进度.md`](Documentation/开发进度.md)。
+> 后端已注册 **86 个端点**，分属 **21 个控制器**（认证 / 权限 / 用户 / 内容与合集 / 标签 / 日记 / 媒体 / 互动 / 评论与举报 / 留言墙 / 私信与 SSE / 文件 / 概览统计 / 系统日志 / 系统设置 / 门户聚合 / 浏览统计 / SEO）；
+> Flyway **4 个版本脚本**建出 **23 张表**（`V1` 22 表 + `V3` 的 `site_settings`；`V2` 只补索引、`V4` 只给 `users` 加列）。
+> 后端 **497 个测试用例**（68 个测试类；CI 最近一次运行 489 项、跳过 5 项），JaCoCo 行覆盖 **90.73%**（远高于 70% 门禁）。
+> 前端 **31 个页面/布局组件**（门户 12 + 后台 19）、**144 个 vitest 用例**（19 个文件）、**14 条 Playwright E2E**（`frontend/e2e`）。
+> 启动强校验 `AppStartupGuard` 曾经把应用拉不起来（`NoSuchMethodException: <init>()`），已由 `a3e5d09` 改为 static `@Bean` 注册修复。
+> **CI 现状**（run `42431664050`，head `047b41b`）：backend ✅ / frontend ✅ / **contract ❌**（`src/types/schema.d.ts` 快照缺 `POST /api/v1/interactions`）/ **e2e ❌**（「构建并启动 compose 栈」步骤失败）。逐项进度见 [`Documentation/开发进度.md`](Documentation/开发进度.md)。
 
 ## 本地开发
 
@@ -80,6 +79,8 @@ cd backend
 cp .env.example .env        # 按需修改 DB_URL / DB_USERNAME / DB_PASSWORD / JWT_ACCESS_SECRET
 mvn spring-boot:run
 ```
+
+`application.yml:15` 用 `spring.config.import: optional:file:.env[.properties]` 接入同目录 `.env`，因此上面的 `cp` 即可生效（本地开发的口令可以不进仓库）。
 
 启动强校验（`com.linblog.config.AppStartupGuard`）要求以下变量齐备，缺失即拒绝启动：
 
@@ -118,8 +119,8 @@ Caddy 负责静态资源与 `/api` 反代，配置见 `deploy/Caddyfile`（本�
 | --- | --- |
 | backend | `mvn verify`（Testcontainers 真库）+ JaCoCo 行覆盖 ≥ 70%（`com/linblog`）+ 导出 `openapi.json` |
 | frontend | `pnpm lint` / `vitest` / `build` / `size-limit` 体积预算 |
-| contract | `openapi.json` → `pnpm gen:api`，`git diff --exit-code src/types/api.d.ts`，契约漂移即红 |
-| e2e | `workflow_dispatch` 与每日定时：compose 全栈 + Playwright 冒烟 |
+| contract | `openapi.json` → `pnpm gen:api` 生成 `src/types/schema.d.ts`，`git diff --exit-code` 比对，契约漂移即红 |
+| e2e | `workflow_dispatch` 与每日定时（21:30 UTC）：compose 起全栈 + 14 条 Playwright 冒烟 |
 
 ## 文档
 
@@ -134,4 +135,4 @@ Caddy 负责静态资源与 `/api` 反代，配置见 `deploy/Caddyfile`（本�
 
 ## 许可
 
-暂未声明开源许可；如需开源请补充 `LICENSE`。
+[MIT](LICENSE) © 2026 林知雨（LinBlog）。
