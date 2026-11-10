@@ -7,6 +7,8 @@ import { createContent, getAdminContent, listLabels, updateContent, uploadMedia 
 import { ApiError } from '@/api/request'
 import RichEditor from '@/components/RichEditor.vue'
 import CoverImage from '@/components/CoverImage.vue'
+import { plainTextOf } from '@/components/renderContent'
+import { aiSuggestArticleMeta } from '@/api/ai'
 import type { CreateContentPayload, FieldError } from '@/types/api'
 
 /**
@@ -100,6 +102,42 @@ const beforeUpload: UploadProps['beforeUpload'] = (rawFile) => {
   return true
 }
 
+/* ---- AI 写作建议（只建议不落库；作者确认后才写入表单字段） ---- */
+const aiSuggesting = ref(false)
+
+async function aiSuggest(): Promise<void> {
+  const content = plainTextOf(bodyText.value, 3000)
+  if (!title.value.trim() || !content) {
+    ElMessage.warning('请先填写标题和正文，再获取 AI 建议')
+    return
+  }
+  aiSuggesting.value = true
+  try {
+    const suggestion = await aiSuggestArticleMeta({ title: title.value.trim(), content })
+    if (suggestion.summary && !introduce.value.trim()) {
+      introduce.value = suggestion.summary
+    }
+    if (suggestion.labels.length > 0) {
+      // 合并建议标签：已有标签映射到 id，新名走 allow-create 直入
+      const merged: Array<number> = [...labelIds.value]
+      for (const name of suggestion.labels) {
+        const option = labelOptions.value.find((o) => o.label === name)
+        if (option) {
+          if (!merged.includes(option.value)) merged.push(option.value)
+        } else if (!merged.includes(name as unknown as number)) {
+          merged.push(name as unknown as number)
+        }
+      }
+      labelIds.value = merged
+    }
+    ElMessage.success(`AI 建议已生成（${suggestion.modelName}），请确认后保存`)
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : 'AI 建议获取失败')
+  } finally {
+    aiSuggesting.value = false
+  }
+}
+
 async function save(): Promise<void> {
   fieldErrors.value = {}
   if (!title.value.trim()) {
@@ -153,7 +191,18 @@ onMounted(load)
     <el-card v-loading="loading" shadow="never" class="lb-edit-card">
       <el-form label-position="top">
         <div class="lb-edit-section lb-edit-section--meta">
-          <span class="lb-edit-section-title">基本信息</span>
+          <div class="lb-edit-section-head">
+            <span class="lb-edit-section-title">基本信息</span>
+            <el-button
+              link
+              type="primary"
+              :loading="aiSuggesting"
+              data-testid="article-ai-suggest"
+              @click="aiSuggest"
+            >
+              ✦ AI 建议摘要与标签
+            </el-button>
+          </div>
           <el-form-item label="标题" :error="fieldErrors.title">
             <el-input
               v-model="title"
@@ -313,5 +362,19 @@ onMounted(load)
 
 .lb-edit-actions--bottom {
   padding-top: 4px;
+}
+</style>
+<style scoped>
+/* 分节标题行：标题 + 行内操作（AI 建议按钮） */
+.lb-edit-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.lb-edit-section-head .lb-edit-section-title {
+  margin-bottom: 0;
 }
 </style>

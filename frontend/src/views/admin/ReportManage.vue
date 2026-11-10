@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { batchHandleCommentReports, handleCommentReport, listCommentReports } from '@/api/admin'
+import { aiReviewReport } from '@/api/ai'
 import { ApiError } from '@/api/request'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { formatDateTime } from '@/utils/format'
@@ -108,6 +109,46 @@ function openHandle(row: ReportViewDTO): void {
   handleTarget.value = row
   handleAction.value = 'resolved'
   handleNote.value = ''
+}
+
+/* ---- AI 处置建议（只建议不落库；处置仍由运营决定） ---- */
+const aiRunningId = ref<number | null>(null)
+const aiTarget = ref<ReportViewDTO | null>(null)
+const aiSuggestion = ref<{ verdict: string; reason: string; action: string; note: string; modelName: string } | null>(null)
+const ACTION_LABEL: Record<string, string> = {
+  process: '删除评论并标记已处理',
+  dismiss: '忽略举报',
+  warn: '保留评论但标记已处理',
+}
+
+async function runAiReview(row: ReportViewDTO): Promise<void> {
+  aiRunningId.value = row.id
+  try {
+    aiSuggestion.value = await aiReviewReport({
+      reasonLabel: row.reason,
+      detail: row.detail ?? '',
+      commentUserName: row.commentAuthorName ?? '',
+      commentContent: row.commentBody ?? '',
+      sourceTitle: '',
+      complaint: '—',
+    })
+    aiTarget.value = row
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : 'AI 建议获取失败')
+  } finally {
+    aiRunningId.value = null
+  }
+}
+
+/** 把 AI 建议带入处理弹窗（AI 只填表单，是否提交由运营决定） */
+function adoptAiSuggestion(): void {
+  const row = aiTarget.value
+  const s = aiSuggestion.value
+  if (!row || !s) return
+  handleTarget.value = row
+  handleAction.value = s.action === 'dismiss' ? 'dismissed' : 'resolved'
+  handleNote.value = s.note
+  aiTarget.value = null
 }
 
 function cancelHandle(): void {
@@ -277,6 +318,14 @@ onMounted(load)
         <div class="lb-rp-card-foot">
           <el-button
             v-if="row.status === 'pending'"
+            size="small"
+            :loading="aiRunningId === row.id"
+            @click="runAiReview(row)"
+          >
+            ✦ AI 建议
+          </el-button>
+          <el-button
+            v-if="row.status === 'pending'"
             type="primary"
             size="small"
             @click="openHandle(row)"
@@ -319,6 +368,39 @@ onMounted(load)
         <div class="lb-dialog-actions">
           <el-button size="small" @click="cancelHandle">取消</el-button>
           <el-button size="small" type="primary" :loading="handleSubmitting" @click="submitHandle">提交</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- AI 处置建议（只建议；是否采纳由运营决定） -->
+    <el-dialog
+      :model-value="aiTarget !== null"
+      :title="`AI 处置建议 · 举报 #${aiTarget?.id ?? ''}`"
+      width="480px"
+      @update:model-value="(show: boolean) => { if (!show) aiTarget = null }"
+    >
+      <div v-if="aiSuggestion" class="lb-ai-suggestion">
+        <div class="lb-ai-suggestion-row">
+          <span class="lb-ai-suggestion-label">举报是否成立</span>
+          <el-tag size="small" :type="aiSuggestion.verdict === '成立' ? 'danger' : aiSuggestion.verdict === '不成立' ? 'info' : 'warning'">
+            {{ aiSuggestion.verdict || '—' }}
+          </el-tag>
+        </div>
+        <div class="lb-ai-suggestion-row">
+          <span class="lb-ai-suggestion-label">建议原因归类</span>
+          <span>{{ aiSuggestion.reason }}</span>
+        </div>
+        <div class="lb-ai-suggestion-row">
+          <span class="lb-ai-suggestion-label">建议处置</span>
+          <span>{{ ACTION_LABEL[aiSuggestion.action] ?? aiSuggestion.action }}</span>
+        </div>
+        <div class="lb-ai-suggestion-note">{{ aiSuggestion.note }}</div>
+        <p class="lb-muted">建议由 {{ aiSuggestion.modelName }} 生成，仅供参考；处置由你决定。</p>
+      </div>
+      <template #footer>
+        <div class="lb-dialog-actions">
+          <el-button size="small" @click="aiTarget = null">关闭</el-button>
+          <el-button size="small" type="primary" :disabled="!aiSuggestion" @click="adoptAiSuggestion">带入处理弹窗</el-button>
         </div>
       </template>
     </el-dialog>
@@ -467,3 +549,30 @@ onMounted(load)
   }
 }
 </style>
+
+/* AI 处置建议弹窗 */
+.lb-ai-suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lb-ai-suggestion-row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  font-size: var(--ed-step-small);
+}
+
+.lb-ai-suggestion-label {
+  color: var(--ed-ink-soft);
+  min-width: 96px;
+}
+
+.lb-ai-suggestion-note {
+  padding: 10px 12px;
+  background: var(--ed-paper);
+  border-radius: var(--ed-radius-sm);
+  font-size: var(--ed-step-small);
+  line-height: 1.7;
+}
