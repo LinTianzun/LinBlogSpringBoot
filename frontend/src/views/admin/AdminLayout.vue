@@ -7,6 +7,7 @@ import {
   Files,
   FolderOpened,
   Key,
+  MagicStick,
   Message,
   Notebook,
   Odometer,
@@ -65,6 +66,7 @@ const GROUP_DEFS: Array<{ label: string; items: MenuDef[] }> = [
     items: [
       { label: '用户', path: '/admin/users', icon: User, permission: ['user.view'] },
       { label: '权限', path: '/admin/permissions', icon: Key, permission: ['permission.view'] },
+      { label: 'AI 助手', path: '/admin/ai', icon: MagicStick, permission: ['system.setting'] },
       { label: '日志', path: '/admin/logs', icon: Tickets, permission: ['systemLog.view'] },
       { label: '设置', path: '/admin/settings', icon: Setting, permission: ['system.setting'] },
     ],

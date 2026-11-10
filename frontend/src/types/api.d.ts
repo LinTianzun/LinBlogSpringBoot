@@ -686,3 +686,48 @@ export interface PortalMediaDTO {
   width: number | null
   height: number | null
 }
+
+/** AI 接入模型（api_key 永远只回掩码） */
+export interface AiModelDTO {
+  id: number
+  name: string
+  baseUrl: string
+  apiKeyMasked: string
+  chatModel: string
+  timeoutMs: number
+  enabled: boolean
+  isDefault: boolean
+  remark: string
+}
+
+/** AI 策略（单行） */
+export interface AiSettingDTO {
+  id: number
+  quotaEnabled: boolean
+  dailyLimit: number
+  monthlyLimit: number
+  superAdminUnlimited: boolean
+  chatModelId: number | null
+}
+
+/** AI 提示词模板 */
+export interface AiPromptTemplateDTO {
+  id: number
+  templateKey: string
+  featureKey: string
+  name: string
+  description: string | null
+  content: string
+  variables: string | null
+  enabled: boolean
+  isDefault: boolean
+}
+
+/** AI 用量摘要（最近 30 天） */
+export interface AiUsageSummaryDTO {
+  total: number
+  success: number
+  successRate: number
+  avgDurationMs: number
+  byFeature: Record<string, number>
+}
