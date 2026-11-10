@@ -7,6 +7,9 @@ import com.linblog.common.PageQuery;
 import com.linblog.common.PageResult;
 import com.linblog.module.audit.service.SystemLogService;
 import com.linblog.module.auth.service.AuthService;
+import com.linblog.module.media.entity.Media;
+import com.linblog.module.media.mapper.MediaMapper;
+import com.linblog.module.media.service.DefaultAvatarService;
 import com.linblog.module.user.entity.User;
 import com.linblog.module.user.mapper.UserMapper;
 import com.linblog.security.AuthPrincipal;
@@ -22,6 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -36,6 +41,8 @@ class AdminUserServiceTest {
     private UserMapper userMapper;
     private AuthService authService;
     private SystemLogService systemLogService;
+    private MediaMapper mediaMapper;
+    private DefaultAvatarService defaultAvatarService;
     private AdminUserService service;
     private final PasswordEncoder encoder = new BCryptPasswordEncoder(4);
 
@@ -55,12 +62,26 @@ class AdminUserServiceTest {
         return u;
     }
 
+    private static Media media(long id) {
+        Media m = new Media();
+        m.setId(id);
+        m.setStorageKey("avatar/default-" + id + ".svg");
+        m.setState("active");
+        return m;
+    }
+
     @BeforeEach
     void setUp() {
         userMapper = mock(UserMapper.class);
         authService = mock(AuthService.class);
         systemLogService = mock(SystemLogService.class);
-        service = new AdminUserService(userMapper, authService, systemLogService, encoder);
+        mediaMapper = mock(MediaMapper.class);
+        defaultAvatarService = mock(DefaultAvatarService.class);
+        service = new AdminUserService(userMapper, authService, systemLogService, encoder,
+                mediaMapper, defaultAvatarService);
+        when(defaultAvatarService.ensureDefaultAvatar(anyString(), anyLong()))
+                .thenAnswer(inv -> media(9L));
+        when(mediaMapper.selectBatchIds(any())).thenReturn(List.of());
     }
 
     @Test
@@ -87,12 +108,15 @@ class AdminUserServiceTest {
             u.setId(77L);
             return 1;
         }).when(userMapper).insert(any(User.class));
+        when(mediaMapper.selectBatchIds(any())).thenReturn(List.of(media(9L)));
 
         AdminUserService.AdminUserView view = service.create("newbie", "n@linlog.com",
-                "Password8", null, SUPER, "ip");
+                "Password8", null, null, SUPER, "ip");
 
         assertEquals("newbie", view.username());
         assertEquals("viewer", view.role(), "新建用户默认 viewer");
+        assertEquals(9L, view.avatarMediaId(), "未指定头像时自动生成默认头像");
+        assertEquals("/api/v1/media/avatar/default-9.svg", view.avatarUrl());
         verify(userMapper).insert(any(User.class));
         verify(systemLogService).record(eq(1L), eq("user"), eq("create"), eq("user"), eq(77L),
                 eq(null), eq("ip"));
@@ -102,13 +126,13 @@ class AdminUserServiceTest {
     void createConflicts() {
         when(userMapper.selectCount(any())).thenReturn(1L);
         BizException ex = assertThrows(BizException.class,
-                () -> service.create("taken", "e@x.c", "Password8", null, SUPER, "ip"));
+                () -> service.create("taken", "e@x.c", "Password8", null, null, SUPER, "ip"));
         assertEquals(ErrorCode.CONFLICT, ex.getErrorCode());
 
         when(userMapper.selectCount(any())).thenReturn(0L);
         doThrow(new DuplicateKeyException("dup")).when(userMapper).insert(any(User.class));
         assertThrows(BizException.class,
-                () -> service.create("racer", "r@x.c", "Password8", null, SUPER, "ip"));
+                () -> service.create("racer", "r@x.c", "Password8", null, null, SUPER, "ip"));
     }
 
     @Test
@@ -119,11 +143,12 @@ class AdminUserServiceTest {
 
         when(userMapper.selectCount(any())).thenReturn(1L);
         BizException conflict = assertThrows(BizException.class,
-                () -> service.update(5L, "nick", "taken@linlog.com", SUPER, "ip"));
+                () -> service.update(5L, "nick", "taken@linlog.com", null, SUPER, "ip"));
         assertEquals(ErrorCode.CONFLICT, conflict.getErrorCode());
 
         when(userMapper.selectCount(any())).thenReturn(0L);
-        AdminUserService.AdminUserView view = service.update(5L, "新昵称", "bob2@linlog.com", SUPER, "ip");
+        AdminUserService.AdminUserView view = service.update(5L, "新昵称", "bob2@linlog.com",
+                null, SUPER, "ip");
         assertEquals("新昵称", view.nickname());
         assertEquals("bob2@linlog.com", view.email());
         verify(userMapper).updateById(existing);
@@ -133,8 +158,36 @@ class AdminUserServiceTest {
     void updateUnknownUser404() {
         when(userMapper.selectById(9L)).thenReturn(null);
         BizException ex = assertThrows(BizException.class,
-                () -> service.update(9L, "n", null, SUPER, "ip"));
+                () -> service.update(9L, "n", null, null, SUPER, "ip"));
         assertEquals(ErrorCode.NOT_FOUND, ex.getErrorCode());
+    }
+
+    @Test
+    void avatarUpdateSemantics() {
+        User bob = user(5L, "bob", "viewer", 1, 0);
+        when(userMapper.selectById(5L)).thenReturn(bob);
+        when(userMapper.selectCount(any())).thenReturn(0L);
+        when(mediaMapper.selectBatchIds(any())).thenReturn(List.of());
+
+        // 0 = 恢复默认头像（按用户名确定性生成/复用）
+        service.update(5L, null, null, 0L, SUPER, "ip");
+        assertEquals(9L, bob.getAvatarMediaId());
+        verify(defaultAvatarService).ensureDefaultAvatar(eq("bob"), eq(1L));
+
+        // 正数但 media 不存在/非 active → 40001
+        when(mediaMapper.selectById(404L)).thenReturn(null);
+        BizException bad = assertThrows(BizException.class,
+                () -> service.update(5L, null, null, 404L, SUPER, "ip"));
+        assertEquals(ErrorCode.BAD_REQUEST, bad.getErrorCode());
+
+        // 正数且 active → 采用
+        when(mediaMapper.selectById(7L)).thenReturn(media(7L));
+        service.update(5L, null, null, 7L, SUPER, "ip");
+        assertEquals(7L, bob.getAvatarMediaId());
+
+        // null = 不动
+        service.update(5L, null, null, null, SUPER, "ip");
+        assertEquals(7L, bob.getAvatarMediaId());
     }
 
     @Test

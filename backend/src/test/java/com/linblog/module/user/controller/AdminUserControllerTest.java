@@ -71,7 +71,7 @@ class AdminUserControllerTest {
 
     private AdminUserService.AdminUserView view(long id, String username, String role, int status) {
         return new AdminUserService.AdminUserView(id, username, username + "@linlog.com", username,
-                role, status, LocalDateTime.of(2026, 1, 1, 0, 0));
+                role, status, LocalDateTime.of(2026, 1, 1, 0, 0), null, null);
     }
 
     @Test
@@ -93,10 +93,10 @@ class AdminUserControllerTest {
     @Test
     void createReturnsViewAndRequiresUserUpdate() throws Exception {
         when(adminUserService.create(eq("neo"), eq("neo@linlog.com"), eq("Password8"),
-                isNull(), eq(principal), any())).thenReturn(view(6L, "neo", "viewer", 1));
+                isNull(), eq(5L), eq(principal), any())).thenReturn(view(6L, "neo", "viewer", 1));
 
         String body = objectMapper.writeValueAsString(
-                new AdminUserController.CreateUserRequest("neo", "neo@linlog.com", "Password8", null));
+                new AdminUserController.CreateUserRequest("neo", "neo@linlog.com", "Password8", null, 5L));
         mockMvc.perform(post("/api/v1/admin/users").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
@@ -109,7 +109,7 @@ class AdminUserControllerTest {
     @Test
     void createValidationFailureReturns40001WithFieldErrors() throws Exception {
         String body = objectMapper.writeValueAsString(
-                new AdminUserController.CreateUserRequest("x!", "not-an-email", "short", null));
+                new AdminUserController.CreateUserRequest("x!", "not-an-email", "short", null, null));
         mockMvc.perform(post("/api/v1/admin/users").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(40001))

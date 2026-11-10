@@ -15,6 +15,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -37,10 +39,13 @@ public class AdminUserController {
             @NotBlank @Pattern(regexp = "^[a-zA-Z0-9_]{3,20}$", message = "用户名须为 3-20 位字母、数字或下划线") String username,
             @NotBlank @Email String email,
             @NotBlank @Size(min = 8, max = 72) String password,
-            @Size(max = 50) String nickname) {
+            @Size(max = 50) String nickname,
+            @Positive Long avatarMediaId) {
     }
 
-    public record UpdateUserRequest(@Size(max = 50) String nickname, @Email String email) {
+    /** avatarMediaId：null=不动；0=恢复默认头像；正数=换为指定 media。 */
+    public record UpdateUserRequest(@Size(max = 50) String nickname, @Email String email,
+                                    @PositiveOrZero Long avatarMediaId) {
     }
 
     public record StatusRequest(@NotNull Integer status) {
@@ -74,7 +79,7 @@ public class AdminUserController {
         AuthPrincipal principal = CurrentUser.get();
         permissionService.require(principal, PermissionKeys.USER_UPDATE);
         return ApiResult.ok(adminUserService.create(body.username(), body.email(), body.password(),
-                body.nickname(), principal, IpUtil.clientIp(request)));
+                body.nickname(), body.avatarMediaId(), principal, IpUtil.clientIp(request)));
     }
 
     @PatchMapping("/{id}")
@@ -83,8 +88,8 @@ public class AdminUserController {
                                                             HttpServletRequest request) {
         AuthPrincipal principal = CurrentUser.get();
         permissionService.require(principal, PermissionKeys.USER_UPDATE);
-        return ApiResult.ok(adminUserService.update(id, body.nickname(), body.email(), principal,
-                IpUtil.clientIp(request)));
+        return ApiResult.ok(adminUserService.update(id, body.nickname(), body.email(),
+                body.avatarMediaId(), principal, IpUtil.clientIp(request)));
     }
 
     @PatchMapping("/{id}/status")
