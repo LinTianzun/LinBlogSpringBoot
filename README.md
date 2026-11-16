@@ -20,6 +20,7 @@ backend/                 Spring Boot 单体（Maven 单模块）
     common/              ApiResult / PageResult / 错误码 / 全局异常处理
     config/              安全、缓存、MyBatis-Plus、OpenAPI、启动强校验
     module/audit          请求审计、系统日志
+    module/ai             AI 模块（模型接入 / 提示词 / 配额 / 调用记录）
     module/auth           登录、刷新令牌、密码重置
     module/comment        评论、点赞、举报
     module/content        内容（文章 / 图集）与合集
@@ -36,13 +37,13 @@ backend/                 Spring Boot 单体（Maven 单模块）
     security/             JWT Cookie 过滤器、XSRF、限流、IP 工具
   src/main/resources/
     application.yml      默认配置（全部差异走环境变量）
-    db/migration/        Flyway 迁移脚本（V1 建 22 表 / V2 补索引 / V3 建 site_settings / V4 加 must_change_password）
-  src/test/java/          497 个测试用例（68 个测试类）
+    db/migration/        Flyway 迁移脚本（V1 建 22 表 / V2 补索引 / V3 建 site_settings / V4 加 must_change_password / V5 建 AI 五表）
+  src/test/java/          511 个测试用例（70 个测试类）
 frontend/                Vue 3 + Vite 前端（Element Plus）
   src/api/               request 封装与各域接口
   src/components/        通用组件
   src/views/portal/      门户页面（12 个）
-  src/views/admin/       后台页面（19 个）
+  src/views/admin/       后台页面（20 个）
   src/stores/            Pinia 状态
   src/styles/            全局样式（Less，含 4 主题色 token）
   e2e/                   Playwright 冒烟（3 个 spec，14 条用例）
@@ -53,11 +54,11 @@ Documentation/           蓝图、立案、开发进度、数据库与开发文�
 
 ## 当前状态
 
-> 后端已注册 **86 个端点**，分属 **21 个控制器**（认证 / 权限 / 用户 / 内容与合集 / 标签 / 日记 / 媒体 / 互动 / 评论与举报 / 留言墙 / 私信与 SSE / 文件 / 概览统计 / 系统日志 / 系统设置 / 门户聚合 / 浏览统计 / SEO）；
-> Flyway **4 个版本脚本**建出 **23 张表**（`V1` 22 表 + `V3` 的 `site_settings`；`V2` 只补索引、`V4` 只给 `users` 加列）。
-> 后端 **497 个测试用例**（68 个测试类；CI 最近一次运行 489 项、跳过 5 项），JaCoCo 行覆盖 **90.73%**（远高于 70% 门禁）。
-> 前端 **31 个页面/布局组件**（门户 12 + 后台 19）、**144 个 vitest 用例**（19 个文件）、**14 条 Playwright E2E**（`frontend/e2e`）。
-> 启动强校验 `AppStartupGuard` 曾经把应用拉不起来（`NoSuchMethodException: <init>()`），已由 `a3e5d09` 改为 static `@Bean` 注册修复。
+> 后端已注册 **106 个端点**，分属 **23 个控制器**（认证 / 权限 / 用户 / 内容与合集 / 标签 / 日记 / 媒体 / 互动 / 评论与举报 / 留言墙 / 私信与 SSE / 文件 / 概览统计 / 系统日志 / 系统设置 / AI / 门户聚合 / 浏览统计 / SEO）；
+> Flyway **5 个版本脚本**建出 **28 张表**（`V1` 22 表 + `V3` 的 `site_settings` + `V5` 的 AI 五表；`V2` 只补索引、`V4` 只给 `users` 加列）。
+> 后端 **511 个测试用例**（70 个测试类）。JaCoCo 门禁 ≥70%，最近一次 CI 实测行覆盖 **90.73%**。
+> 前端 **40 个页面/布局组件**（门户 12 + 后台 20 + 通用组件 7）、**144 个 vitest 用例**（19 个文件）、**14 条 Playwright E2E**（`frontend/e2e`）。
+> AI 模块（自原版 `ai_*` 移植）遵循同一原则：**AI 只产出建议，落库永远由作者确认后走正常保存流程**；模型密钥以 AES-256-GCM 存储，加密密钥由 `JWT_ACCESS_SECRET` 派生（因此**不新增环境变量**，但换 JWT 密钥会使已存密文失效）。
 > **CI 现状**（run `42431664050`，head `047b41b`）：backend ✅ / frontend ✅ / **contract ❌**（`src/types/schema.d.ts` 快照缺 `POST /api/v1/interactions`）/ **e2e ❌**（「构建并启动 compose 栈」步骤失败）。逐项进度见 [`Documentation/开发进度.md`](Documentation/开发进度.md)。
 
 ## 本地开发
@@ -131,7 +132,7 @@ Caddy 负责静态资源与 `/api` 反代，配置见 `deploy/Caddyfile`（本�
 | [Vue3-SpringBoot 重实现开发文档](Documentation/Vue3-SpringBoot重实现开发文档.md) | 重实现的接口、约定与验收口径 |
 | [开发进度](Documentation/开发进度.md) | 逐模块进度跟踪 |
 | [项目搭建历程](Documentation/项目搭建历程.md) | 搭建过程与踩坑记录 |
-| [SpringLinBlog 数据库文档](Documentation/SpringLinBlog%20数据库文档.md) | 23 张表的结构、索引与字段说明 |
+| [SpringLinBlog 数据库文档](Documentation/SpringLinBlog%20数据库文档.md) | 28 张表的结构、索引与字段说明 |
 
 ## 许可
 

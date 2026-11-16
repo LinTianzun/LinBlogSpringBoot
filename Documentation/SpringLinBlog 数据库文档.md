@@ -1,7 +1,7 @@
 # SpringLinBlog 数据库文档
 
 > 本文档描述 **SpringLinBlog**（LinBlog · Vue3 + Spring Boot 重实现）的数据库设计。
-> 唯一事实来源为迁移脚本目录 `backend/src/main/resources/db/migration/`（`V1__init.sql` 一次建齐 22 张表、`V2__content_domain.sql` 补索引、`V3__site_settings.sql` 新增 `site_settings`、`V4__must_change_password.sql` 给 `users` 加列，合计 **23 张表**），
+> 唯一事实来源为迁移脚本目录 `backend/src/main/resources/db/migration/`（`V1__init.sql` 一次建齐 22 张表、`V2__content_domain.sql` 补索引、`V3__site_settings.sql` 新增 `site_settings`、`V4__must_change_password.sql` 给 `users` 加列、`V5__ai_module.sql` 新增 AI 域 5 表，合计 **28 张表**），
 > 并与 `backend/src/main/java/com/linblog/**` 下的实体 / Mapper 交叉核对。
 > 若本文档与迁移脚本冲突，**一律以迁移脚本为准**（差异见 [§6 已知差异与待确认](#六已知差异与待确认)）。
 
@@ -53,6 +53,12 @@
     - [4.6.3 system_logs — 业务操作日志](#463-system_logs--业务操作日志)
   - [4.7 系统设置域（V3 新增）](#47-系统设置域v3-新增)
     - [4.7.1 site_settings — 系统设置](#471-site_settings--系统设置)
+    - [4.8 AI 域（V5 新增）](#48-ai-域v5-新增)
+    - [4.8.1 ai_model — AI 接入模型](#481-ai_model--ai-接入模型)
+    - [4.8.2 ai_setting — AI 策略（单行）](#482-ai_setting--ai-策略单行)
+    - [4.8.3 ai_usage_log — AI 调用记录](#483-ai_usage_log--ai-调用记录)
+    - [4.8.4 ai_prompt_template — 提示词模板](#484-ai_prompt_template--提示词模板)
+    - [4.8.5 ai_prompt_binding — 功能选用的模板](#485-ai_prompt_binding--功能选用的模板)
 - [五、维护与调试](#五维护与调试)
 - [六、已知差异与待确认](#六已知差异与待确认)
 
@@ -65,7 +71,7 @@
 本文档供开发、测试与运维人员完整查阅 SpringLinBlog 的数据库结构，包括：
 
 - 数据库基础信息（库名、字符集、版本、连接池、迁移机制）；
-- 23 张表的字段级定义、索引与业务含义；
+- 28 张表的字段级定义、索引与业务含义；
 - 表间关联关系与数据生命周期策略；
 - 已知的 SQL / Java 侧差异与尚待确认的点。
 
@@ -159,9 +165,9 @@ spring:
 
 行为要点：
 
-- 迁移脚本位于 `backend/src/main/resources/db/migration/`，当前共有 **4 个版本脚本**，合计建出 23 张表（清单见 §2.3.1）。
+- 迁移脚本位于 `backend/src/main/resources/db/migration/`，当前共有 **5 个版本脚本**，合计建出 28 张表（清单见 §2.3.1）。
 - `baseline-on-migrate: false` 表示**禁止**对非空 schema 做隐式基线：若目标库 `springlinblog` 已存在且 `flyway_schema_history` 中没有 V1 记录，Flyway 迁移会因「非空 schema」直接失败，需要人工介入（清库重建，或手工 `flyway baseline` 后补记历史）。
-- 因此**新增/修改表结构的标准流程**是：在 `db/migration/` 下新增 `V5__xxx.sql` 等递增版本脚本，禁止修改已发布的 `V1`–`V4`。
+- 因此**新增/修改表结构的标准流程**是：在 `db/migration/` 下新增 `V6__xxx.sql` 等递增版本脚本，禁止修改已发布的 `V1`–`V5`。
 - 表结构文档以迁移脚本为准；新增迁移后需同步更新本文档。
 
 #### 2.3.1 迁移文件清单
@@ -172,6 +178,7 @@ spring:
 | V2 | `V2__content_domain.sql` | 内容域（M2）索引补齐：**不新建表**，只对 5 张已有表执行 6 条 `ADD KEY` | 不建表 |
 | V3 | `V3__site_settings.sql` | 新增系统设置键值表 `site_settings`，并预置 6 个白名单键的空值行 | 建 1 张表 |
 | V4 | `V4__must_change_password.sql` | P3 合规：`users` 加 `must_change_password TINYINT(1) NOT NULL DEFAULT 0`（**只加列，不建表**） | 不建表 |
+| V5 | `V5__ai_module.sql` | AI 模块（移植自原版 `ai_*`）：`ai_model`、`ai_setting`、`ai_usage_log`、`ai_prompt_template`、`ai_prompt_binding` | 建 5 张表 |
 
 **V2 逐条改动**（`V2__content_domain.sql:7-21`，解决 V1 遗留的 W3 / W4 / W5 与 M2 查询需求）：
 
@@ -187,6 +194,8 @@ spring:
 **V3 内容**（`V3__site_settings.sql:3-16`）：建 `site_settings` 表，并 `INSERT` 预置 `site_title`、`site_description`、`site_keywords`、`icp`、`footer_text`、`announcement` 六行空值，使前端一次 GET 即可渲染全部表单项。表结构见 [§4.7.1](#471-site_settings--系统设置)。
 
 **V4 内容**（`V4__must_change_password.sql:5-6`）：对 `users` 执行一条 `ALTER TABLE ... ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0`。语义：`1` = 必须先修改密码（初始密码场景）；由 `SuperAdminSeeder` 在首次启动创建超管时置 `1`，登录后前端路由守卫强制跳改密页，改密成功后由后端清位。字段详情见 [§4.1.1](#411-users--用户)。
+
+**V5 内容**（`V5__ai_module.sql`，全文 69 行）：一次建出 AI 域 5 张表并预置 `ai_setting` 单行（`:31` `INSERT INTO ai_setting (id) VALUES (1)`）。原版的生图 `pending` 与 `model_health` 两表**未移植**（随图片能力延后，见 `V5__ai_module.sql:1` 注释）。移植原则写在同一行注释：**AI 只产出建议，落库永远由作者确认后走正常保存流程**。各表详情见 [§4.8](#48-ai-域v5-新增)。
 
 ### 2.4 MySQL 服务端参数
 
@@ -219,7 +228,8 @@ mysql:
 | **文件** | `files` | 1 |
 | **系统与审计** | `view_logs`、`request_audits`、`system_logs` | 3 |
 | **系统设置**（V3 新增） | `site_settings` | 1 |
-| **合计** | — | **23** |
+| **AI**（V5 新增） | `ai_model`、`ai_setting`、`ai_usage_log`、`ai_prompt_template`、`ai_prompt_binding` | 5 |
+| **合计** | — | **28** |
 
 ### 3.2 表清单一览
 
@@ -248,6 +258,11 @@ mysql:
 | 21 | `request_audits` | 系统与审计 | 请求审计 | `id` | 请求审计（原 record 表，90 天滚动清理） |
 | 22 | `system_logs` | 系统与审计 | 业务操作日志 | `id` | 业务操作日志 |
 | 23 | `site_settings` | 系统设置 | 系统设置（白名单键） | `setting_key` | 系统设置（白名单键） |
+| 24 | `ai_model` | AI | AI 接入模型 | `id` | AI 接入模型 |
+| 25 | `ai_setting` | AI | AI 策略（单行） | `id` | AI 策略（单行 id=1） |
+| 26 | `ai_usage_log` | AI | AI 调用记录 | `id` | AI 调用记录 |
+| 27 | `ai_prompt_template` | AI | AI 提示词模板 | `id` | AI 提示词模板 |
+| 28 | `ai_prompt_binding` | AI | AI 功能选用模板 | `feature_key` | AI 功能选用的提示词模板 |
 
 ### 3.3 表关系说明
 
@@ -273,13 +288,16 @@ users ──┬─< refresh_tokens        (user_id)
         ├─< view_logs              (user_id)
         ├─< request_audits         (user_id)
         ├─< system_logs            (user_id)
-        └─< site_settings          (updated_by)
+        ├─< site_settings          (updated_by)
+        └─< ai_usage_log           (user_id)
 
 media   ──< content.cover_media_id / users.avatar_media_id / subsets.cover_media_id
 content ──< comments.target_id / interactions.target_id / subset_items.content_id
 diaries ──< comments.target_id / interactions.target_id
 guestbook ─< comments.target_id
 conversations ──< direct_messages.conversation_id
+ai_model      ─< ai_setting.chat_model_id（空 = 跟随默认模型）
+ai_prompt_template ──< ai_prompt_binding.template_key（template_key 逻辑引用，未建索引/外键）
 ```
 
 **多态引用说明**（跨表复用同一列，需按前缀区分目标表）：
@@ -903,6 +921,117 @@ conversations ──< direct_messages.conversation_id
 
 ---
 
+### 4.8 AI 域（V5 新增）
+
+> 由 `V5__ai_module.sql` 一次建出，自原版 LinBlog 的 `ai_*` 模型移植。**核心原则**（`V5__ai_module.sql:2`）：AI 只产出建议，**落库永远由作者确认后走正常保存流程**。原版的生图 `pending` / `model_health` 两表未移植。
+
+#### 4.8.1 ai_model — AI 接入模型
+
+> **用途**：OpenAI 兼容协议的模型接入配置（地址 / 密钥密文 / 模型名 / 超时）；**主键**：`id`（INT UNSIGNED）；**索引**：`uk_ai_model_name`、`idx_ai_model_default`；**关联**：无物理外键（`ai_setting.chat_model_id` 逻辑引用本表）。
+
+| 字段名 | 类型 | 允许空 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| id | INT UNSIGNED | 否 | AUTO_INCREMENT | 主键 |
+| name | VARCHAR(64) | 否 | — | 显示名称，唯一 |
+| provider | VARCHAR(32) | 否 | `'openai'` | 协议类型（openai 兼容） |
+| base_url | VARCHAR(255) | 否 | — | 接口地址 |
+| api_key_cipher | TEXT | 否 | — | 密钥**密文**，格式 `v1:iv:tag:ct` |
+| chat_model | VARCHAR(128) | 否 | `''` | 文本模型名 |
+| timeout_ms | INT UNSIGNED | 否 | `20000` | 单次请求超时（毫秒） |
+| enabled | TINYINT(1) | 否 | `1` | 是否启用 |
+| is_default | TINYINT(1) | 否 | `0` | 是否默认模型 |
+| remark | VARCHAR(255) | 是 | NULL | 备注 |
+| created_at / updated_at | DATETIME(3) | 否 | 默认/ON UPDATE | 时间戳 |
+
+**索引**：`PRIMARY(id)`、`uk_ai_model_name(name)`、`idx_ai_model_default(is_default, enabled)`。
+
+**设计要点**
+
+- **密钥只存密文**：AES-256-GCM，密钥由 `app.jwt-access-secret` 经 SHA-256 派生（`backend/src/main/java/com/linblog/module/ai/service/AiSecretBox.java:15-37`）。密文格式 `v1:iv:tag:ct`（base64url），与原版 `secretBox` 同构 —— **换 JWT 密钥即令旧密文全部失效**，需要重填密钥。因此**不存在单独的 AI 加密密钥环境变量**。
+- `api_key_cipher` 用 `TEXT` 而非 `VARCHAR`：GCM 密文随明文长度线性膨胀且不宜按字符推断上限。
+- `uk_ai_model_name` 只约束显示名唯一；「全库至多一个默认」**由服务层保证**（数据库层无函数唯一索引，与 `users.uk_single_super_admin` 的做法不同）。
+
+**关联的 Java 侧**：`module/ai/entity/AiModel.java`、`module/ai/mapper/AiModelMapper.java`、`module/ai/service/AiSecretBox.java`、`module/ai/service/AiClientService.java`、`module/ai/controller/AiAdminController.java:122-208`（`/api/v1/admin/ai/models` 的增删改查与启停）。
+
+#### 4.8.2 ai_setting — AI 策略（单行）
+
+> **用途**：全局 AI 配额与默认模型选择，**单行表（`id` 恒为 1）**；**主键**：`id`（TINYINT UNSIGNED）；**关联**：`ai_model.id`（`chat_model_id`，可空）。
+
+| 字段名 | 类型 | 允许空 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| id | TINYINT UNSIGNED | 否 | — | 主键，恒为 `1`（`V5__ai_module.sql:31` 插入） |
+| quota_enabled | TINYINT(1) | 否 | `1` | 是否启用次数限制 |
+| daily_limit | INT UNSIGNED | 否 | `20` | 每用户每日次数（`0` 不限） |
+| monthly_limit | INT UNSIGNED | 否 | `100` | 每用户每月次数（`0` 不限） |
+| super_admin_unlimited | TINYINT(1) | 否 | `1` | 超级管理员不限次数 |
+| chat_model_id | INT UNSIGNED | 是 | NULL | 文本任务指定模型；空 = 跟随 `ai_model.is_default` |
+| updated_at | DATETIME(3) | 否 | 默认/ON UPDATE | 时间戳 |
+
+**设计要点**：单行表用 `TINYINT` 主键而非 `BIGINT`，从类型上就拒绝多行；`0` 语义统一为「不限」而非「禁用」（禁用靠 `quota_enabled`）。
+
+**关联的 Java 侧**：`module/ai/entity/AiSetting.java`、`module/ai/mapper/AiSettingMapper.java`、`module/ai/controller/AiAdminController.java:210-231`（`GET` / `PUT` `/api/v1/admin/ai/settings`）。
+
+#### 4.8.3 ai_usage_log — AI 调用记录
+
+> **用途**：每次 AI 调用的记账与配额依据（成功/失败/被拒都落账）；**主键**：`id`（BIGINT UNSIGNED）；**索引**：`idx_ai_usage_user_time(user_id, created_at)`、`idx_ai_usage_time(created_at)`；**关联**：`users.id`（`user_id`，逻辑引用）。
+
+| 字段名 | 类型 | 允许空 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| id | BIGINT UNSIGNED | 否 | AUTO_INCREMENT | 主键 |
+| user_id | BIGINT UNSIGNED | 否 | — | 调用用户 |
+| feature | VARCHAR(32) | 否 | — | 功能：`suggest` / `report-review` / `operations` / `test-run` 等 |
+| model_name | VARCHAR(128) | 是 | NULL | 使用的模型名 |
+| status | VARCHAR(16) | 否 | `'success'` | `success` / `failed` / `denied` |
+| detail | VARCHAR(255) | 是 | NULL | 备注 |
+| duration_ms | INT UNSIGNED | 否 | `0` | 耗时（毫秒） |
+| prompt_tokens | INT UNSIGNED | 否 | `0` | 输入 token |
+| completion_tokens | INT UNSIGNED | 否 | `0` | 输出 token |
+| output_chars | INT UNSIGNED | 否 | `0` | 输出字符数 |
+| created_at | DATETIME(3) | 否 | 默认 | 调用时间 |
+
+**设计要点**：`status='denied'` 也落账，配额拒绝才有审计痕迹（对应 14 个 AI 测试里「配额拒绝落账」那条）；`(user_id, created_at)` 复合索引服务「我今日/本月用了多少次」，`created_at` 单列索引服务后台按时间扫用量。
+
+**关联的 Java 侧**：`module/ai/entity/AiUsageLog.java`、`module/ai/mapper/AiUsageLogMapper.java`、`module/ai/controller/AiAdminController.java:331` 起（`GET /api/v1/admin/ai/usage`）。
+
+#### 4.8.4 ai_prompt_template — 提示词模板
+
+> **用途**：可在线编辑的提示词正文，`{{变量}}` 占位；**主键**：`id`（INT UNSIGNED）；**索引**：`uk_ai_prompt_key(template_key)`、`idx_ai_prompt_feature(feature_key)`。
+
+| 字段名 | 类型 | 允许空 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| id | INT UNSIGNED | 否 | AUTO_INCREMENT | 主键 |
+| template_key | VARCHAR(64) | 否 | — | 模板标识，**内置模板与 feature_key 相同**，唯一 |
+| feature_key | VARCHAR(64) | 否 | `''` | 所属功能 |
+| name | VARCHAR(64) | 否 | — | 显示名称 |
+| description | VARCHAR(255) | 是 | NULL | 用途说明 |
+| content | LONGTEXT | 否 | — | 提示词正文（`{{变量}}` 占位） |
+| variables | VARCHAR(500) | 是 | NULL | 可用变量说明 |
+| enabled | TINYINT(1) | 否 | `1` | **停用后回退内置提示词** |
+| is_default | TINYINT(1) | 否 | `0` | 内置默认模板 |
+| created_at / updated_at | DATETIME(3) | 否 | 默认/ON UPDATE | 时间戳 |
+
+**设计要点**：表为空或模板被停用时，代码回退常量提示词（`module/ai/service/AiBuiltInPrompts.java`），所以**前端删光模板也不会把 AI 功能弄哭**；`content` 用 `LONGTEXT` 因为模板可能包含完整文章上下文。
+
+**关联的 Java 侧**：`module/ai/entity/AiPromptTemplate.java`、`module/ai/mapper/AiPromptTemplateMapper.java`、`module/ai/service/AiBuiltInPrompts.java`、`module/ai/controller/AiAdminController.java:232-302`（`/api/v1/admin/ai/prompt-templates` 增删改 + 启停）。
+
+#### 4.8.5 ai_prompt_binding — 功能选用的模板
+
+> **用途**：功能 → 模板的一对一绑定；**主键**：`feature_key`（VARCHAR(64)）；**索引**：仅主键；**关联**：`ai_prompt_template.template_key`（逻辑引用，无外键）。
+
+| 字段名 | 类型 | 允许空 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| feature_key | VARCHAR(64) | 否 | — | 功能标识，主键 |
+| template_key | VARCHAR(64) | 否 | — | 该功能选用的模板 |
+| updated_at | DATETIME(3) | 否 | 默认/ON UPDATE | 时间戳 |
+
+**设计要点**：只存 `template_key` 而非 `template_id`，删模板无需处理引用完整性；`feature_key` 当主键天然保证「一个功能只绑一个模板」。
+
+**关联的 Java 侧**：`module/ai/entity/AiPromptBinding.java`、`module/ai/mapper/AiPromptBindingMapper.java`、`module/ai/controller/AiAdminController.java:308-330`（`PUT /api/v1/admin/ai/bindings/{feature}`）。
+
+**AI 域对外端点**（`AiController.java:25` 起，`/api/v1/ai`）：`POST /suggest`、`POST /report/review`、`POST /report/operations`、`POST /test-run`、`POST /gallery/curation`、`POST /cover` —— **均只返回建议文本，不直接写库**。
+
+---
+
 ## 五、维护与调试
 
 ### 5.1 本地建库
@@ -918,7 +1047,7 @@ GRANT ALL PRIVILEGES ON springlinblog.* TO 'springlinblog'@'%';
 FLUSH PRIVILEGES;
 ```
 
-应用启动时 Flyway 依次执行 `V1__init.sql` → `V2__content_domain.sql` → `V3__site_settings.sql` → `V4__must_change_password.sql`，建出 23 张表，并在 `springlinblog` 库内创建 `flyway_schema_history` 历史表。
+应用启动时 Flyway 依次执行 `V1__init.sql` → `V2__content_domain.sql` → `V3__site_settings.sql` → `V4__must_change_password.sql` → `V5__ai_module.sql`，建出 28 张表，并在 `springlinblog` 库内创建 `flyway_schema_history` 历史表。
 
 > `baseline-on-migrate: false`：**不要**手工执行 `flyway baseline` 绕过校验，除非明确知道要接管一个已存在的非空库。
 
@@ -999,3 +1128,4 @@ SELECT installed_rank, version, description, success
 | v1.0 | 2026-10-30 | 初始文档，基于 `V1__init.sql` 编写，覆盖 22 张表全量结构、索引、连接与迁移配置 | 开发者 |
 | v1.1 | 2026-11-01 | 同步至 `V2__content_domain.sql` 与 `V3__site_settings.sql`：表数 22 → **23**，新增 §2.3.1 迁移文件清单（含 V2 的 6 条索引逐条说明）、§4.7 系统设置域（`site_settings` 表），W3 / W4 / W5 标记为已由 V2 解决 | lead |
 | v1.2 | 2026-11-08 | 同步至 `V4__must_change_password.sql`：`users` 新增 `must_change_password` 列（列级说明 + V4 内容段 + §5.1 迁移链），表数不变（23）；W6（`view_logs` 保留期）标记为已由 `VIEW_RETENTION_DAYS` 解决 | lead |
+| v1.3 | 2026-11-16 | 同步至 `V5__ai_module.sql`：表数 23 → **28**，新增 §4.8 AI 域（`ai_model` / `ai_setting` / `ai_usage_log` / `ai_prompt_template` / `ai_prompt_binding` 五张表字段级说明与密钥密文设计要点）、§2.3.1 加 V5 行、§3.1/§3.2/§3.3/§5.1 对齐 | lead |
