@@ -188,4 +188,42 @@ class AiServiceTest {
         assertEquals("成立", out.get("verdict"));
         assertEquals("process", out.get("action"));
     }
+
+    @Test
+    void rewriteValidatesActionAndReturnsText() {
+        settings(false, 0);
+        when(modelMapper.selectList(any())).thenReturn(List.of(enabledModel()));
+        when(client.chatCompletion(any(), any(), anyString(), eq(false)))
+                .thenReturn(new AiClientService.ChatResult("润色后的正文。", 10, 8));
+
+        Map<String, Object> out = service.rewriteArticleText(user, "polish", "标题", "原文");
+        assertEquals("润色后的正文。", out.get("text"));
+
+        // 非法动作
+        BizException ex = assertThrows(BizException.class,
+                () -> service.rewriteArticleText(user, "translate", "标题", "原文"));
+        assertEquals(ErrorCode.BAD_REQUEST, ex.getErrorCode());
+        // 空正文
+        ex = assertThrows(BizException.class,
+                () -> service.rewriteArticleText(user, "polish", "标题", " "));
+        assertEquals(ErrorCode.BAD_REQUEST, ex.getErrorCode());
+    }
+
+    @Test
+    void curationParsesTitlesSummaryLabels() {
+        settings(false, 0);
+        when(modelMapper.selectList(any())).thenReturn(List.of(enabledModel()));
+        when(client.chatCompletion(any(), any(), anyString(), eq(true)))
+                .thenReturn(new AiClientService.ChatResult(
+                        "{\"titles\":[\"A\",\"B\",\"C\"],\"summary\":\"策展简介\",\"labels\":[\"摄影\"]}", 10, 8));
+
+        Map<String, Object> out = service.suggestGalleryCuration(user, "", "", "夜景", 3);
+        assertEquals(List.of("A", "B", "C"), out.get("titles"));
+        assertEquals("策展简介", out.get("summary"));
+
+        // 全空入参 → 40000
+        BizException ex = assertThrows(BizException.class,
+                () -> service.suggestGalleryCuration(user, " ", "", " ", 0));
+        assertEquals(ErrorCode.BAD_REQUEST, ex.getErrorCode());
+    }
 }

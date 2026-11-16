@@ -270,6 +270,71 @@ public class AiService {
                 "modelName", outcome.model().getName());
     }
 
+    private static final List<String> WRITING_ACTIONS = List.of("polish", "shorten", "expand", "continue");
+
+    private static String writingActionLabel(String action) {
+        return switch (action) {
+            case "polish" -> "润色";
+            case "shorten" -> "精简";
+            case "expand" -> "扩写";
+            case "continue" -> "续写";
+            default -> action;
+        };
+    }
+
+    /** 写作辅助：润色/精简/扩写/续写，返回纯文本候选（作者确认后才写编辑器）。 */
+    public Map<String, Object> rewriteArticleText(AuthPrincipal principal, String action, String title, String text) {
+        if (action == null || !WRITING_ACTIONS.contains(action)) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "不支持的 AI 写作动作");
+        }
+        if (text == null || text.isBlank()) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "请先选择或填写正文，再使用 AI 写作辅助");
+        }
+        String actionLabel = writingActionLabel(action);
+        String requirement = "continue".equals(action)
+                ? "1. 在原文后自然续写 100-200 字，保持原有语境、人设和事实；"
+                : "1. 对原文进行" + actionLabel + "，不添加原文没有的事实；";
+        String plainTitle = title == null ? "" : title.trim();
+        AiService.ResolvedPrompt prompt = resolvePrompt("writing");
+        String rendered = render(prompt.content(), Map.of(
+                "action", action,
+                "actionLabel", actionLabel,
+                "requirement", requirement,
+                "title", plainTitle.length() > 150 ? plainTitle.substring(0, 150) : plainTitle,
+                "titleLine", plainTitle.isEmpty() ? "" : "文章标题：" + plainTitle,
+                "text", text.length() > 6000 ? text.substring(0, 6000) : text));
+        CallOutcome outcome = callModel(principal, "writing", null, rendered, false);
+        return Map.of(
+                "text", outcome.text(),
+                "modelName", outcome.model().getName());
+    }
+
+    /** 图库策展建议：{titles[], summary, labels[]}。 */
+    public Map<String, Object> suggestGalleryCuration(AuthPrincipal principal, String title,
+                                                      String introduce, String theme, int photoCount) {
+        if ((title == null || title.isBlank()) && (introduce == null || introduce.isBlank())
+                && (theme == null || theme.isBlank())) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "请先填写标题、简介或补充主题，再获取 AI 策展建议");
+        }
+        AiService.ResolvedPrompt prompt = resolvePrompt("gallery");
+        String rendered = render(prompt.content(), Map.of(
+                "title", title == null ? "" : title.trim(),
+                "introduce", introduce == null ? "" : introduce.trim(),
+                "theme", theme == null ? "" : theme.trim(),
+                "photoCount", String.valueOf(Math.max(0, photoCount))));
+        CallOutcome outcome = callModel(principal, "gallery", null, rendered, true);
+        JsonNode node = parseJsonOutput(outcome.text());
+        List<String> titles = new ArrayList<>();
+        node.path("titles").forEach(t -> titles.add(t.asText()));
+        List<String> labels = new ArrayList<>();
+        node.path("labels").forEach(l -> labels.add(l.asText()));
+        return Map.of(
+                "titles", titles,
+                "summary", node.path("summary").asText(""),
+                "labels", labels,
+                "modelName", outcome.model().getName());
+    }
+
     /** 运营周报：真实统计入参 → 纯文本周报。 */
     public String operationsReport(AuthPrincipal principal, Map<String, Object> stats) {
         AiService.ResolvedPrompt prompt = resolvePrompt("operations");
