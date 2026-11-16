@@ -59,7 +59,7 @@ Documentation/           蓝图、立案、开发进度、数据库与开发文�
 > 后端 **514 个测试用例**（69 个测试类 + 1 辅助工厂）。JaCoCo 门禁 ≥70%，最近一次 CI 实测行覆盖 **90.73%**。
 > 前端 **41 个页面/布局组件**（门户 12 + 后台 20 + 通用组件 8，含 BlogPet 网页宠物）、**165 个 vitest 用例**（21 个文件）、**14 条 Playwright E2E**（`frontend/e2e`）。
 > AI 模块（自原版 `ai_*` 移植，文本域六功能全量：写作建议 / 写作辅助 / 图库策展 / 举报辅助 / 运营周报 / 私信拟回复）遵循同一原则：**AI 只产出建议，落库永远由作者确认后走正常保存流程**；模型密钥以 AES-256-GCM 存储，加密密钥由 `JWT_ACCESS_SECRET` 派生（因此**不新增环境变量**，但换 JWT 密钥会使已存密文失效）。
-> **CI 现状**：本地最后实跑基线为 `53d1490`（backend ✅ / frontend ✅ / 用例 511）；此后新增 5 笔提交（默认头像 / BlogPet / AI 文本域收官 / 契约快照重生成）尚未推送——**contract 契约漂移已在本地根除**（`openapi.json` 61→85 paths、`schema.d.ts` 已重生成，快照缺 `POST /api/v1/interactions` 的旧问题不复存在）；e2e job 的「compose 起全栈」步骤失败仍待修复。推送后以最新 run 为准，逐项进度见 [`Documentation/开发进度.md`](Documentation/开发进度.md)。
+> **CI 现状**（run `43918094301`，head `d50b0ef`，2026-11-17）：backend ✅ / frontend ✅ / **contract ✅**（契约漂移已根除：快照 61→85 paths 重生成）/ e2e 按设计仅在 schedule/dispatch 触发——compose 步骤已在本地加固（build/up 拆分、超时 600s、失败自动倾倒日志），结果以最近一次定时 run 为准。逐项进度见 [`Documentation/开发进度.md`](Documentation/开发进度.md)。
 
 ## 本地开发
 
