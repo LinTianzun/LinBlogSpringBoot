@@ -8,6 +8,8 @@ coverage/
 .tools/
 # design-taste skill local state (design direction snapshots)
 .taste-skill/
+# impeccable skill local state
+.impeccable/
 
 # runtime data
 data/

@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    BlogPet: typeof import('./src/components/BlogPet.vue')['default']
     CommentTree: typeof import('./src/components/CommentTree.vue')['default']
     ContentRenderer: typeof import('./src/components/ContentRenderer.vue')['default']
     CoverImage: typeof import('./src/components/CoverImage.vue')['default']

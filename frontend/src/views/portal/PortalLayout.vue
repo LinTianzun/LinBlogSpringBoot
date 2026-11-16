@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { useSessionStore } from '@/stores/session'
+import BlogPet from '@/components/BlogPet.vue'
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
 
 /**
@@ -119,6 +120,9 @@ function isActive(to: string): boolean {
         </p>
       </div>
     </footer>
+
+    <!-- 网页宠物（pet v1）：全门户浮动，装饰性组件 -->
+    <BlogPet />
   </div>
 </template>
 
