@@ -356,4 +356,29 @@ public class AiService {
                 "modelName", outcome.model().getName(),
                 "durationMs", outcome.durationMs());
     }
+
+    /** 私信拟回复：2 条候选话术（热情/克制），作者点选后才写输入框。 */
+    public List<String> suggestMessageReplies(AuthPrincipal principal, String peerName,
+                                              String history, String tone) {
+        AiService.ResolvedPrompt prompt = resolvePrompt("message");
+        String toneLine = tone == null || tone.isBlank() ? "" : "作者期望的语气：" + tone;
+        String rendered = render(prompt.content(), Map.of(
+                "peerName", peerName == null || peerName.isBlank() ? "对方" : peerName,
+                "history", history == null ? "" : history,
+                "tone", tone == null ? "" : tone,
+                "toneLine", toneLine));
+        CallOutcome outcome = callModel(principal, "message", null, rendered, true);
+        JsonNode node = parseJsonOutput(outcome.text());
+        List<String> replies = new ArrayList<>();
+        node.path("replies").forEach(r -> {
+            String reply = r.asText().trim();
+            if (!reply.isEmpty() && replies.size() < 2) {
+                replies.add(reply);
+            }
+        });
+        if (replies.isEmpty()) {
+            throw new BizException(ErrorCode.INTERNAL, "AI 未能生成可用回复，请重试");
+        }
+        return replies;
+    }
 }

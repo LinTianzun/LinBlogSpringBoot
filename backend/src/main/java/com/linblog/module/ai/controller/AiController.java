@@ -4,9 +4,12 @@ import com.linblog.common.ApiResult;
 import com.linblog.common.BizException;
 import com.linblog.common.ErrorCode;
 import com.linblog.module.ai.service.AiService;
+import com.linblog.module.message.service.MessageService;
 import com.linblog.module.stats.dto.SummaryResult;
 import com.linblog.module.stats.dto.VisitStatsResult;
 import com.linblog.module.stats.service.OverviewService;
+import com.linblog.module.user.entity.User;
+import com.linblog.module.user.mapper.UserMapper;
 import com.linblog.security.AuthPrincipal;
 import com.linblog.security.CurrentUser;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -26,10 +30,15 @@ public class AiController {
 
     private final AiService aiService;
     private final OverviewService overviewService;
+    private final MessageService messageService;
+    private final UserMapper userMapper;
 
-    public AiController(AiService aiService, OverviewService overviewService) {
+    public AiController(AiService aiService, OverviewService overviewService,
+                        MessageService messageService, UserMapper userMapper) {
         this.aiService = aiService;
         this.overviewService = overviewService;
+        this.messageService = messageService;
+        this.userMapper = userMapper;
     }
 
     private AuthPrincipal requirePrincipal() {
@@ -113,5 +122,42 @@ public class AiController {
     @PostMapping("/cover")
     public ApiResult<Void> cover() {
         throw new BizException(ErrorCode.NOT_FOUND, "该功能尚未开放");
+    }
+
+    /**
+     * 私信拟回复：2 条候选话术。上下文只取会话双方可见的消息
+     * （messages() 内做参与者校验，非双方 40400），AI 不改动任何消息。
+     */
+    @PostMapping("/message/reply")
+    public ApiResult<Map<String, Object>> messageReply(@RequestBody Map<String, Object> body) {
+        AuthPrincipal principal = requirePrincipal();
+        long conversationId = body.get("conversationId") instanceof Number n ? n.longValue() : 0;
+        if (conversationId <= 0) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "conversationId 不能为空");
+        }
+        String tone = body.get("tone") instanceof String t && !t.isBlank() ? t : null;
+
+        MessageService.MessagePage page = messageService.messages(principal, conversationId, null);
+        List<MessageService.DirectMessageView> recent = page.records() == null ? List.of()
+                : page.records().subList(Math.max(0, page.records().size() - 10), page.records().size());
+        if (recent.isEmpty()) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "会话还没有消息，无从拟回复");
+        }
+        StringBuilder history = new StringBuilder();
+        Long peerId = null;
+        for (MessageService.DirectMessageView m : recent) {
+            boolean mine = m.senderId() == principal.uid();
+            history.append(mine ? "我" : "对方").append("：").append(m.body()).append('\n');
+            if (!mine) peerId = m.senderId();
+        }
+        String peerName = "对方";
+        if (peerId != null) {
+            User peer = userMapper.selectById(peerId);
+            if (peer != null) {
+                peerName = peer.getDisplayName();
+            }
+        }
+        return ApiResult.ok(Map.of(
+                "replies", aiService.suggestMessageReplies(principal, peerName, history.toString(), tone)));
     }
 }

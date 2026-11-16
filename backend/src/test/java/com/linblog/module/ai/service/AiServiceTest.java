@@ -226,4 +226,17 @@ class AiServiceTest {
                 () -> service.suggestGalleryCuration(user, " ", "", " ", 0));
         assertEquals(ErrorCode.BAD_REQUEST, ex.getErrorCode());
     }
+
+    @Test
+    void messageRepliesParsedAndCappedAtTwo() {
+        settings(false, 0);
+        when(modelMapper.selectList(any())).thenReturn(List.of(enabledModel()));
+        when(client.chatCompletion(any(), any(), anyString(), eq(true)))
+                .thenReturn(new AiClientService.ChatResult(
+                        "{\"replies\":[\"你好呀，很高兴见到你！\",\"有事请直说。\",\"多余第三条\"]}", 10, 8));
+
+        List<String> replies = service.suggestMessageReplies(user, "对方", "对方：你好\n我：嗯", null);
+        assertEquals(2, replies.size());
+        assertEquals("你好呀，很高兴见到你！", replies.get(0));
+    }
 }
