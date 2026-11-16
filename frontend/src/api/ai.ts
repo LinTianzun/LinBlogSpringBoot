@@ -153,3 +153,11 @@ export function aiGalleryCuration(payload: {
     payload,
   )
 }
+
+/** POST /ai/message/reply：私信拟回复（2 条候选话术；会话双方仅可对自己会话调用） */
+export function aiMessageReply(payload: {
+  conversationId: number
+  tone?: string
+}): Promise<{ replies: string[] }> {
+  return post<{ replies: string[] }>('/ai/message/reply', payload)
+}

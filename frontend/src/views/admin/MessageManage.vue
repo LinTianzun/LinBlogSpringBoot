@@ -10,10 +10,31 @@ import {
   markConversationRead,
   sendMessage,
 } from '@/api/admin'
+import { aiMessageReply } from '@/api/ai'
 import { ApiError } from '@/api/request'
 import { formatDateTime, formatRelative } from '@/utils/format'
 import { useSessionStore } from '@/stores/session'
 import type { ConversationDTO, MessageDTO } from '@/types/api'
+
+/* ---- AI 拟回复（只产候选话术，点选填入输入框后可编辑发送） ---- */
+const aiReplies = ref<string[]>([])
+const aiReplyRunning = ref(false)
+
+async function runAiReply(): Promise<void> {
+  if (activeId.value === null) return
+  aiReplyRunning.value = true
+  try {
+    const result = await aiMessageReply({ conversationId: activeId.value })
+    aiReplies.value = result.replies
+    if (result.replies.length === 0) {
+      ElMessage.warning('AI 未能生成可用回复')
+    }
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : 'AI 拟回复失败')
+  } finally {
+    aiReplyRunning.value = false
+  }
+}
 
 /**
  * 私信（§5.6，M4）：左侧会话列表（message.private），右侧消息流。
@@ -277,6 +298,19 @@ onMounted(() => {
 
           <!-- 底部输入框 -->
           <div class="lb-thread-composer">
+            <!-- AI 候选话术：点选即填入输入框，可再编辑后发送 -->
+            <div v-if="aiReplies.length > 0" class="lb-ai-replies">
+              <button
+                v-for="(reply, i) in aiReplies"
+                :key="i"
+                type="button"
+                class="lb-ai-reply-chip"
+                @click="draft = reply; aiReplies = []"
+              >
+                ✦ {{ reply }}
+              </button>
+              <button type="button" class="lb-ai-reply-dismiss" @click="aiReplies = []">不用了</button>
+            </div>
             <el-input
               v-model="draft"
               type="textarea"
@@ -288,7 +322,18 @@ onMounted(() => {
               data-testid="message-draft"
               @keydown.enter.exact.prevent="send"
             />
-            <el-button type="primary" :loading="sending" data-testid="message-send" @click="send">发送</el-button>
+            <div class="lb-thread-composer-ops">
+              <el-button
+                size="small"
+                :loading="aiReplyRunning"
+                :disabled="activeId === null"
+                data-testid="message-ai-reply"
+                @click="runAiReply"
+              >
+                ✦ AI 拟回复
+              </el-button>
+              <el-button type="primary" :loading="sending" data-testid="message-send" @click="send">发送</el-button>
+            </div>
           </div>
         </template>
       </section>
@@ -667,11 +712,54 @@ onMounted(() => {
 .lb-thread-composer {
   flex: none;
   display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  padding: 14px 20px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 20px 14px;
   border-top: 1px solid var(--ed-rule-soft);
   background: var(--ed-card);
+}
+
+.lb-thread-composer-ops {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* AI 候选话术 chips */
+.lb-ai-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lb-ai-reply-chip {
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid var(--ed-rule-soft);
+  border-radius: var(--ed-radius-sm);
+  background: var(--ed-paper);
+  cursor: pointer;
+  font-size: var(--ed-step-small);
+  line-height: 1.6;
+  color: var(--ed-ink);
+  transition: border-color 160ms ease;
+}
+
+.lb-ai-reply-chip:hover {
+  border-color: var(--ed-accent);
+}
+
+.lb-ai-reply-dismiss {
+  align-self: flex-end;
+  border: none;
+  background: none;
+  color: var(--ed-ink-soft);
+  font-size: var(--ed-step-caption);
+  cursor: pointer;
+}
+
+.lb-ai-reply-dismiss:hover {
+  color: var(--ed-ink);
 }
 
 .lb-thread-composer :deep(.el-textarea) {
