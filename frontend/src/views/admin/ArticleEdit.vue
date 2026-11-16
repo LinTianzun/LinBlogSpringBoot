@@ -8,7 +8,7 @@ import { ApiError } from '@/api/request'
 import RichEditor from '@/components/RichEditor.vue'
 import CoverImage from '@/components/CoverImage.vue'
 import { plainTextOf } from '@/components/renderContent'
-import { aiSuggestArticleMeta } from '@/api/ai'
+import { aiSuggestArticleMeta, aiRewriteText } from '@/api/ai'
 import type { CreateContentPayload, FieldError } from '@/types/api'
 
 /**
@@ -138,6 +138,50 @@ async function aiSuggest(): Promise<void> {
   }
 }
 
+/* ---- AI 写作辅助（润色/精简/扩写/续写；候选确认后才替换正文） ---- */
+const WRITING_ACTIONS = [
+  { key: 'polish', label: '润色' },
+  { key: 'shorten', label: '精简' },
+  { key: 'expand', label: '扩写' },
+  { key: 'continue', label: '续写' },
+] as const
+
+const writingRunning = ref(false)
+const writingCandidate = ref<{ text: string; modelName: string; action: string } | null>(null)
+const writingActionLabel = computed(() =>
+  WRITING_ACTIONS.find((a) => a.key === writingCandidate.value?.action)?.label ?? '')
+
+async function aiWrite(action: (typeof WRITING_ACTIONS)[number]['key']): Promise<void> {
+  const plain = plainTextOf(bodyText.value, 6000)
+  if (!plain) {
+    ElMessage.warning('请先填写正文，再使用 AI 写作辅助')
+    return
+  }
+  writingRunning.value = true
+  try {
+    const result = await aiRewriteText({ action, title: title.value.trim(), text: plain })
+    writingCandidate.value = { ...result, action }
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : 'AI 写作失败')
+  } finally {
+    writingRunning.value = false
+  }
+}
+
+/** 采用候选：整段替换为纯段落 ProseMirror doc（格式化内容会被平铺，弹窗内已提示） */
+function adoptWritingCandidate(): void {
+  if (!writingCandidate.value) return
+  const paras = writingCandidate.value.text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => ({ type: 'paragraph', content: [{ type: 'text', text: line }] }))
+  if (paras.length === 0) return
+  bodyText.value = JSON.stringify({ type: 'doc', content: paras })
+  writingCandidate.value = null
+  ElMessage.success('已写入编辑器，可继续调整后保存')
+}
+
 async function save(): Promise<void> {
   fieldErrors.value = {}
   if (!title.value.trim()) {
@@ -193,15 +237,29 @@ onMounted(load)
         <div class="lb-edit-section lb-edit-section--meta">
           <div class="lb-edit-section-head">
             <span class="lb-edit-section-title">基本信息</span>
-            <el-button
-              link
-              type="primary"
-              :loading="aiSuggesting"
-              data-testid="article-ai-suggest"
-              @click="aiSuggest"
-            >
-              ✦ AI 建议摘要与标签
-            </el-button>
+            <span class="lb-edit-section-ops">
+              <el-dropdown :disabled="writingRunning" @command="(cmd: string) => aiWrite(cmd as 'polish')">
+                <el-button link type="primary" :loading="writingRunning" data-testid="article-ai-write">
+                  ✦ AI 写作
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item v-for="a in WRITING_ACTIONS" :key="a.key" :command="a.key">
+                      {{ a.label }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+              <el-button
+                link
+                type="primary"
+                :loading="aiSuggesting"
+                data-testid="article-ai-suggest"
+                @click="aiSuggest"
+              >
+                ✦ AI 建议摘要与标签
+              </el-button>
+            </span>
           </div>
           <el-form-item label="标题" :error="fieldErrors.title">
             <el-input
@@ -287,6 +345,30 @@ onMounted(load)
         </div>
       </el-form>
     </el-card>
+
+    <!-- AI 写作候选（只建议；采用后整段替换正文为纯段落） -->
+    <el-dialog
+      :model-value="writingCandidate !== null"
+      title="AI 写作候选"
+      width="640px"
+      @update:model-value="(show: boolean) => { if (!show) writingCandidate = null }"
+    >
+      <template v-if="writingCandidate">
+        <p class="lb-writing-warn">
+          动作：{{ writingActionLabel }} ·
+          由 {{ writingCandidate.modelName }} 生成。采用后将<b>整段替换当前正文</b>为纯段落（图文格式会被平铺），请先确认。
+        </p>
+        <pre class="lb-writing-candidate">{{ writingCandidate.text }}</pre>
+      </template>
+      <template #footer>
+        <div class="lb-dialog-actions">
+          <el-button size="small" @click="writingCandidate = null">放弃</el-button>
+          <el-button size="small" type="primary" :disabled="!writingCandidate" @click="adoptWritingCandidate">
+            采用并替换正文
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -378,3 +460,28 @@ onMounted(load)
   margin-bottom: 0;
 }
 </style>
+
+/* AI 写作候选弹窗 */
+.lb-edit-section-ops {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.lb-writing-warn {
+  margin: 0 0 12px;
+  font-size: var(--ed-step-small);
+  color: var(--ed-ink-soft);
+}
+
+.lb-writing-candidate {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px 14px;
+  background: var(--ed-paper);
+  border-radius: var(--ed-radius-sm);
+  white-space: pre-wrap;
+  font-size: var(--ed-step-small);
+  line-height: 1.8;
+}

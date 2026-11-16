@@ -9,10 +9,12 @@ import {
   detachContentMedia,
   getAdminContent,
   listContentMedia,
+  listLabels,
   setContentMediaCover,
   updateContent,
   uploadMedia,
 } from '@/api/admin'
+import { aiGalleryCuration } from '@/api/ai'
 import { ApiError } from '@/api/request'
 import CoverImage from '@/components/CoverImage.vue'
 import type { ContentMediaItemDTO, CreateContentPayload, FieldError, UploadResultDTO } from '@/types/api'
@@ -41,6 +43,8 @@ const saving = ref(false)
 const loading = ref(false)
 const uploading = ref(false)
 const fieldErrors = ref<Record<string, string>>({})
+const labelIds = ref<number[]>([])
+const labelOptions = ref<Array<{ label: string; value: number }>>([])
 
 /** 已挂载的图集（编辑态，来自后端） */
 const album = ref<ContentMediaItemDTO[]>([])
@@ -62,6 +66,7 @@ async function load(): Promise<void> {
     introduce.value = detail.introduce ?? ''
     coverMediaId.value = detail.coverMediaId ?? null
     isPinned.value = detail.isPinned ?? false
+    labelIds.value = detail.labelIds ?? []
     album.value = await listContentMedia(contentId.value)
   } catch (error) {
     ElMessage.error(error instanceof ApiError ? error.message : '加载失败')
@@ -165,6 +170,7 @@ async function save(): Promise<void> {
       introduce: introduce.value.trim() || undefined,
       coverMediaId: coverMediaId.value,
       body: bodyText.value.trim() || undefined,
+      labelIds: labelIds.value,
     }
     if (contentId.value === null) {
       const created = await createContent(payload)
@@ -192,7 +198,45 @@ async function save(): Promise<void> {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  void listLabels().then((labels) => {
+    labelOptions.value = labels.map((item) => ({ label: item.name, value: item.id }))
+  }).catch(() => {})
+})
+
+/* ---- AI 策展建议（只建议；候选逐项点击采纳） ---- */
+const curating = ref(false)
+const curation = ref<{ titles: string[]; summary: string; labels: string[]; modelName: string } | null>(null)
+
+async function openCuration(): Promise<void> {
+  if (!title.value.trim() && !introduce.value.trim()) {
+    ElMessage.warning('先填标题或简介，AI 策展才有抓手（也可先传图再点）')
+  }
+  curating.value = true
+  try {
+    curation.value = await aiGalleryCuration({
+      title: title.value.trim(),
+      introduce: introduce.value.trim(),
+      theme: '',
+      photoCount: album.value.length + staged.value.length,
+    })
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : 'AI 策展失败')
+  } finally {
+    curating.value = false
+  }
+}
+
+function addCurationLabel(label: string): void {
+  const option = labelOptions.value.find((o) => o.label === label)
+  if (option) {
+    if (!labelIds.value.includes(option.value)) labelIds.value.push(option.value)
+    return
+  }
+  // el-select allow-create：字符串值直接作为选中项
+  labelIds.value = [...labelIds.value, label as unknown as number]
+}
 </script>
 
 <template>
@@ -208,9 +252,35 @@ onMounted(load)
     <el-card v-loading="loading" shadow="never" class="lb-edit-card">
       <el-form label-position="top">
         <div class="lb-edit-section">
-          <span class="lb-edit-section-title">作品信息</span>
+          <div class="lb-edit-section-head">
+            <span class="lb-edit-section-title">作品信息</span>
+            <el-button
+              link
+              type="primary"
+              :loading="curating"
+              data-testid="gallery-ai-curation"
+              @click="openCuration"
+            >
+              ✦ AI 策展建议
+            </el-button>
+          </div>
           <el-form-item label="标题" :error="fieldErrors.title">
             <el-input v-model="title" placeholder="作品标题" maxlength="150" show-word-limit data-testid="gallery-title" />
+          </el-form-item>
+          <el-form-item label="标签">
+            <el-select
+              v-model="labelIds"
+              multiple
+              clearable
+              filterable
+              allow-create
+              default-first-option
+              placeholder="选择或输入新标签"
+              style="width: 100%"
+              :max-collapse-tags="6"
+            >
+              <el-option v-for="option in labelOptions" :key="option.value" :label="option.label" :value="option.value" />
+            </el-select>
           </el-form-item>
 
           <el-form-item label="图集" :error="fieldErrors.coverMediaId">
@@ -319,6 +389,50 @@ onMounted(load)
         </div>
       </el-form>
     </el-card>
+
+    <!-- AI 策展建议（只建议；采纳哪项由作者逐个确认） -->
+    <el-dialog
+      :model-value="curation !== null"
+      title="AI 策展建议"
+      width="560px"
+      @update:model-value="(show: boolean) => { if (!show) curation = null }"
+    >
+      <div v-if="curation" class="lb-curation">
+        <p class="lb-curation-hint">点击候选即填充对应字段；可逐项采用。</p>
+        <div class="lb-curation-titles">
+          <button
+            v-for="t in curation.titles"
+            :key="t"
+            type="button"
+            class="lb-curation-title"
+            @click="title = t"
+          >
+            {{ t }}
+          </button>
+        </div>
+        <div class="lb-curation-block">
+          <span class="lb-curation-label">简介</span>
+          <p>{{ curation.summary }}</p>
+          <el-button link type="primary" size="small" @click="introduce = curation.summary">采用简介</el-button>
+        </div>
+        <div class="lb-curation-block">
+          <span class="lb-curation-label">标签</span>
+          <span class="lb-curation-tags">
+            <el-tag
+              v-for="l in curation.labels"
+              :key="l"
+              class="lb-curation-tag"
+              effect="plain"
+              @click="addCurationLabel(l)"
+            >
+              {{ l }}
+            </el-tag>
+          </span>
+          <p class="lb-muted">点击标签即加入下方标签选择。</p>
+        </div>
+        <p class="lb-muted">建议由 {{ curation.modelName }} 生成，仅供参考。</p>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -456,3 +570,73 @@ onMounted(load)
   padding-top: 4px;
 }
 </style>
+
+/* 分节标题行 + 策展建议弹窗 */
+.lb-edit-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.lb-edit-section-head .lb-edit-section-title {
+  margin-bottom: 0;
+}
+
+.lb-curation-hint {
+  margin: 0 0 10px;
+  font-size: var(--ed-step-caption);
+  color: var(--ed-ink-soft);
+}
+
+.lb-curation-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.lb-curation-title {
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid var(--ed-rule-soft);
+  border-radius: var(--ed-radius-sm);
+  background: var(--ed-card);
+  cursor: pointer;
+  font-size: var(--ed-step-small);
+  color: var(--ed-ink);
+  transition: border-color 160ms ease;
+}
+
+.lb-curation-title:hover {
+  border-color: var(--ed-accent);
+}
+
+.lb-curation-block {
+  margin-bottom: 12px;
+}
+
+.lb-curation-label {
+  display: block;
+  font-weight: 600;
+  font-size: var(--ed-step-small);
+  color: var(--ed-ink);
+  margin-bottom: 4px;
+}
+
+.lb-curation-block p {
+  margin: 0 0 4px;
+  font-size: var(--ed-step-small);
+  line-height: 1.7;
+}
+
+.lb-curation-tags {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lb-curation-tag {
+  cursor: pointer;
+}

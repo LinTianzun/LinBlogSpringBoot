@@ -131,3 +131,25 @@ export function bindAiTemplate(feature: string, templateKey: string): Promise<vo
 export function getAiUsage(): Promise<AiUsageSummaryDTO> {
   return get<AiUsageSummaryDTO>('/admin/ai/usage')
 }
+
+/** POST /ai/writing：写作辅助（润色/精简/扩写/续写），返回纯文本候选 */
+export function aiRewriteText(payload: {
+  action: 'polish' | 'shorten' | 'expand' | 'continue'
+  title?: string
+  text: string
+}): Promise<{ text: string; modelName: string }> {
+  return post<{ text: string; modelName: string }>('/ai/writing', payload)
+}
+
+/** POST /ai/gallery/curation：图库策展建议（候选标题/简介/标签） */
+export function aiGalleryCuration(payload: {
+  title?: string
+  introduce?: string
+  theme?: string
+  photoCount?: number
+}): Promise<{ titles: string[]; summary: string; labels: string[]; modelName: string }> {
+  return post<{ titles: string[]; summary: string; labels: string[]; modelName: string }>(
+    '/ai/gallery/curation',
+    payload,
+  )
+}
