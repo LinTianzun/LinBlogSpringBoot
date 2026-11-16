@@ -52,6 +52,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/contents/{id}/media/{mediaId}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setCover"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["settings"];
+        put: operations["updateSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/models/{id}/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["activateModel"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/bindings/{feature}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["bindTemplate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/views": {
         parameters: {
             query?: never;
@@ -94,6 +158,22 @@ export interface paths {
         get: operations["messages"];
         put?: never;
         post: operations["send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/interactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["toggle"];
         delete?: never;
         options?: never;
         head?: never;
@@ -292,6 +372,150 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["avatar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/writing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rewrite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/test-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["testRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/suggest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["suggest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/report/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reviewReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/report/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["operationsReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/message/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["messageReply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/gallery/curation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["galleryCuration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/users": {
         parameters: {
             query?: never;
@@ -372,6 +596,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/contents/{id}/media/{mediaId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["attachMedia"];
+        delete: operations["detachMedia"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/comment-reports/batch": {
         parameters: {
             query?: never;
@@ -382,6 +622,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["batch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/prompt-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["templates"];
+        put?: never;
+        post: operations["createTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["models"];
+        put?: never;
+        post: operations["createModel"];
         delete?: never;
         options?: never;
         head?: never;
@@ -596,6 +868,54 @@ export interface paths {
         patch: operations["handle"];
         trace?: never;
     };
+    "/api/v1/admin/ai/prompt-templates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteTemplate"];
+        options?: never;
+        head?: never;
+        patch: operations["updateTemplate"];
+        trace?: never;
+    };
+    "/api/v1/admin/ai/prompt-templates/{id}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["toggleTemplate"];
+        trace?: never;
+    };
+    "/api/v1/admin/ai/models/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteModel"];
+        options?: never;
+        head?: never;
+        patch: operations["updateModel"];
+        trace?: never;
+    };
     "/api/v1/sitemap.xml": {
         parameters: {
             query?: never;
@@ -724,6 +1044,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/portal/contents/{id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["contentMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/permissions/me": {
         parameters: {
             query?: never;
@@ -764,6 +1100,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["unreadCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/id/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["serveById"];
         put?: never;
         post?: never;
         delete?: never;
@@ -900,6 +1252,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/contents/{id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/comment-reports": {
         parameters: {
             query?: never;
@@ -908,6 +1276,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["page_6"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["usage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1013,6 +1397,56 @@ export interface components {
                 [key: string]: string;
             };
         };
+        ApiResultContentMediaItem: {
+            /** Format: int32 */
+            code?: number;
+            message?: string;
+            data?: components["schemas"]["ContentMediaItem"];
+            requestId?: string;
+        };
+        ContentMediaItem: {
+            /** Format: int64 */
+            mediaId?: number;
+            storageKey?: string;
+            thumbKey?: string;
+            /** Format: int32 */
+            width?: number;
+            /** Format: int32 */
+            height?: number;
+            mimeType?: string;
+            cover?: boolean;
+        };
+        SettingsRequest: {
+            quotaEnabled?: boolean;
+            /** Format: int32 */
+            dailyLimit?: number;
+            /** Format: int32 */
+            monthlyLimit?: number;
+            superAdminUnlimited?: boolean;
+            /** Format: int32 */
+            chatModelId?: number;
+        };
+        AiSetting: {
+            /** Format: int32 */
+            id?: number;
+            quotaEnabled?: boolean;
+            /** Format: int32 */
+            dailyLimit?: number;
+            /** Format: int32 */
+            monthlyLimit?: number;
+            superAdminUnlimited?: boolean;
+            /** Format: int32 */
+            chatModelId?: number;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ApiResultAiSetting: {
+            /** Format: int32 */
+            code?: number;
+            message?: string;
+            data?: components["schemas"]["AiSetting"];
+            requestId?: string;
+        };
         ViewReportRequest: {
             targetType?: string;
             /** Format: int64 */
@@ -1055,6 +1489,23 @@ export interface components {
         };
         SendMessageRequest: {
             body: string;
+        };
+        InteractionRequest: {
+            targetType?: string;
+            /** Format: int64 */
+            targetId?: number;
+        };
+        ApiResultPraiseResult: {
+            /** Format: int32 */
+            code?: number;
+            message?: string;
+            data?: components["schemas"]["PraiseResult"];
+            requestId?: string;
+        };
+        PraiseResult: {
+            active?: boolean;
+            /** Format: int64 */
+            count?: number;
         };
         GuestbookCreateRequest: {
             body?: string;
@@ -1146,22 +1597,11 @@ export interface components {
             reason?: string;
             detail?: string;
         };
-        ApiResultPraiseResult: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PraiseResult"];
-            requestId?: string;
-        };
-        PraiseResult: {
-            active?: boolean;
-            /** Format: int64 */
-            count?: number;
-        };
         RegisterRequest: {
             username: string;
             email: string;
             password: string;
+            nickname?: string;
         };
         ApiResultUserView: {
             /** Format: int32 */
@@ -1181,6 +1621,8 @@ export interface components {
             status?: number;
             /** Format: int32 */
             mustChangePassword?: number;
+            /** Format: int64 */
+            avatarMediaId?: number;
             /** Format: date-time */
             createdAt?: string;
         };
@@ -1199,11 +1641,33 @@ export interface components {
             account: string;
             password: string;
         };
+        ApiResultMapStringObject: {
+            /** Format: int32 */
+            code?: number;
+            message?: string;
+            data?: {
+                [key: string]: unknown;
+            };
+            requestId?: string;
+        };
+        SuggestRequest: {
+            title?: string;
+            content?: string;
+        };
+        ApiResultString: {
+            /** Format: int32 */
+            code?: number;
+            message?: string;
+            data?: string;
+            requestId?: string;
+        };
         CreateUserRequest: {
             username: string;
             email: string;
             password: string;
             nickname?: string;
+            /** Format: int64 */
+            avatarMediaId?: number;
         };
         AdminUserView: {
             /** Format: int64 */
@@ -1216,6 +1680,9 @@ export interface components {
             status?: number;
             /** Format: date-time */
             createdAt?: string;
+            /** Format: int64 */
+            avatarMediaId?: number;
+            avatarUrl?: string;
         };
         ApiResultAdminUserView: {
             /** Format: int32 */
@@ -1328,6 +1795,7 @@ export interface components {
             plainText?: string;
             /** Format: int64 */
             coverMediaId?: number;
+            coverStorageKey?: string;
             state?: string;
             /** Format: date-time */
             publishedAt?: string;
@@ -1365,9 +1833,52 @@ export interface components {
             /** Format: int32 */
             skipped?: number;
         };
+        TemplateRequest: {
+            templateKey: string;
+            featureKey?: string;
+            name: string;
+            description?: string;
+            content: string;
+            variables?: string;
+        };
+        AiPromptTemplate: {
+            /** Format: int32 */
+            id?: number;
+            templateKey?: string;
+            featureKey?: string;
+            name?: string;
+            description?: string;
+            content?: string;
+            variables?: string;
+            enabled?: boolean;
+            isDefault?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ApiResultAiPromptTemplate: {
+            /** Format: int32 */
+            code?: number;
+            message?: string;
+            data?: components["schemas"]["AiPromptTemplate"];
+            requestId?: string;
+        };
+        ModelRequest: {
+            name: string;
+            baseUrl: string;
+            apiKey?: string;
+            chatModel: string;
+            /** Format: int32 */
+            timeoutMs?: number;
+            enabled?: boolean;
+            remark?: string;
+        };
         UpdateUserRequest: {
             nickname?: string;
             email?: string;
+            /** Format: int64 */
+            avatarMediaId?: number;
         };
         StatusRequest: {
             /** Format: int32 */
@@ -1463,14 +1974,21 @@ export interface components {
             /** Format: int64 */
             total?: number;
         };
-        ApiResultMapStringObject: {
+        ApiResultListPortalMediaItem: {
             /** Format: int32 */
             code?: number;
             message?: string;
-            data?: {
-                [key: string]: unknown;
-            };
+            data?: components["schemas"]["PortalMediaItem"][];
             requestId?: string;
+        };
+        PortalMediaItem: {
+            /** Format: int64 */
+            mediaId?: number;
+            storageKey?: string;
+            /** Format: int32 */
+            width?: number;
+            /** Format: int32 */
+            height?: number;
         };
         ApiResultLong: {
             /** Format: int32 */
@@ -1699,6 +2217,13 @@ export interface components {
             backupPercent?: number;
             alert?: boolean;
         };
+        ApiResultListContentMediaItem: {
+            /** Format: int32 */
+            code?: number;
+            message?: string;
+            data?: components["schemas"]["ContentMediaItem"][];
+            requestId?: string;
+        };
         ApiResultPageResultReportView: {
             /** Format: int32 */
             code?: number;
@@ -1733,6 +2258,22 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             handledAt?: string;
+        };
+        ApiResultListAiPromptTemplate: {
+            /** Format: int32 */
+            code?: number;
+            message?: string;
+            data?: components["schemas"]["AiPromptTemplate"][];
+            requestId?: string;
+        };
+        ApiResultListMapStringObject: {
+            /** Format: int32 */
+            code?: number;
+            message?: string;
+            data?: {
+                [key: string]: unknown;
+            }[];
+            requestId?: string;
         };
     };
     responses: never;
@@ -1845,6 +2386,123 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SettingsUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultVoid"];
+                };
+            };
+        };
+    };
+    setCover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                mediaId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultContentMediaItem"];
+                };
+            };
+        };
+    };
+    settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultAiSetting"];
+                };
+            };
+        };
+    };
+    updateSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultAiSetting"];
+                };
+            };
+        };
+    };
+    activateModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultVoid"];
+                };
+            };
+        };
+    };
+    bindTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                feature: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: string;
+                };
             };
         };
         responses: {
@@ -1975,6 +2633,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResultDirectMessageView"];
+                };
+            };
+        };
+    };
+    toggle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InteractionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultPraiseResult"];
                 };
             };
         };
@@ -2282,6 +2964,227 @@ export interface operations {
             };
         };
     };
+    avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultUserView"];
+                };
+            };
+        };
+    };
+    rewrite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultMapStringObject"];
+                };
+            };
+        };
+    };
+    testRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultMapStringObject"];
+                };
+            };
+        };
+    };
+    suggest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuggestRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultMapStringObject"];
+                };
+            };
+        };
+    };
+    reviewReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultMapStringObject"];
+                };
+            };
+        };
+    };
+    operationsReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultString"];
+                };
+            };
+        };
+    };
+    messageReply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultMapStringObject"];
+                };
+            };
+        };
+    };
+    galleryCuration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultMapStringObject"];
+                };
+            };
+        };
+    };
+    cover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultVoid"];
+                };
+            };
+        };
+    };
     page: {
         parameters: {
             query: {
@@ -2495,6 +3398,52 @@ export interface operations {
             };
         };
     };
+    attachMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                mediaId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultContentMediaItem"];
+                };
+            };
+        };
+    };
+    detachMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                mediaId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultVoid"];
+                };
+            };
+        };
+    };
     batch: {
         parameters: {
             query?: never;
@@ -2515,6 +3464,94 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResultBatchResult"];
+                };
+            };
+        };
+    };
+    templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultListAiPromptTemplate"];
+                };
+            };
+        };
+    };
+    createTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultAiPromptTemplate"];
+                };
+            };
+        };
+    };
+    models: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultListMapStringObject"];
+                };
+            };
+        };
+    };
+    createModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultMapStringObject"];
                 };
             };
         };
@@ -2999,6 +4036,130 @@ export interface operations {
             };
         };
     };
+    deleteTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultVoid"];
+                };
+            };
+        };
+    };
+    updateTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultAiPromptTemplate"];
+                };
+            };
+        };
+    };
+    toggleTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultAiPromptTemplate"];
+                };
+            };
+        };
+    };
+    deleteModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultVoid"];
+                };
+            };
+        };
+    };
+    updateModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultMapStringObject"];
+                };
+            };
+        };
+    };
     sitemap: {
         parameters: {
             query?: never;
@@ -3178,6 +4339,28 @@ export interface operations {
             };
         };
     };
+    contentMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultListPortalMediaItem"];
+                };
+            };
+        };
+    };
     me: {
         parameters: {
             query?: never;
@@ -3234,6 +4417,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResultLong"];
+                };
+            };
+        };
+    };
+    serveById: {
+        parameters: {
+            query?: {
+                width?: number;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
                 };
             };
         };
@@ -3409,6 +4616,28 @@ export interface operations {
             };
         };
     };
+    listMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultListContentMediaItem"];
+                };
+            };
+        };
+    };
     page_6: {
         parameters: {
             query: {
@@ -3428,6 +4657,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResultPageResultReportView"];
+                };
+            };
+        };
+    };
+    usage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultMapStringObject"];
                 };
             };
         };

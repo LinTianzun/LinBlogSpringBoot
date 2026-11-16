@@ -38,7 +38,7 @@ backend/                 Spring Boot 单体（Maven 单模块）
   src/main/resources/
     application.yml      默认配置（全部差异走环境变量）
     db/migration/        Flyway 迁移脚本（V1 建 22 表 / V2 补索引 / V3 建 site_settings / V4 加 must_change_password / V5 建 AI 五表）
-  src/test/java/          511 个测试用例（70 个测试类）
+  src/test/java/          514 个测试用例（69 个测试类 + 1 辅助工厂）
 frontend/                Vue 3 + Vite 前端（Element Plus）
   src/api/               request 封装与各域接口
   src/components/        通用组件
@@ -54,12 +54,12 @@ Documentation/           蓝图、立案、开发进度、数据库与开发文�
 
 ## 当前状态
 
-> 后端已注册 **106 个端点**，分属 **23 个控制器**（认证 / 权限 / 用户 / 内容与合集 / 标签 / 日记 / 媒体 / 互动 / 评论与举报 / 留言墙 / 私信与 SSE / 文件 / 概览统计 / 系统日志 / 系统设置 / AI / 门户聚合 / 浏览统计 / SEO）；
+> 后端已注册 **108 个端点**，分属 **23 个控制器**（认证 / 权限 / 用户 / 内容与合集 / 标签 / 日记 / 媒体 / 互动 / 评论与举报 / 留言墙 / 私信与 SSE / 文件 / 概览统计 / 系统日志 / 系统设置 / AI / 门户聚合 / 浏览统计 / SEO）；
 > Flyway **5 个版本脚本**建出 **28 张表**（`V1` 22 表 + `V3` 的 `site_settings` + `V5` 的 AI 五表；`V2` 只补索引、`V4` 只给 `users` 加列）。
-> 后端 **511 个测试用例**（70 个测试类）。JaCoCo 门禁 ≥70%，最近一次 CI 实测行覆盖 **90.73%**。
-> 前端 **40 个页面/布局组件**（门户 12 + 后台 20 + 通用组件 7）、**144 个 vitest 用例**（19 个文件）、**14 条 Playwright E2E**（`frontend/e2e`）。
-> AI 模块（自原版 `ai_*` 移植）遵循同一原则：**AI 只产出建议，落库永远由作者确认后走正常保存流程**；模型密钥以 AES-256-GCM 存储，加密密钥由 `JWT_ACCESS_SECRET` 派生（因此**不新增环境变量**，但换 JWT 密钥会使已存密文失效）。
-> **CI 现状**（run `42431664050`，head `047b41b`）：backend ✅ / frontend ✅ / **contract ❌**（`src/types/schema.d.ts` 快照缺 `POST /api/v1/interactions`）/ **e2e ❌**（「构建并启动 compose 栈」步骤失败）。逐项进度见 [`Documentation/开发进度.md`](Documentation/开发进度.md)。
+> 后端 **514 个测试用例**（69 个测试类 + 1 辅助工厂）。JaCoCo 门禁 ≥70%，最近一次 CI 实测行覆盖 **90.73%**。
+> 前端 **41 个页面/布局组件**（门户 12 + 后台 20 + 通用组件 8，含 BlogPet 网页宠物）、**165 个 vitest 用例**（21 个文件）、**14 条 Playwright E2E**（`frontend/e2e`）。
+> AI 模块（自原版 `ai_*` 移植，文本域六功能全量：写作建议 / 写作辅助 / 图库策展 / 举报辅助 / 运营周报 / 私信拟回复）遵循同一原则：**AI 只产出建议，落库永远由作者确认后走正常保存流程**；模型密钥以 AES-256-GCM 存储，加密密钥由 `JWT_ACCESS_SECRET` 派生（因此**不新增环境变量**，但换 JWT 密钥会使已存密文失效）。
+> **CI 现状**：本地最后实跑基线为 `53d1490`（backend ✅ / frontend ✅ / 用例 511）；此后新增 5 笔提交（默认头像 / BlogPet / AI 文本域收官 / 契约快照重生成）尚未推送——**contract 契约漂移已在本地根除**（`openapi.json` 61→85 paths、`schema.d.ts` 已重生成，快照缺 `POST /api/v1/interactions` 的旧问题不复存在）；e2e job 的「compose 起全栈」步骤失败仍待修复。推送后以最新 run 为准，逐项进度见 [`Documentation/开发进度.md`](Documentation/开发进度.md)。
 
 ## 本地开发
 
