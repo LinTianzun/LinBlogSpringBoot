@@ -14,7 +14,7 @@ import { expect, type Page, type APIRequestContext } from '@playwright/test'
 export const ADMIN_ACCOUNT = process.env.E2E_ADMIN_ACCOUNT || 'admin@linlog.com'
 export const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'LinBlog@2026'
 // 首改后的密码（admin 若 mustChangePassword=1 会被强制改到它）
-export const ADMIN_PASSWORD_AFTER = process.env.E2E_ADMIN_PASSWORD_AFTER || '{{SECRET_zk3pq8dm}}'
+export const ADMIN_PASSWORD_AFTER = process.env.E2E_ADMIN_PASSWORD_AFTER || 'E2E-After-Password-1'
 
 /** API 登录（写 Cookie 到当前 context）。返回是否成功。 */
 export async function loginViaApi(

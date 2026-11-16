@@ -249,7 +249,7 @@ function addCurationLabel(label: string): void {
       </div>
     </div>
 
-    <el-card v-loading="loading" shadow="never" class="lb-edit-card">
+    <el-card v-loading="loading" class="lb-edit-card" shadow="never">
       <el-form label-position="top">
         <div class="lb-edit-section">
           <div class="lb-edit-section-head">
@@ -353,7 +353,7 @@ function addCurationLabel(label: string): void {
                   data-testid="gallery-upload"
                   :before-upload="beforeUpload"
                 >
-                  <div class="lb-album-upload-box" v-loading="uploading">
+                  <div v-loading="uploading" class="lb-album-upload-box">
                     <span class="lb-album-plus">＋</span>
                     <span class="lb-album-upload-label">上传图片</span>
                   </div>

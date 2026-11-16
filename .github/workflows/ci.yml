@@ -228,9 +228,18 @@ jobs:
         working-directory: deploy
         run: cp ci.env .env
 
-      - name: 构建并启动 compose 栈
+      # 构建与启动分两步：build 失败一眼可辨；up --wait 超时给足冷启动余量
+      - name: 构建镜像
         working-directory: deploy
-        run: docker compose up -d --build --wait --wait-timeout 300
+        run: docker compose build
+
+      - name: 启动 compose 栈并等待健康
+        working-directory: deploy
+        run: docker compose up -d --wait --wait-timeout 600
+
+      - name: 栈状态速览
+        working-directory: deploy
+        run: docker compose ps
 
       - name: corepack 启用 pnpm
         run: corepack enable
@@ -258,7 +267,7 @@ jobs:
           E2E_BASE_URL: http://localhost
           E2E_ADMIN_ACCOUNT: admin@linlog.com
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD || 'LinBlog@2026' }}
-          E2E_ADMIN_PASSWORD_AFTER: ${{ secrets.E2E_ADMIN_PASSWORD_AFTER || '{{SECRET_zk3pq8dm}}' }}
+          E2E_ADMIN_PASSWORD_AFTER: ${{ secrets.E2E_ADMIN_PASSWORD_AFTER || 'E2E-After-Password-1' }}
         run: |
           pnpm exec playwright install --with-deps chromium
           pnpm exec playwright test
@@ -270,3 +279,11 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 7
+
+      # 失败时倾倒容器状态与后端日志，便于定位 compose/playwright 失败原因
+      - name: 失败时倾倒栈日志
+        if: failure()
+        working-directory: deploy
+        run: |
+          docker compose ps -a || true
+          docker compose logs --tail 300 backend caddy mysql || true

@@ -5,7 +5,6 @@
 //   node scripts/seed-dev-data.mjs
 // 可重复执行：用户/标签按名幂等，内容按标题去重，其余追加。
 // 环境变量：SEED_BASE（默认 http://localhost:8080）、SEED_ADMIN_PW（默认 Admin@linblog2026）。
-/* eslint-env node */
 
 const BASE = process.env.SEED_BASE || 'http://localhost:8080'
 const ADMIN_PW = process.env.SEED_ADMIN_PW || 'Admin@linblog2026'
