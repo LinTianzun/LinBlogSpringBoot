@@ -516,6 +516,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/cover/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirmCover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/users": {
         parameters: {
             query?: never;
@@ -1425,6 +1441,10 @@ export interface components {
             superAdminUnlimited?: boolean;
             /** Format: int32 */
             chatModelId?: number;
+            /** Format: int32 */
+            imageModelId?: number;
+            removeWatermark?: boolean;
+            watermarkMode?: string;
         };
         AiSetting: {
             /** Format: int32 */
@@ -1437,6 +1457,10 @@ export interface components {
             superAdminUnlimited?: boolean;
             /** Format: int32 */
             chatModelId?: number;
+            /** Format: int32 */
+            imageModelId?: number;
+            removeWatermark?: boolean;
+            watermarkMode?: string;
             /** Format: date-time */
             updatedAt?: string;
         };
@@ -1869,6 +1893,8 @@ export interface components {
             baseUrl: string;
             apiKey?: string;
             chatModel: string;
+            imageModel?: string;
+            imageSize?: string;
             /** Format: int32 */
             timeoutMs?: number;
             enabled?: boolean;
@@ -3172,7 +3198,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: string;
+                };
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -3180,7 +3212,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResultVoid"];
+                    "*/*": components["schemas"]["ApiResultMapStringObject"];
+                };
+            };
+        };
+    };
+    confirmCover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResultMapStringObject"];
                 };
             };
         };
