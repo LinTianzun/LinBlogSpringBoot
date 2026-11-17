@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { ElMessage } from 'element-plus'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { listLabels } from '@/api/admin'
-import { listPortalContents } from '@/api/portal'
+import { listPortalContents, searchPortalContents } from '@/api/portal'
+import { aiExpandSearch } from '@/api/ai'
 import { ApiError } from '@/api/request'
 import CoverImage from '@/components/CoverImage.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
@@ -34,9 +36,10 @@ const PAGE_SIZE = 10
 
 const activeLabel = computed(() => labels.value.find((item) => item.id === labelId.value) ?? null)
 
-/** 首篇「领读」：大卡；其余为卡片行。 */
-const lead = computed<ContentView | null>(() => records.value[0] ?? null)
-const rest = computed<ContentView[]>(() => records.value.slice(1))
+/** 首篇「领读」：大卡；其余为卡片行。搜索模式下用结果列表。 */
+const displayRecords = computed<ContentView[]>(() => (searchMode.value ? searchRecords.value : records.value))
+const lead = computed<ContentView | null>(() => displayRecords.value[0] ?? null)
+const rest = computed<ContentView[]>(() => displayRecords.value.slice(1))
 
 /* ---------- 进入渐显（自带 IO；尊重 reduced-motion；无 JS 不丢） ---------- */
 const reducedMotion =
@@ -63,6 +66,51 @@ function observeReveals(): void {
   document.querySelectorAll<HTMLElement>('.lb-ed-reveal.is-armed').forEach((el) => {
     if (!el.classList.contains('is-in')) io?.observe(el)
   })
+}
+
+/* ---- 语义搜索：AI 扩词 → 多词 OR 检索（扩展失败降级原词） ---- */
+const searchQuery = ref('')
+const searchTerms = ref<string[]>([])
+const searchRecords = ref<ContentView[]>([])
+const searching = ref(false)
+const searchMode = ref(false)
+
+async function runSearch(): Promise<void> {
+  const query = searchQuery.value.trim()
+  if (!query) {
+    ElMessage.warning('先输入想找的内容，比如「服务器变慢」')
+    return
+  }
+  searching.value = true
+  errorMessage.value = ''
+  try {
+    let terms: string[] = [query]
+    try {
+      const expansion = await aiExpandSearch({ query })
+      for (const t of expansion.terms) {
+        if (!terms.includes(t)) terms.push(t)
+      }
+    } catch {
+      // AI 扩词失败不阻塞搜索：按原词检索（与原版语义一致）
+    }
+    searchTerms.value = terms
+    const result = await searchPortalContents({ query })
+    searchRecords.value = result.records
+    searchMode.value = true
+    page.value = 1
+  } catch (error) {
+    errorMessage.value = error instanceof ApiError ? error.message : '搜索失败'
+  } finally {
+    searching.value = false
+  }
+}
+
+function clearSearch(): void {
+  searchMode.value = false
+  searchQuery.value = ''
+  searchTerms.value = []
+  searchRecords.value = []
+  void load()
 }
 
 async function load(): Promise<void> {
@@ -165,6 +213,23 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
+        <div class="lb-articles-search" role="search">
+          <el-input
+            v-model="searchQuery"
+            class="lb-articles-search-input"
+            placeholder="搜索文章，试试自然语言：服务器变慢了怎么办"
+            clearable
+            maxlength="100"
+            @keyup.enter="runSearch"
+            @clear="clearSearch"
+          />
+          <el-button type="primary" :loading="searching" @click="runSearch">搜索</el-button>
+        </div>
+        <div v-if="searchMode && searchTerms.length > 0" class="lb-articles-terms" role="group" aria-label="AI 扩展的关键词">
+          <span class="lb-muted">已按关键词检索：</span>
+          <span v-for="t in searchTerms" :key="t" class="lb-chip is-active">{{ t }}</span>
+          <button type="button" class="lb-chip" @click="clearSearch">退出搜索</button>
+        </div>
         <div v-if="labels.length > 0" class="lb-articles-tags" role="group" aria-label="按标签筛选">
           <button
             type="button"
@@ -639,3 +704,23 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
+/* ---------- 语义搜索 ---------- */
+.lb-articles-search {
+  display: flex;
+  gap: 10px;
+  width: min(520px, 100%);
+  margin-bottom: 14px;
+}
+
+.lb-articles-search-input {
+  flex: 1;
+}
+
+.lb-articles-terms {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}

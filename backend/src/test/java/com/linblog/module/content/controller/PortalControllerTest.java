@@ -32,6 +32,8 @@ class PortalControllerTest {
     private ContentService contentService;
     private DiaryService diaryService;
     private ViewService viewService;
+    private com.linblog.module.ai.service.AiService aiService;
+    private com.linblog.security.RateLimiter rateLimiter;
     private MockMvc mockMvc;
 
     private static ContentView view(long id) {
@@ -45,7 +47,10 @@ class PortalControllerTest {
         contentService = Mockito.mock(ContentService.class);
         diaryService = Mockito.mock(DiaryService.class);
         viewService = Mockito.mock(ViewService.class);
-        PortalController controller = new PortalController(contentService, diaryService, viewService);
+        aiService = Mockito.mock(com.linblog.module.ai.service.AiService.class);
+        rateLimiter = Mockito.mock(com.linblog.security.RateLimiter.class);
+        org.mockito.Mockito.when(rateLimiter.tryAiSearch(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
+        PortalController controller = new PortalController(contentService, diaryService, aiService, viewService, rateLimiter);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();

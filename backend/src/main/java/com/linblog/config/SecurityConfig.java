@@ -50,6 +50,7 @@ public class SecurityConfig {
             "/api/v1/labels",
             "/api/v1/media/**",
             "/api/v1/views",
+            "/api/v1/ai/search/expand",
             "/api/v1/guestbook",
             "/api/v1/sitemap.xml",
             "/api/v1/robots.txt",

@@ -110,3 +110,11 @@ export function praiseInteraction(
 export function listPortalContentMedia(id: number): Promise<PortalMediaDTO[]> {
   return get<PortalMediaDTO[]>(`/portal/contents/${id}/media`)
 }
+
+/** POST /portal/search：门户语义搜索（匿名；AI 扩词失败降级原词） */
+export function searchPortalContents(payload: { query: string }): Promise<{
+  terms: string[]
+  records: ContentView[]
+}> {
+  return post<{ terms: string[]; records: ContentView[] }>('/portal/search', payload)
+}

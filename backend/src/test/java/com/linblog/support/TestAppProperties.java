@@ -42,6 +42,7 @@ public final class TestAppProperties {
                 false,                              // geoipEnabled
                 2,                                  // rateLimitLogin
                 3,                                  // rateLimitReset
+                10,                                 // rateLimitAiSearch
                 null                                // smtp
         };
         if (overrides != null) {
@@ -57,6 +58,6 @@ public final class TestAppProperties {
                 (Integer) v[4], (String) v[5], (Boolean) v[6], (String) v[7], (String) v[8],
                 (String) v[9], (String) v[10], (String) v[11], (String) v[12], (String) v[13],
                 (DataSize) v[14], (Integer) v[15], (Integer) v[16], (Integer) v[17], (Integer) v[18],
-                (Boolean) v[19], (Integer) v[20], (Integer) v[21], (AppProperties.Smtp) v[22]);
+                (Boolean) v[19], (Integer) v[20], (Integer) v[21], (Integer) v[22], (AppProperties.Smtp) v[23]);
     }
 }

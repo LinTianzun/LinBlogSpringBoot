@@ -35,6 +35,7 @@ public record AppProperties(
         boolean geoipEnabled,
         int rateLimitLogin,
         int rateLimitReset,
+        int rateLimitAiSearch,
         Smtp smtp
 ) {
 

@@ -300,7 +300,7 @@ class AuthServiceTest {
         User u = user(9L, "alice", "alice@linlog.com", "h", "viewer", 1, 0);
         when(userMapper.selectOne(any())).thenReturn(u);
         AppProperties configured = TestAppProperties.of(new Object[]{
-                22, new AppProperties.Smtp("smtp.test.local", 587, false, "u", "p", "no-reply@linlog.com")});
+                23, new AppProperties.Smtp("smtp.test.local", 587, false, "u", "p", "no-reply@linlog.com")});
         MailService sending = mock(MailService.class);
         when(sending.isConfigured()).thenReturn(true);
         service = new AuthService(userMapper, refreshTokenService, resetTokenMapper, encoder,

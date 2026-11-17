@@ -123,9 +123,15 @@ public class AiService {
 
     private void logUsage(AuthPrincipal principal, String feature, AiModel model, String status,
                           String detail, long durationMs, int promptTokens, int completionTokens, int outputChars) {
+        logUsage(principal == null ? 0L : principal.uid(), feature, model, status, detail, durationMs,
+                promptTokens, completionTokens, outputChars);
+    }
+
+    private void logUsage(long userId, String feature, AiModel model, String status,
+                          String detail, long durationMs, int promptTokens, int completionTokens, int outputChars) {
         try {
             AiUsageLog row = new AiUsageLog();
-            row.setUserId(principal.uid());
+            row.setUserId(userId);
             row.setFeature(feature);
             row.setModelName(model == null ? null : model.getChatModel());
             row.setStatus(status);
@@ -361,6 +367,45 @@ public class AiService {
                 "output", outcome.text(),
                 "modelName", outcome.model().getName(),
                 "durationMs", outcome.durationMs());
+    }
+
+    /**
+     * 语义搜索扩词（匿名可用，user_id=0 落账）：只扩关键词，不生成答案，
+     * 最终命中与排序仍由数据库决定。查询 ≤100 字，由控制器裁剪。
+     */
+    public List<String> expandSearchQuery(String query) {
+        if (query == null || query.isBlank()) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "搜索关键词不能为空");
+        }
+        String plain = query.trim();
+        if (plain.length() > 100) {
+            plain = plain.substring(0, 100);
+        }
+        AiService.ResolvedPrompt prompt = resolvePrompt("search");
+        final String queryTerm = plain;
+        String rendered = render(prompt.content(), Map.of("query", plain));
+        AiModel model = resolveModel();
+        long startedAt = System.currentTimeMillis();
+        try {
+            AiClientService.ChatResult result = client.chatCompletion(model, null, rendered, true);
+            logUsage(0L, "search", model, "success", null, System.currentTimeMillis() - startedAt,
+                    result.promptTokens(), result.completionTokens(),
+                    result.text().length());
+            JsonNode node = parseJsonOutput(result.text());
+            List<String> terms = new ArrayList<>();
+            node.path("terms").forEach(t -> {
+                String term = t.asText().trim();
+                if (!term.isEmpty() && !term.equals(queryTerm) && terms.size() < 5) {
+                    terms.add(term);
+                }
+            });
+            return terms;
+        } catch (BizException e) {
+            logUsage(0L, "search", model,
+                    e.getErrorCode() == ErrorCode.RATE_LIMITED ? "denied" : "failed",
+                    e.getMessage(), System.currentTimeMillis() - startedAt, 0, 0, 0);
+            throw e;
+        }
     }
 
     /** 私信拟回复：2 条候选话术（热情/克制），作者点选后才写输入框。 */

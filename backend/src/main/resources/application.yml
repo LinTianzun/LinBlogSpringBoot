@@ -62,6 +62,7 @@ app:
   geoip-enabled: ${GEOIP_ENABLED:false}
   rate-limit-login: ${RATE_LIMIT_LOGIN:5}
   rate-limit-reset: ${RATE_LIMIT_RESET:5}
+  rate-limit-ai-search: ${RATE_LIMIT_AI_SEARCH:10}
   smtp:
     host: ${SMTP_HOST:}
     port: ${SMTP_PORT:465}

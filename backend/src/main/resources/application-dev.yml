@@ -27,6 +27,7 @@ app:
   geoip-enabled: false
   rate-limit-login: 5
   rate-limit-reset: 5
+  rate-limit-ai-search: 10
   smtp:
     host:
     port: 465

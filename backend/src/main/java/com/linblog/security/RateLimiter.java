@@ -18,6 +18,7 @@ public class RateLimiter {
 
     private final LoadingCache<String, Bucket> loginBuckets;
     private final LoadingCache<String, Bucket> resetBuckets;
+    private final LoadingCache<String, Bucket> aiSearchBuckets;
 
     public RateLimiter(AppProperties props) {
         this.loginBuckets = Caffeine.newBuilder()
@@ -28,6 +29,10 @@ public class RateLimiter {
                 .expireAfterAccess(Duration.ofHours(2))
                 .maximumSize(10_000)
                 .build(ip -> newBucket(props.rateLimitReset()));
+        this.aiSearchBuckets = Caffeine.newBuilder()
+                .expireAfterAccess(Duration.ofHours(2))
+                .maximumSize(10_000)
+                .build(ip -> newBucket(props.rateLimitAiSearch()));
     }
 
     private static Bucket newBucket(int perMinute) {
@@ -41,6 +46,11 @@ public class RateLimiter {
 
     public boolean tryLogin(String ip) {
         return loginBuckets.get(ip).tryConsume(1);
+    }
+
+    /** 匿名 AI 搜索扩词的每 IP 限流（门户公开端点，无账号配额可依赖）。 */
+    public boolean tryAiSearch(String ip) {
+        return aiSearchBuckets.get(ip).tryConsume(1);
     }
 
     public boolean tryReset(String ip) {

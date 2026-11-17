@@ -13,6 +13,10 @@ import com.linblog.module.user.entity.User;
 import com.linblog.module.user.mapper.UserMapper;
 import com.linblog.security.AuthPrincipal;
 import com.linblog.security.CurrentUser;
+import com.linblog.security.IpUtil;
+import com.linblog.security.RateLimiter;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,14 +38,16 @@ public class AiController {
     private final OverviewService overviewService;
     private final MessageService messageService;
     private final UserMapper userMapper;
+    private final RateLimiter rateLimiter;
 
     public AiController(AiService aiService, AiImageService imageService, OverviewService overviewService,
-                        MessageService messageService, UserMapper userMapper) {
+                        MessageService messageService, UserMapper userMapper, RateLimiter rateLimiter) {
         this.aiService = aiService;
         this.imageService = imageService;
         this.overviewService = overviewService;
         this.messageService = messageService;
         this.userMapper = userMapper;
+        this.rateLimiter = rateLimiter;
     }
 
     private AuthPrincipal requirePrincipal() {
@@ -119,6 +125,19 @@ public class AiController {
                 String.valueOf(body.getOrDefault("introduce", "")),
                 String.valueOf(body.getOrDefault("theme", "")),
                 photoCount));
+    }
+
+    /**
+     * 语义搜索扩词（匿名可用，每 IP 限流 RATE_LIMIT_AI_SEARCH 次/分钟）：
+     * 只扩关键词不生成答案，命中与排序仍由数据库决定。匿名调用按 user_id=0 落用量账。
+     */
+    @PostMapping("/search/expand")
+    public ApiResult<List<String>> expandSearch(@RequestBody Map<String, String> body,
+                                                HttpServletRequest request) {
+        if (!rateLimiter.tryAiSearch(IpUtil.clientIp(request))) {
+            throw new BizException(ErrorCode.RATE_LIMITED);
+        }
+        return ApiResult.ok(aiService.expandSearchQuery(body.getOrDefault("query", "")));
     }
 
     /** 生图候选：{token, dataUri, prompt, modelName}——确认采用后才落 media（AI 图片域）。 */

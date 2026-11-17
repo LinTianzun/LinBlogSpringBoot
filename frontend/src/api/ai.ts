@@ -179,3 +179,8 @@ export function aiGenerateCover(payload: {
 export function aiConfirmCover(token: string): Promise<{ mediaId: number; storageKey: string; url: string }> {
   return post<{ mediaId: number; storageKey: string; url: string }>('/ai/cover/confirm', { token })
 }
+
+/** POST /ai/search/expand：语义搜索扩词（匿名可用，每 IP 限流） */
+export function aiExpandSearch(payload: { query: string }): Promise<{ terms: string[] }> {
+  return post<{ terms: string[] }>('/ai/search/expand', payload)
+}

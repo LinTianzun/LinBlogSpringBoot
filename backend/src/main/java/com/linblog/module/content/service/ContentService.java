@@ -369,14 +369,43 @@ public class ContentService {
             wrapper.inSql(Content::getId, "SELECT content_id FROM content_labels WHERE label_id = " + labelId);
         }
         if (query.getKeyword() != null && !query.getKeyword().isBlank()) {
+            // FULLTEXT 索引为复合列 (title, plain_text)：MATCH 的列组必须与索引完全一致，否则 MySQL 1191
             wrapper.and(w -> w.like(Content::getTitle, query.getKeyword())
                     .or()
-                    .apply("MATCH(plain_text) AGAINST({0} IN NATURAL LANGUAGE MODE)", query.getKeyword()));
+                    .apply("MATCH(title, plain_text) AGAINST({0} IN NATURAL LANGUAGE MODE)", query.getKeyword()));
         }
         wrapper.orderByDesc(Content::getIsPinned).orderByDesc(Content::getPublishedAt);
         contentMapper.selectPage(page, wrapper);
         List<ContentView> views = toViews(page.getRecords(), false);
         return PageResult.of(views, page.getTotal());
+    }
+
+    /**
+     * 门户语义搜索（§AI 匿名开放）：多关键词 OR 命中已发布内容的 title / plain_text，
+     * 关键词由 AI 扩词产生（原词含在内）；命中与排序仍由数据库决定，固定 20 条。
+     */
+    public List<ContentView> searchPublished(List<String> terms) {
+        if (terms == null || terms.isEmpty()) {
+            return List.of();
+        }
+        Page<Content> page = new Page<>(1, 20);
+        LambdaQueryWrapper<Content> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Content::getState, STATE_PUBLISHED);
+        wrapper.and(w -> {
+            boolean first = true;
+            for (String term : terms) {
+                String like = term.trim();
+                if (like.isEmpty()) continue;
+                if (!first) w.or();
+                w.nested(n -> n.like(Content::getTitle, like)
+                        .or()
+                        .apply("MATCH(title, plain_text) AGAINST({0} IN NATURAL LANGUAGE MODE)", like));
+                first = false;
+            }
+        });
+        wrapper.orderByDesc(Content::getPublishedAt);
+        contentMapper.selectPage(page, wrapper);
+        return toViews(page.getRecords(), false);
     }
 
     public List<ContentView> portalPinned() {

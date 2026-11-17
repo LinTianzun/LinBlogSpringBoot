@@ -228,6 +228,26 @@ class AiServiceTest {
     }
 
     @Test
+    void expandSearchQueryParsesTermsAndCapsAtFive() {
+        settings(false, 0);
+        when(modelMapper.selectList(any())).thenReturn(List.of(enabledModel()));
+        when(client.chatCompletion(any(), any(), anyString(), eq(true)))
+                .thenReturn(new AiClientService.ChatResult(
+                        "{\"terms\":[\"缓存\",\"性能优化\",\"重构\",\"压测\",\"延迟\",\"第六个\"],\"other\":1}", 10, 8));
+
+        List<String> terms = service.expandSearchQuery("网站变慢是怎么回事");
+        // 原词不回填由控制器处理；这里只收 AI 扩展词，最多 5 个
+        assertEquals(5, terms.size());
+        assertEquals("缓存", terms.get(0));
+    }
+
+    @Test
+    void expandSearchQueryRejectsBlank() {
+        BizException ex = assertThrows(BizException.class, () -> service.expandSearchQuery("  "));
+        assertEquals(ErrorCode.BAD_REQUEST, ex.getErrorCode());
+    }
+
+    @Test
     void messageRepliesParsedAndCappedAtTwo() {
         settings(false, 0);
         when(modelMapper.selectList(any())).thenReturn(List.of(enabledModel()));

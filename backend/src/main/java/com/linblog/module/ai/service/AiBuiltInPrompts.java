@@ -101,6 +101,18 @@ public final class AiBuiltInPrompts {
                             "内容总数：{{contents}}，新增评论：{{comments}} 条，新增私信：{{messages}} 条",
                             "页面访问：{{visits}} 次",
                             "热门路径：{{topPaths}}")),
+            "search", new BuiltinPrompt(
+                    "search", "语义搜索", "把自然语言查询扩展成可检索关键词",
+                    "{{query}} 用户查询",
+                    String.join("\n",
+                            "你是一名中文站内搜索助手。请把用户的自然语言查询扩展成 2-5 个可以直接用于站内全文检索的关键词。",
+                            "要求：",
+                            "1. 关键词要用中文短语，覆盖同义词、近义词与常见别名；",
+                            "2. 不要输出原查询里已有的完整词组；",
+                            "3. 每个关键词不超过 8 个字，彼此不重复；",
+                            "4. 只输出一个 JSON 对象，格式为 {\"terms\":[\"...\"]}，不要输出解释或 Markdown 代码块。",
+                            "",
+                            "用户查询：{{query}}")),
             "message", new BuiltinPrompt(
                     "message", "私信拟回复", "根据对话上下文生成候选回复话术",
                     "{{peerName}} 对话对方\n{{history}} 最近对话\n{{tone}} 作者期望的语气（可为空）",
