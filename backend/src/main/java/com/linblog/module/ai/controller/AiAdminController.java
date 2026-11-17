@@ -46,13 +46,17 @@ public class AiAdminController {
                                @NotBlank String baseUrl,
                                String apiKey,
                                @NotBlank @Size(max = 128) String chatModel,
+                               @Size(max = 128) String imageModel,
+                               @Size(max = 16) String imageSize,
                                Integer timeoutMs,
                                Boolean enabled,
                                String remark) {
     }
 
     public record SettingsRequest(Boolean quotaEnabled, Integer dailyLimit, Integer monthlyLimit,
-                                  Boolean superAdminUnlimited, Integer chatModelId) {
+                                  Boolean superAdminUnlimited, Integer chatModelId,
+                                  Integer imageModelId, Boolean removeWatermark,
+                                  String watermarkMode) {
     }
 
     public record TemplateRequest(@NotBlank @Size(max = 64) String templateKey,
@@ -107,16 +111,19 @@ public class AiAdminController {
         } catch (Exception e) {
             masked = "••••";
         }
-        return Map.of(
-                "id", m.getId(),
-                "name", m.getName(),
-                "baseUrl", m.getBaseUrl(),
-                "apiKeyMasked", masked,
-                "chatModel", m.getChatModel(),
-                "timeoutMs", m.getTimeoutMs(),
-                "enabled", m.getEnabled(),
-                "isDefault", m.getIsDefault(),
-                "remark", m.getRemark() == null ? "" : m.getRemark());
+        Map<String, Object> view = new java.util.LinkedHashMap<>();
+        view.put("id", m.getId());
+        view.put("name", m.getName());
+        view.put("baseUrl", m.getBaseUrl());
+        view.put("apiKeyMasked", masked);
+        view.put("chatModel", m.getChatModel());
+        view.put("imageModel", m.getImageModel());
+        view.put("imageSize", m.getImageSize());
+        view.put("timeoutMs", m.getTimeoutMs());
+        view.put("enabled", m.getEnabled());
+        view.put("isDefault", m.getIsDefault());
+        view.put("remark", m.getRemark() == null ? "" : m.getRemark());
+        return view;
     }
 
     @GetMapping("/models")
@@ -165,6 +172,9 @@ public class AiAdminController {
         model.setProvider("openai");
         model.setBaseUrl(body.baseUrl().trim());
         model.setChatModel(body.chatModel().trim());
+        model.setImageModel(body.imageModel() == null ? "" : body.imageModel().trim());
+        model.setImageSize(body.imageSize() == null || body.imageSize().isBlank()
+                ? "1344x768" : body.imageSize().trim());
         model.setTimeoutMs(body.timeoutMs() == null ? 20000 : Math.max(1000, body.timeoutMs()));
         model.setEnabled(body.enabled() == null || body.enabled());
         model.setRemark(body.remark());
@@ -222,6 +232,14 @@ public class AiAdminController {
         if (body.monthlyLimit() != null) setting.setMonthlyLimit(Math.max(0, body.monthlyLimit()));
         if (body.superAdminUnlimited() != null) setting.setSuperAdminUnlimited(body.superAdminUnlimited());
         if (body.chatModelId() != null) setting.setChatModelId(body.chatModelId());
+        if (body.imageModelId() != null) setting.setImageModelId(body.imageModelId());
+        if (body.removeWatermark() != null) setting.setRemoveWatermark(body.removeWatermark());
+        if (body.watermarkMode() != null && !body.watermarkMode().isBlank()) {
+            if (!List.of("crop", "crop-resize").contains(body.watermarkMode())) {
+                throw new BizException(ErrorCode.BAD_REQUEST, "watermarkMode 只支持 crop / crop-resize");
+            }
+            setting.setWatermarkMode(body.watermarkMode());
+        }
         settingMapper.updateById(setting);
         systemLogService.record(principal.uid(), "ai", "update_settings", "ai_setting", 1L, null, null);
         return ApiResult.ok(setting);

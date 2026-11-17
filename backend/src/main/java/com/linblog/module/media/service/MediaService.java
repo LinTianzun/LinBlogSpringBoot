@@ -111,6 +111,21 @@ public class MediaService {
         return saveImage(principal, data, detected, sha256Hex(data), file.getOriginalFilename());
     }
 
+    /**
+     * 字节缓冲直接入库（AI 生图「确认采用」后的持久化路径）：与 upload 共享
+     * sha256 去重、缩略图与系统日志；调用方需已登录（AI 确认端点自带归属校验）。
+     */
+    public UploadResult persistImageBuffer(byte[] data, String mimeType, String originalFilename) {
+        AuthPrincipal principal = CurrentUser.get();
+        if (principal == null) {
+            throw new BizException(ErrorCode.UNAUTHENTICATED, "未登录");
+        }
+        if (!mimeType.startsWith("image/")) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "仅支持图片文件");
+        }
+        return saveImage(principal, data, mimeType, sha256Hex(data), originalFilename);
+    }
+
     private UploadResult doUpload(MultipartFile file, AuthPrincipal principal) {
         if (file == null || file.isEmpty()) {
             throw new BizException(ErrorCode.BAD_REQUEST, "文件不能为空");

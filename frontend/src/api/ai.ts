@@ -51,6 +51,8 @@ export function createAiModel(payload: {
   baseUrl: string
   apiKey: string
   chatModel: string
+  imageModel?: string
+  imageSize?: string
   timeoutMs?: number
   enabled?: boolean
   remark?: string
@@ -63,6 +65,8 @@ export function updateAiModel(id: number, payload: {
   baseUrl: string
   apiKey?: string
   chatModel: string
+  imageModel?: string
+  imageSize?: string
   timeoutMs?: number
   enabled?: boolean
   remark?: string
@@ -160,4 +164,18 @@ export function aiMessageReply(payload: {
   tone?: string
 }): Promise<{ replies: string[] }> {
   return post<{ replies: string[] }>('/ai/message/reply', payload)
+}
+
+/** POST /ai/cover：生图候选（token + dataUri 预览；采用需走 confirm） */
+export function aiGenerateCover(payload: {
+  title: string
+  introduce?: string
+  content?: string
+}): Promise<{ token: string; dataUri: string; prompt: string; modelName: string }> {
+  return post<{ token: string; dataUri: string; prompt: string; modelName: string }>('/ai/cover', payload)
+}
+
+/** POST /ai/cover/confirm：一次性消费 token → 落 media → 返回封面引用 */
+export function aiConfirmCover(token: string): Promise<{ mediaId: number; storageKey: string; url: string }> {
+  return post<{ mediaId: number; storageKey: string; url: string }>('/ai/cover/confirm', { token })
 }

@@ -3,6 +3,7 @@ package com.linblog.module.ai.controller;
 import com.linblog.common.ApiResult;
 import com.linblog.common.BizException;
 import com.linblog.common.ErrorCode;
+import com.linblog.module.ai.service.AiImageService;
 import com.linblog.module.ai.service.AiService;
 import com.linblog.module.message.service.MessageService;
 import com.linblog.module.stats.dto.SummaryResult;
@@ -29,13 +30,15 @@ import java.util.Map;
 public class AiController {
 
     private final AiService aiService;
+    private final AiImageService imageService;
     private final OverviewService overviewService;
     private final MessageService messageService;
     private final UserMapper userMapper;
 
-    public AiController(AiService aiService, OverviewService overviewService,
+    public AiController(AiService aiService, AiImageService imageService, OverviewService overviewService,
                         MessageService messageService, UserMapper userMapper) {
         this.aiService = aiService;
+        this.imageService = imageService;
         this.overviewService = overviewService;
         this.messageService = messageService;
         this.userMapper = userMapper;
@@ -118,10 +121,19 @@ public class AiController {
                 photoCount));
     }
 
-    /** 生图（AI 封面/配图）：随图片生成能力开放（未移植）。 */
+    /** 生图候选：{token, dataUri, prompt, modelName}——确认采用后才落 media（AI 图片域）。 */
     @PostMapping("/cover")
-    public ApiResult<Void> cover() {
-        throw new BizException(ErrorCode.NOT_FOUND, "该功能尚未开放");
+    public ApiResult<Map<String, Object>> cover(@RequestBody Map<String, String> body) {
+        AuthPrincipal principal = requirePrincipal();
+        return ApiResult.ok(imageService.generateCover(
+                principal, body.get("title"), body.get("introduce"), body.get("content")));
+    }
+
+    /** 一次性确认采用 AI 封面：token 消费 → 落 media → 返回封面引用（mediaId/storageKey/url）。 */
+    @PostMapping("/cover/confirm")
+    public ApiResult<Map<String, Object>> confirmCover(@RequestBody Map<String, String> body) {
+        AuthPrincipal principal = requirePrincipal();
+        return ApiResult.ok(imageService.confirmCover(principal, body.get("token")));
     }
 
     /**

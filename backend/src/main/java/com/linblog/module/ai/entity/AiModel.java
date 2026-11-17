@@ -18,6 +18,8 @@ public class AiModel {
     /** AES-256-GCM 密文（v1:iv:tag:ct），出参一律走 mask，不回传明文 */
     private String apiKeyCipher;
     private String chatModel;
+    private String imageModel;
+    private String imageSize;
     private Integer timeoutMs;
     private Boolean enabled;
     private Boolean isDefault;
@@ -37,6 +39,10 @@ public class AiModel {
     public void setApiKeyCipher(String apiKeyCipher) { this.apiKeyCipher = apiKeyCipher; }
     public String getChatModel() { return chatModel; }
     public void setChatModel(String chatModel) { this.chatModel = chatModel; }
+    public String getImageModel() { return imageModel; }
+    public void setImageModel(String imageModel) { this.imageModel = imageModel; }
+    public String getImageSize() { return imageSize; }
+    public void setImageSize(String imageSize) { this.imageSize = imageSize; }
     public Integer getTimeoutMs() { return timeoutMs; }
     public void setTimeoutMs(Integer timeoutMs) { this.timeoutMs = timeoutMs; }
     public Boolean getEnabled() { return enabled; }

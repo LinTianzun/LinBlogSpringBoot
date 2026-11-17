@@ -38,6 +38,8 @@ const modelForm = reactive({
   baseUrl: '',
   apiKey: '',
   chatModel: '',
+  imageModel: '',
+  imageSize: '1344x768',
   timeoutMs: 20000,
   enabled: true,
   remark: '',
@@ -60,6 +62,8 @@ function openModelDialog(model?: AiModelDTO): void {
   modelForm.baseUrl = model?.baseUrl ?? ''
   modelForm.apiKey = ''
   modelForm.chatModel = model?.chatModel ?? ''
+  modelForm.imageModel = model?.imageModel ?? ''
+  modelForm.imageSize = model?.imageSize ?? '1344x768'
   modelForm.timeoutMs = model?.timeoutMs ?? 20000
   modelForm.enabled = model?.enabled ?? true
   modelForm.remark = model?.remark ?? ''
@@ -122,6 +126,9 @@ async function saveSettings(): Promise<void> {
       dailyLimit: settings.value.dailyLimit,
       monthlyLimit: settings.value.monthlyLimit,
       superAdminUnlimited: settings.value.superAdminUnlimited,
+      imageModelId: settings.value.imageModelId,
+      removeWatermark: settings.value.removeWatermark,
+      watermarkMode: settings.value.watermarkMode,
     })
     ElMessage.success('策略已保存')
   } catch (error) {
@@ -344,6 +351,12 @@ onMounted(() => {
             <el-form-item label="模型名" required>
               <el-input v-model="modelForm.chatModel" placeholder="如 gpt-4o-mini" />
             </el-form-item>
+            <el-form-item label="图片模型名（选填，配了才能用 AI 生图）">
+              <el-input v-model="modelForm.imageModel" placeholder="如 cogview-3-flash" />
+            </el-form-item>
+            <el-form-item label="生图尺寸">
+              <el-input v-model="modelForm.imageSize" placeholder="1344x768" />
+            </el-form-item>
             <el-form-item label="超时（毫秒）">
               <el-input-number v-model="modelForm.timeoutMs" :min="1000" :max="120000" :step="1000" />
             </el-form-item>
@@ -484,6 +497,33 @@ onMounted(() => {
           <div class="lb-ai-setting-row">
             <span>超级管理员不限次数</span>
             <el-switch v-model="settings.superAdminUnlimited" />
+          </div>
+          <div class="lb-ai-setting-row">
+            <span>配图模型</span>
+            <el-select
+              v-model="settings.imageModelId"
+              clearable
+              placeholder="跟随默认模型"
+              style="width: 240px"
+            >
+              <el-option
+                v-for="m in models.filter((m) => m.imageModel)"
+                :key="m.id"
+                :label="m.name"
+                :value="m.id"
+              />
+            </el-select>
+          </div>
+          <div class="lb-ai-setting-row">
+            <span>裁除成图右下角「AI生成」标识</span>
+            <el-switch v-model="settings.removeWatermark" />
+          </div>
+          <div class="lb-ai-setting-row">
+            <span>标识去除方式</span>
+            <el-radio-group v-model="settings.watermarkMode">
+              <el-radio value="crop">裁掉一角</el-radio>
+              <el-radio value="crop-resize">裁后缩放回原尺寸</el-radio>
+            </el-radio-group>
           </div>
           <div class="lb-ai-setting-ops">
             <el-button type="primary" :loading="settingsSaving" @click="saveSettings">保存策略</el-button>

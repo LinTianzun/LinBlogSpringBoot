@@ -140,6 +140,12 @@ public class AiService {
         }
     }
 
+    /** 生图调用的用量记录（无 token 数，只计耗时与状态）。 */
+    public void logImageCall(AuthPrincipal principal, String feature, AiModel model, String status,
+                             String detail, long durationMs) {
+        logUsage(principal, feature, model, status, detail, durationMs, 0, 0, 0);
+    }
+
     /** 用量摘要（admin 页）：按状态/功能聚合最近 30 天。 */
     public Map<String, Object> usageSummary() {
         LocalDateTime from = LocalDateTime.now().minusDays(30);

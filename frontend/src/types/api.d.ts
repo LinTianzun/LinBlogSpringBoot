@@ -694,6 +694,8 @@ export interface AiModelDTO {
   baseUrl: string
   apiKeyMasked: string
   chatModel: string
+  imageModel: string
+  imageSize: string
   timeoutMs: number
   enabled: boolean
   isDefault: boolean
@@ -708,6 +710,9 @@ export interface AiSettingDTO {
   monthlyLimit: number
   superAdminUnlimited: boolean
   chatModelId: number | null
+  imageModelId: number | null
+  removeWatermark: boolean
+  watermarkMode: string
 }
 
 /** AI 提示词模板 */

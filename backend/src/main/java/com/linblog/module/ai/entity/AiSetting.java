@@ -17,6 +17,9 @@ public class AiSetting {
     private Integer monthlyLimit;
     private Boolean superAdminUnlimited;
     private Integer chatModelId;
+    private Integer imageModelId;
+    private Boolean removeWatermark;
+    private String watermarkMode;
     private LocalDateTime updatedAt;
 
     public Integer getId() { return id; }
@@ -31,6 +34,12 @@ public class AiSetting {
     public void setSuperAdminUnlimited(Boolean superAdminUnlimited) { this.superAdminUnlimited = superAdminUnlimited; }
     public Integer getChatModelId() { return chatModelId; }
     public void setChatModelId(Integer chatModelId) { this.chatModelId = chatModelId; }
+    public Integer getImageModelId() { return imageModelId; }
+    public void setImageModelId(Integer imageModelId) { this.imageModelId = imageModelId; }
+    public Boolean getRemoveWatermark() { return removeWatermark; }
+    public void setRemoveWatermark(Boolean removeWatermark) { this.removeWatermark = removeWatermark; }
+    public String getWatermarkMode() { return watermarkMode; }
+    public void setWatermarkMode(String watermarkMode) { this.watermarkMode = watermarkMode; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

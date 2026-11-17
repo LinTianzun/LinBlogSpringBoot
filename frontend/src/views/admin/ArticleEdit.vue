@@ -8,7 +8,7 @@ import { ApiError } from '@/api/request'
 import RichEditor from '@/components/RichEditor.vue'
 import CoverImage from '@/components/CoverImage.vue'
 import { plainTextOf } from '@/components/renderContent'
-import { aiSuggestArticleMeta, aiRewriteText } from '@/api/ai'
+import { aiSuggestArticleMeta, aiRewriteText, aiGenerateCover, aiConfirmCover } from '@/api/ai'
 import type { CreateContentPayload, FieldError } from '@/types/api'
 
 /**
@@ -92,6 +92,49 @@ function removeCover(): void {
   coverMediaId.value = null
   coverKey.value = ''
   coverHint.value = ''
+}
+
+/* ---- AI 封面生成（候选预览 → 确认采用 → 落 media） ---- */
+const coverGenerating = ref(false)
+const coverCandidate = ref<{ token: string; dataUri: string; prompt: string; modelName: string } | null>(null)
+const coverConfirming = ref(false)
+
+async function aiGenerateCoverImage(): Promise<void> {
+  if (!title.value.trim()) {
+    ElMessage.warning('请先填写标题，再生成 AI 封面')
+    return
+  }
+  coverGenerating.value = true
+  try {
+    const result = await aiGenerateCover({
+      title: title.value.trim(),
+      introduce: introduce.value.trim() || undefined,
+      content: plainTextOf(bodyText.value, 400) || undefined,
+    })
+    coverCandidate.value = result
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : 'AI 封面生成失败')
+  } finally {
+    coverGenerating.value = false
+  }
+}
+
+async function adoptCoverCandidate(): Promise<void> {
+  if (!coverCandidate.value) return
+  coverConfirming.value = true
+  try {
+    const saved = await aiConfirmCover(coverCandidate.value.token)
+    coverMediaId.value = saved.mediaId
+    coverKey.value = saved.storageKey
+    coverHint.value = `AI 封面已采用（${coverCandidate.value.modelName} 生成）`
+    coverCandidate.value = null
+    ElMessage.success('AI 封面已采用，保存文章后生效')
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : '封面候选已过期或已被消费，请重新生成')
+    coverCandidate.value = null
+  } finally {
+    coverConfirming.value = false
+  }
 }
 
 const beforeUpload: UploadProps['beforeUpload'] = (rawFile) => {
@@ -315,6 +358,13 @@ onMounted(load)
                 >
                   <el-button :loading="uploading">{{ coverMediaId !== null ? '更换封面' : '上传封面图片' }}</el-button>
                 </el-upload>
+                <el-button
+                  :loading="coverGenerating"
+                  data-testid="article-ai-cover"
+                  @click="aiGenerateCoverImage"
+                >
+                  ✦ AI 生成封面
+                </el-button>
                 <el-button v-if="coverMediaId !== null" link type="danger" @click="removeCover">移除封面</el-button>
                 <el-input-number
                   v-model="coverMediaId"
@@ -365,6 +415,34 @@ onMounted(load)
           <el-button size="small" @click="writingCandidate = null">放弃</el-button>
           <el-button size="small" type="primary" :disabled="!writingCandidate" @click="adoptWritingCandidate">
             采用并替换正文
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+    <!-- AI 封面候选（只预览；采用走一次性 token 确认后才落 media） -->
+    <el-dialog
+      :model-value="coverCandidate !== null"
+      title="AI 封面候选"
+      width="560px"
+      @update:model-value="(show: boolean) => { if (!show) coverCandidate = null }"
+    >
+      <div v-if="coverCandidate" class="lb-cover-candidate-wrap">
+        <img :src="coverCandidate.dataUri" alt="AI 封面候选" class="lb-cover-candidate" />
+        <p class="lb-cover-candidate-meta">
+          由 {{ coverCandidate.modelName }} 生成 · 采用后将上传为媒体并设为文章封面候选。
+        </p>
+      </div>
+      <template #footer>
+        <div class="lb-dialog-actions">
+          <el-button size="small" :disabled="coverConfirming" @click="coverCandidate = null">放弃</el-button>
+          <el-button
+            size="small"
+            type="primary"
+            :loading="coverConfirming"
+            :disabled="!coverCandidate"
+            @click="adoptCoverCandidate"
+          >
+            采用此封面
           </el-button>
         </div>
       </template>
@@ -484,4 +562,23 @@ onMounted(load)
   white-space: pre-wrap;
   font-size: var(--ed-step-small);
   line-height: 1.8;
+}
+
+/* AI 封面候选弹窗 */
+.lb-cover-candidate-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lb-cover-candidate {
+  width: 100%;
+  border-radius: var(--ed-radius-md);
+  border: 1px solid var(--ed-rule-soft);
+}
+
+.lb-cover-candidate-meta {
+  margin: 0;
+  font-size: var(--ed-step-caption);
+  color: var(--ed-ink-soft);
 }
