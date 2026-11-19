@@ -5,6 +5,7 @@ import { getPortalHome, listPortalContents, listPortalDiaries } from '@/api/port
 import { ApiError } from '@/api/request'
 import { formatCount, formatRelative } from '@/utils/format'
 import CoverImage from '@/components/CoverImage.vue'
+import HeroScene from '@/components/HeroScene.vue'
 import type { ContentView, DiaryDTO, PortalHomeDTO } from '@/types/api'
 
 /**
@@ -170,6 +171,7 @@ onBeforeUnmount(() => {
   <div ref="revealRoot" class="lb-ed lb-home">
     <!-- ===================== 1. HERO ===================== -->
     <section class="lb-ed-wrap lb-home-hero">
+      <HeroScene />
       <p class="lb-home-eyebrow lb-ed-reveal" data-delay="1">
         <span class="lb-ed-dot" />
         <span>LinBlog · 写作即产品</span>
@@ -329,9 +331,16 @@ onBeforeUnmount(() => {
 <style scoped>
 /* =================== HERO =================== */
 .lb-home-hero {
+  position: relative;
   padding-top: clamp(24px, 4vw, 56px);
   padding-bottom: clamp(8px, 2vw, 20px);
   max-width: 980px;
+}
+
+/* Hero 三维墨点层之上：内容整体抬到背景之上 */
+.lb-home-hero > :not(.lb-hero-scene) {
+  position: relative;
+  z-index: 1;
 }
 
 .lb-home-eyebrow {
