@@ -63,6 +63,28 @@ class SeoServiceTest {
     }
 
     @Test
+    void llmsTxtContainsPortalLinks() {
+        String base = service.baseUrl();
+        String txt = service.llmsTxt();
+        assertTrue(txt.startsWith("# LinBlog"));
+        assertTrue(txt.contains(base + "/articles"));
+        assertTrue(txt.contains(base + "/gallery"));
+        assertTrue(txt.contains("## 门户页面"));
+    }
+
+    @Test
+    void ardManifestIsValidJsonWithResources() throws Exception {
+        String base = service.baseUrl();
+        String json = service.ardManifest();
+        com.fasterxml.jackson.databind.JsonNode node =
+                new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
+        assertEquals("LinBlog", node.get("name").asText());
+        assertEquals(base, node.get("url").asText());
+        assertTrue(node.get("resources").isArray());
+        assertTrue(node.get("resources").size() >= 4);
+    }
+
+    @Test
     void baseUrlFallsBackToFirstAllowedOriginWhenPublicUrlMissing() {
         SeoService fallback = new SeoService(contentMapper,
                 props("  ", "https://one.example.com,https://two.example.com"));

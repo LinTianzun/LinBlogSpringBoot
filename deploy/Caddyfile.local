@@ -4,7 +4,7 @@
 # 上游固定 backend:8080，与生产 Caddyfile 保持一致。
 
 :80 {
-	@backend path /api/* /media/* /sitemap.xml /robots.txt /events
+	@backend path /api/* /media/* /sitemap.xml /robots.txt /llms.txt /.well-known/ard.json /events
 	handle @backend {
 		reverse_proxy backend:8080 {
 			# SSE 透传（文档 §7.7）：禁用缓冲

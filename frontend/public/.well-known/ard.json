@@ -1,0 +1,13 @@
+{
+  "name": "LinBlog",
+  "description": "个人博客与作品集：工程文章、摄影画廊与日常日记。",
+  "url": "https://linblog.example.com",
+  "version": "1.0.0",
+  "resources": [
+    { "type": "page", "name": "文章列表", "url": "/articles" },
+    { "type": "page", "name": "画廊", "url": "/gallery" },
+    { "type": "page", "name": "日记", "url": "/diary" },
+    { "type": "page", "name": "留言墙", "url": "/guestbook" },
+    { "type": "document", "name": "sitemap", "url": "/sitemap.xml" }
+  ]
+}

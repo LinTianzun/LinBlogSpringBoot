@@ -35,6 +35,19 @@ public class SeoController {
         return withCache(MediaType.TEXT_PLAIN, seoService.robots());
     }
 
+    /** GET /llms.txt（llmstxt.org）：AI 爬虫站点说明。 */
+    @GetMapping(value = {"/llms.txt", "/api/v1/llms.txt"},
+            produces = MediaType.TEXT_PLAIN_VALUE)
+    public ResponseEntity<String> llmsTxt() {
+        return withCache(MediaType.TEXT_PLAIN, seoService.llmsTxt());
+    }
+
+    /** GET /.well-known/ard.json（ARD manifest）：AI agent 资源发现。 */
+    @GetMapping(value = "/.well-known/ard.json", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> ardManifest() {
+        return withCache(MediaType.APPLICATION_JSON, seoService.ardManifest());
+    }
+
     private ResponseEntity<String> withCache(MediaType mediaType, String body) {
         return ResponseEntity.ok()
                 .contentType(new MediaType(mediaType, StandardCharsets.UTF_8))

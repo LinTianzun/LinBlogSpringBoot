@@ -58,6 +58,48 @@ public class SeoService {
         return xml.toString();
     }
 
+    /** GET /llms.txt（llmstxt.org 最小规范）：H1 + 简介 + 门户结构链接，供 AI 爬虫理解站点。 */
+    public String llmsTxt() {
+        String base = baseUrl();
+        return """
+                # LinBlog
+
+                > 林知雨的个人博客与作品集：工程文章、摄影画廊与日常日记。一篇文章，一件完整的作品。
+
+                ## 门户页面
+
+                - [首页](__BASE__/): 最新文章与精选内容
+                - [文章列表](__BASE__/articles): 工程与生活随笔
+                - [画廊](__BASE__/gallery): 摄影作品
+                - [日记](__BASE__/diary): 日常记录
+                - [留言墙](__BASE__/guestbook): 读者留言
+
+                ## 文档
+
+                - [sitemap.xml](__BASE__/sitemap.xml): 全站 URL 索引
+                """.replace("__BASE__", base);
+    }
+
+    /** GET /.well-known/ard.json（ARD manifest）：供 AI agent 与注册表发现站点资源。 */
+    public String ardManifest() {
+        String base = baseUrl();
+        return """
+                {
+                  "name": "LinBlog",
+                  "description": "个人博客与作品集：工程文章、摄影画廊与日常日记。",
+                  "url": "__BASE__",
+                  "version": "1.0.0",
+                  "resources": [
+                    { "type": "page", "name": "文章列表", "url": "__BASE__/articles" },
+                    { "type": "page", "name": "画廊", "url": "__BASE__/gallery" },
+                    { "type": "page", "name": "日记", "url": "__BASE__/diary" },
+                    { "type": "page", "name": "留言墙", "url": "__BASE__/guestbook" },
+                    { "type": "document", "name": "sitemap", "url": "__BASE__/sitemap.xml" }
+                  ]
+                }
+                """.replace("__BASE__", base);
+    }
+
     /** GET /robots.txt：允许门户，禁爬后台与 API，并指引 sitemap。 */
     public String robots() {
         return "User-agent: *\n"

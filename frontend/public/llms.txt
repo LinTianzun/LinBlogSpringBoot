@@ -1,0 +1,15 @@
+# LinBlog
+
+> 林知雨的个人博客与作品集：工程文章、摄影画廊与日常日记。一篇文章，一件完整的作品。
+
+## 门户页面
+
+- [首页](https://linblog.example.com/): 最新文章与精选内容
+- [文章列表](https://linblog.example.com/articles): 工程与生活随笔
+- [画廊](https://linblog.example.com/gallery): 摄影作品
+- [日记](https://linblog.example.com/diary): 日常记录
+- [留言墙](https://linblog.example.com/guestbook): 读者留言
+
+## 文档
+
+- [sitemap.xml](https://linblog.example.com/sitemap.xml): 全站 URL 索引
