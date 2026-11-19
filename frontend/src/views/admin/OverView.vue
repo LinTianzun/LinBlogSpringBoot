@@ -20,6 +20,7 @@ import {
   listAdminContents,
 } from '@/api/admin'
 import { ApiError } from '@/api/request'
+import HeroScene from '@/components/HeroScene.vue'
 import { formatBytes, formatCount, formatDate } from '@/utils/format'
 import type {
   ContentView,
@@ -270,6 +271,8 @@ function contentInitial(title: string): string {
 
 <template>
   <div class="lb-overview">
+    <!-- 背景墨点层（装饰性，低透明度；卡片内容在其上） -->
+    <HeroScene :particle-count="140" :opacity-scale="0.5" :interactive="false" />
     <!-- 标题行：名词标题 + 一句数据结论 -->
     <header class="lb-page-header lb-ov-header">
       <div class="lb-ov-heading">
@@ -553,9 +556,16 @@ function contentInitial(title: string): string {
 <style scoped>
 .lb-overview {
   --ov-gap: var(--app-gap);
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--ov-gap);
+}
+
+/* 墨点层铺满页面；卡片等内容整体抬到其上 */
+.lb-overview > :not(.lb-hero-scene) {
+  position: relative;
+  z-index: 1;
 }
 
 .lb-ov-header {
