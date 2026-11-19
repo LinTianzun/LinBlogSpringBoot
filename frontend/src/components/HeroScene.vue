@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
 import {
   advanceParticles,
   isHeroSceneEligible,
@@ -10,17 +10,31 @@ import {
 } from '@/utils/heroScene'
 
 /**
- * HeroScene — 首页 Hero 的三维墨点层（three.js，装饰性）。
+ * HeroScene — 三维墨点背景层（three.js，装饰性；首页 Hero 与后台总览共用）。
  *
- * 视觉：主题色「墨点」粒子在 Hero 背景缓慢上浮，远层小而淡、近层大而实，
+ * 视觉：主题色「墨点」粒子缓慢上浮，远层小而淡、近层大而实，
  *       配合鼠标视差形成轻微纵深感——呼应 editorial 的纸面质感，刻意克制。
  * 工程：three.js 动态 import（独立 chunk，不挤 first-screen 预算）；
  *       窄屏 / prefers-reduced-motion / WebGL 不可用 / 动态加载失败 → 整层不渲染；
- *       hero 滚出视口或页面隐藏时暂停渲染；卸载时全量 dispose。
+ *       目标滚出视口或页面隐藏时暂停渲染；卸载时全量 dispose。
  * 颜色：实时读取 --main-color（MutationObserver 监听主题切换）与 --ed-paper（暗色）。
  * 不挡交互：canvas pointer-events:none，视差监听在 window 上。
+ *
+ * props：
+ *  - particleCount  覆盖粒子数（0 = 视口自适应，桌面 ~240）
+ *  - opacityScale   整体不透明度缩放（0..1；后台密一些的场景给 0.5~0.7）
+ *  - interactive    是否启用鼠标视差（后台页面卡片多，可关）
  */
-const containerEl = ref<HTMLElement | null>(null)
+const props = withDefaults(
+  defineProps<{
+    particleCount?: number
+    opacityScale?: number
+    interactive?: boolean
+  }>(),
+  { particleCount: 0, opacityScale: 1, interactive: true },
+)
+
+const containerEl = useTemplateRef<HTMLElement>('containerEl')
 const failed = ref(false)
 
 let cleanupFns: Array<() => void> = []
@@ -55,6 +69,9 @@ async function boot(): Promise<void> {
   const height = container.clientHeight
   const eligibility = isHeroSceneEligible(width, prefersReducedMotion())
   if (!eligibility.enabled) return
+  const particleCount = props.particleCount > 0
+    ? Math.min(props.particleCount, eligibility.particles)
+    : eligibility.particles
 
   let THREE: typeof import('three')
   try {
@@ -81,7 +98,7 @@ async function boot(): Promise<void> {
   camera.position.z = 3
 
   // 粒子分布与几何
-  const seeds: ParticleSeed[] = particleSeeds(eligibility.particles)
+  const seeds: ParticleSeed[] = particleSeeds(particleCount)
   const positions = new Float32Array(seeds.length * 3)
   seeds.forEach((s, i) => {
     // 归一化平面映射到相机视野（z 越大越近、越大越实）
@@ -98,6 +115,7 @@ async function boot(): Promise<void> {
     size: 0.045,
     map: texture,
     transparent: true,
+    opacity: Math.min(1, Math.max(0, props.opacityScale)),
     depthWrite: false,
     sizeAttenuation: true,
   })
@@ -125,10 +143,13 @@ async function boot(): Promise<void> {
   let targetX = 0
   let targetY = 0
   const onPointerMove = (e: MouseEvent): void => {
+    if (!props.interactive) return
     pointerX = (e.clientX / window.innerWidth) * 2 - 1
     pointerY = (e.clientY / window.innerHeight) * 2 - 1
   }
-  window.addEventListener('mousemove', onPointerMove, { passive: true })
+  if (props.interactive) {
+    window.addEventListener('mousemove', onPointerMove, { passive: true })
+  }
 
   // 滚出视口 / 页面隐藏时暂停渲染
   let heroVisible = true
@@ -155,7 +176,8 @@ async function boot(): Promise<void> {
     const now = performance.now()
     const dt = Math.min((now - last) / 1000, 0.05)
     last = now
-    if (heroVisible && pageVisible && !reducedMotionQuery?.matches) {
+    const driftEnabled = heroVisible && pageVisible && !reducedMotionQuery?.matches
+    if (driftEnabled) {
       advanceParticles(seeds, dt)
       seeds.forEach((s, i) => {
         positions[i * 3] = (s.x - 0.5) * 6 * (0.6 + s.z * 0.7)
@@ -164,11 +186,13 @@ async function boot(): Promise<void> {
       })
       geometry.attributes.position.needsUpdate = true
       // 视差 lerp
-      targetX = parallaxTarget(pointerX, 0.25)
-      targetY = parallaxTarget(pointerY, 0.16)
-      camera.position.x += (targetX - camera.position.x) * 0.04
-      camera.position.y += (-targetY - camera.position.y) * 0.04
-      camera.lookAt(scene.position)
+      if (props.interactive) {
+        targetX = parallaxTarget(pointerX, 0.25)
+        targetY = parallaxTarget(pointerY, 0.16)
+        camera.position.x += (targetX - camera.position.x) * 0.04
+        camera.position.y += (-targetY - camera.position.y) * 0.04
+        camera.lookAt(scene.position)
+      }
       renderer.render(scene, camera)
     }
     raf = window.requestAnimationFrame(tick)

@@ -75,13 +75,13 @@ describe('particleSeeds / advanceParticles', () => {
 describe('parseCssColor', () => {
   it('解析 #rgb 与 #rrggbb', () => {
     expect(parseCssColor('#f00')).toEqual([1, 0, 0])
-    expect(parseCssColor('#18a058')[0]).toBeCloseTo(0.094, 2)
-    expect(parseCssColor('#18a058')[1]).toBeCloseTo(0.627, 2)
+    expect(parseCssColor('#18a058')![0]).toBeCloseTo(0.094, 2)
+    expect(parseCssColor('#18a058')![1]).toBeCloseTo(0.627, 2)
   })
 
   it('解析 rgb()/rgba()', () => {
-    expect(parseCssColor('rgb(24, 160, 88)')[0]).toBeCloseTo(0.094, 2)
-    expect(parseCssColor('rgba(0,0,0,0.5)')[2]).toBe(0)
+    expect(parseCssColor('rgb(24, 160, 88)')![0]).toBeCloseTo(0.094, 2)
+    expect(parseCssColor('rgba(0,0,0,0.5)')![2]).toBe(0)
   })
 
   it('无法解析返回 null', () => {
